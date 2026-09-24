@@ -1,0 +1,35 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, dashed by 'go test -c'
+*.test
+
+# Output of the go coverage tool, specifically modules or tests
+*.out
+coverage.txt
+coverage.lcov
+
+# Dependency directories (only needed if you use 'go mod vendor')
+# vendor/
+
+# Go Workspace file
+go.work
+go.work.sum
+
+# env files (highly recommended to keep private credentials out of git)
+.env
+.env.local
+
+# IDE specific files (Optional but common)
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
