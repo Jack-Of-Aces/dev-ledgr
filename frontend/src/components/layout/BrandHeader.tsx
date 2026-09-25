@@ -66,7 +66,7 @@ export const BrandHeader: React.FC = () => {
         </div>
 
         {/* Center Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-1 text-[13px] font-sans">
+        <nav className="hidden md:flex items-center gap-1 text-xs font-sans">
           {navItems.map((item) => {
             const isActive = pathname.startsWith(item.href);
             return (
@@ -168,7 +168,7 @@ export const BrandHeader: React.FC = () => {
           </div>
 
           {/* Mobile bottom row: profile quick links if signed in, auth CTA if not */}
-          <div className="pt-2 border-t border-line flex items-center justify-between text-[11px]">
+          <div className="pt-2 border-t border-line flex items-center justify-between text-xs">
             {isLoggedIn ? (
               <>
                 <Link href={`/p/${user.username}`} className="text-brass font-semibold hover:underline">
