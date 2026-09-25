@@ -60,7 +60,7 @@ export default function CoachingDetailPage() {
       </div>
 
       {/* Week Selector Tabs */}
-      <div role="tablist" aria-label="Curriculum milestone weeks" className="flex border-b border-line gap-2 overflow-x-auto pb-1 text-xs">
+      <div role="tablist" aria-label="Curriculum milestone weeks" className="flex border-b border-line gap-2 overflow-x-auto px-1 pt-1 text-xs">
         {itinerary.milestones.map((m) => (
           <button
             key={m.week}
@@ -72,9 +72,9 @@ export default function CoachingDetailPage() {
               setActiveWeek(m.week);
               setPromptOutput(null);
             }}
-            className={`px-4 py-2 cursor-pointer font-medium transition-colors border-b-2 ${
+            className={`px-3 py-2 cursor-pointer font-medium transition-colors border-b-2 whitespace-nowrap -mb-px ${
               activeWeek === m.week
-                ? 'border-green-500 bg-card text-text-0'
+                ? 'border-green-600 dark:border-green-400 text-text-0'
                 : 'border-transparent text-text-1 hover:text-text-0'
             }`}
           >
