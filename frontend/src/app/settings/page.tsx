@@ -128,7 +128,7 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label htmlFor="settings-handle" className="block text-[11px] uppercase tracking-wider text-text-1 mb-1 font-semibold">
+                <label htmlFor="settings-handle" className="block text-xs uppercase tracking-wider text-text-1 mb-1 font-semibold">
                   Handle (Immutable URL)
                 </label>
                 <input
@@ -141,7 +141,7 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label htmlFor="settings-headline" className="block text-[11px] uppercase tracking-wider text-text-1 mb-1 font-semibold">
+                <label htmlFor="settings-headline" className="block text-xs uppercase tracking-wider text-text-1 mb-1 font-semibold">
                   Headline *
                 </label>
                 <input
@@ -150,7 +150,7 @@ export default function SettingsPage() {
                   required
                   value={headline}
                   onChange={(e) => setHeadline(e.target.value)}
-                  className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald-500 outline-none text-xs"
+                  className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-brass outline-none text-xs"
                 />
                 {errors.headline && (
                   <p className="text-xs text-rose-700 dark:text-rose-400 mt-1">{errors.headline}</p>
@@ -158,7 +158,7 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label htmlFor="settings-bio" className="block text-[11px] uppercase tracking-wider text-text-1 mb-1 font-semibold">
+                <label htmlFor="settings-bio" className="block text-xs uppercase tracking-wider text-text-1 mb-1 font-semibold">
                   Biography & Target Systems
                 </label>
                 <textarea
@@ -166,7 +166,7 @@ export default function SettingsPage() {
                   rows={3}
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald-500 outline-none text-xs leading-relaxed"
+                  className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-brass outline-none text-xs leading-relaxed"
                 />
                 {errors.bio && (
                   <p className="text-xs text-rose-700 dark:text-rose-400 mt-1">{errors.bio}</p>
@@ -361,9 +361,9 @@ export default function SettingsPage() {
                   placeholder="AIzaSy... or sk-proj-..."
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald-500 outline-none font-mono text-xs"
+                  className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-brass outline-none font-mono text-xs"
                 />
-                <span className="text-[10.5px] text-text-1 block font-mono">
+                <span className="text-xs text-text-1 block font-mono">
                   Keys are stored in your private browser sandbox and never recorded on public ledgers.
                 </span>
               </div>

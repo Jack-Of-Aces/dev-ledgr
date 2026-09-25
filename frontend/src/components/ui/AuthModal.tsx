@@ -236,7 +236,7 @@ export const AuthModal: React.FC = () => {
                         key={s}
                         aria-pressed={active}
                         onClick={() => handleToggleSkill(s)}
-                        className={`px-2.5 py-1 rounded-radius border text-[11px] cursor-pointer transition-colors ${
+                        className={`px-2.5 py-1 rounded-radius border text-xs cursor-pointer transition-colors ${
                           active
                             ? 'border-brass bg-brass text-ink-0 font-semibold'
                             : 'border-line bg-card text-text-1'
