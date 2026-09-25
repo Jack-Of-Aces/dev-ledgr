@@ -35,7 +35,7 @@ export const RoleSwitcher: React.FC = () => {
 
         {/* Dropdown Options */}
         {open && (
-          <div className="p-3 border-t border-line space-y-2.5 min-w-[240px]">
+          <div className="p-3 border-t border-line space-y-2.5 min-w-60">
             <div className="flex items-center justify-between text-[10px] text-text-1 uppercase tracking-wider font-semibold">
               <span>Switch Persona</span>
               <span className="text-emerald-700 dark:text-emerald-400">

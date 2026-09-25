@@ -102,7 +102,7 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
                 setResponseLog(null);
                 setLatency(null);
               }}
-              className={`flex items-center gap-2 px-3 py-1.5 text-xs border-t border-l border-r border-line -mb-[1px] rounded-t-radius cursor-pointer whitespace-nowrap transition-colors ${
+              className={`flex items-center gap-2 px-3 py-1.5 text-xs border-t border-l border-r border-line -mb-px rounded-t-radius cursor-pointer whitespace-nowrap transition-colors ${
                 isSelected
                   ? 'bg-card text-text-0 font-semibold border-b-card'
                   : 'text-text-1 hover:text-text-0'

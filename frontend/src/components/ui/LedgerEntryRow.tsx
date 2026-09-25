@@ -88,7 +88,7 @@ export const LedgerEntryRow: React.FC<LedgerEntryRowProps> = ({
           </span>
         </div>
 
-        <p className="text-xs text-text-1 line-clamp-2 leading-relaxed break-words max-w-md">
+        <p className="text-xs text-text-1 line-clamp-2 leading-relaxed wrap-break-word max-w-md">
           {entry.architectureNotes}
         </p>
 

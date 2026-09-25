@@ -23,7 +23,7 @@ export const ToastOverlay: React.FC = () => {
     <div
       role="status"
       aria-live="polite"
-      className="fixed bottom-6 right-6 z-50 max-w-md w-full p-4 bg-card border border-brass rounded-radius shadow-2xl transition-all animate-in fade-in slide-in-from-bottom-4 duration-300"
+      className="fixed bottom-6 right-6 z-50 max-w-md w-full p-4 bg-card border border-brass rounded-radius shadow-2xl transition-all animate-in fade-in duration-300"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">

@@ -132,7 +132,7 @@ export default function CoachingDetailPage() {
           </div>
 
           {isLoadingCoach && (
-            <div className="p-4 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--ink-0)] flex items-center gap-2 text-xs text-[var(--text-1)]">
+            <div className="p-4 rounded-(--radius) border border-(--line) bg-(--ink-0) flex items-center gap-2 text-xs text-(--text-1)">
               <Loader2 className="w-4 h-4 animate-spin text-emerald-700 dark:text-emerald-400" />
               <span>Generating guidance...</span>
             </div>

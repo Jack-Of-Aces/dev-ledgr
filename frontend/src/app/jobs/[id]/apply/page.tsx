@@ -285,7 +285,7 @@ export default function JobApplyPage() {
               aria-labelledby={activeTab === 'cv' ? 'tab-cv' : 'tab-coverLetter'}
               className="p-5"
             >
-              <pre className="overflow-x-auto whitespace-pre-wrap leading-relaxed text-[12px] text-text-0 bg-ink-0 p-4 rounded-radius border border-line max-h-[500px]">
+              <pre className="overflow-x-auto whitespace-pre-wrap leading-relaxed text-[12px] text-text-0 bg-ink-0 p-4 rounded-radius border border-line max-h-125">
                 {activeDocContent}
               </pre>
             </div>
