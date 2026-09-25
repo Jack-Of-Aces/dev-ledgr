@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { BrandMark } from '@/components/brand/BrandMark';
@@ -24,7 +24,13 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
-  const { loginWithGitHub, loginWithEmail, switchRole } = useAuth();
+  const { isLoggedIn, loginWithGitHub, loginWithEmail, switchRole } = useAuth();
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      router.replace(callbackUrl);
+    }
+  }, [isLoggedIn, callbackUrl, router]);
 
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState<string | null>(null);

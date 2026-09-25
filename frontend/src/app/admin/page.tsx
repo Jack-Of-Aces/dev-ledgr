@@ -96,7 +96,7 @@ export default function AdminPage() {
   };
 
   return (
-    <AuthGuard requireRole="admin">
+    <AuthGuard allowedRoles={['admin', 'reviewer']}>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-10 text-sm font-sans">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-line">

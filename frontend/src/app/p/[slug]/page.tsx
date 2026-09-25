@@ -38,7 +38,7 @@ const GithubIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
 export default function PublicPortfolioPage() {
   const params = useParams();
   const slug = (params?.slug as string) || "junior_dev";
-  const { user, submissions } = useAppStore();
+  const { user, submissions, isLoggedIn } = useAppStore();
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [expandedDiffs, setExpandedDiffs] = useState<Record<string, boolean>>(
@@ -140,7 +140,7 @@ ${userSubmissions
         </div>
 
         <div className="flex items-center gap-2 font-sans">
-          {slug.toLowerCase() === user.username.toLowerCase() && (
+          {isLoggedIn && slug.toLowerCase() === user.username.toLowerCase() && (
             <Link
               href="/settings"
               className="btn-brass text-xs py-1.5 px-3 flex items-center gap-1.5 font-mono"

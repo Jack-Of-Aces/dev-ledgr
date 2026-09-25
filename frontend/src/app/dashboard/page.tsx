@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { LedgerEntryRow } from '@/components/ui/LedgerEntryRow';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import {
   ShieldCheck,
   ExternalLink,
@@ -72,7 +73,8 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-8 text-sm font-sans">
+    <AuthGuard fallbackMessage="Please sign in to access your developer portfolio dashboard.">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-8 text-sm font-sans">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-line">
         <div>
@@ -229,6 +231,7 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AuthGuard>
   );
 }

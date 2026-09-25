@@ -15,12 +15,14 @@ import { ShieldAlert, LogIn, ArrowRight } from 'lucide-react';
 interface AuthGuardProps {
   children: React.ReactNode;
   requireRole?: UserRole;
+  allowedRoles?: UserRole[];
   fallbackMessage?: string;
 }
 
 export const AuthGuard: React.FC<AuthGuardProps> = ({
   children,
   requireRole,
+  allowedRoles,
   fallbackMessage,
 }) => {
   const { isLoggedIn, role, switchRole } = useAuth();
@@ -46,7 +48,19 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
     );
   }
 
-  if (requireRole && role !== requireRole && role !== 'admin') {
+  const isAuthorized = allowedRoles
+    ? allowedRoles.includes(role) || role === 'admin'
+    : requireRole
+    ? role === requireRole || role === 'admin'
+    : true;
+
+  if (!isAuthorized) {
+    const requiredDisplay = allowedRoles
+      ? allowedRoles.map((r) => r.toUpperCase()).join(' or ')
+      : requireRole?.toUpperCase() || 'ELEVATED';
+
+    const switchTargetRole = allowedRoles ? allowedRoles[0] : requireRole;
+
     return (
       <div className="max-w-md mx-auto my-12 p-6 rounded-radius border border-rose-500/30 bg-card text-center space-y-4 font-mono text-xs">
         <ShieldAlert className="w-8 h-8 text-rose-700 dark:text-rose-400 mx-auto" />
@@ -54,14 +68,16 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
           Role Clearance Required
         </h3>
         <p className="text-text-1 leading-relaxed">
-          This feature requires <strong>{requireRole.toUpperCase()}</strong> clearance. You are currently signed in as <strong>{role.toUpperCase()}</strong>.
+          This feature requires <strong>{requiredDisplay}</strong> clearance. You are currently signed in as <strong>{role.toUpperCase()}</strong>.
         </p>
-        <button
-          onClick={() => switchRole(requireRole)}
-          className="btn-brass text-xs py-2 px-4 cursor-pointer"
-        >
-          Switch to {requireRole.toUpperCase()} Persona (Sandbox)
-        </button>
+        {switchTargetRole && (
+          <button
+            onClick={() => switchRole(switchTargetRole)}
+            className="btn-brass text-xs py-2 px-4 cursor-pointer"
+          >
+            Switch to {switchTargetRole.toUpperCase()} Persona (Sandbox)
+          </button>
+        )}
       </div>
     );
   }
