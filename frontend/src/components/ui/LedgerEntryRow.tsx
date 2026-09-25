@@ -77,12 +77,12 @@ export const LedgerEntryRow: React.FC<LedgerEntryRowProps> = ({
           <span className="text-[12px] text-text-1">by</span>
           <Link
             href={`/p/${entry.authorUsername}`}
-            className="text-[12px] font-mono font-medium text-text-0 hover:underline"
+            className="text-xs font-mono font-medium text-text-0 hover:underline"
           >
             @{entry.authorUsername}
           </Link>
 
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400 text-xs font-mono font-medium ml-1">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400 text-xs font-mono font-medium ml-1">
             <span className="w-1.5 h-1.5 rounded-full bg-green-600 dark:bg-green-500" aria-hidden="true" />
             verified
           </span>
