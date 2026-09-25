@@ -70,12 +70,12 @@ export const UserMenu: React.FC = () => {
             />
           </div>
         ) : (
-          <span className="w-2 h-2 rounded-full bg-emerald-500 block" aria-hidden="true" />
+          <span className="w-2 h-2 rounded-full bg-diff-green block" aria-hidden="true" />
         )}
 
         <span className="font-semibold max-w-25 sm:max-w-none truncate">@{user.username}</span>
 
-        <span className="hidden sm:inline text-xs text-text-1 bg-card/10 px-1.5 py-0.5 rounded border border-line font-medium">
+        <span className="hidden sm:inline text-xs text-text-1 bg-card px-2 py-0.5 rounded border border-line font-medium">
           {userSubmissions.length} proofs
         </span>
 
@@ -86,23 +86,23 @@ export const UserMenu: React.FC = () => {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-64 rounded-radius border border-line bg-ink-0 p-2 shadow-2xl z-50 space-y-1 font-mono text-xs animate-in fade-in slide-in-from-top-1 duration-150"
+          className="absolute right-0 mt-2 w-64 rounded-radius border border-line bg-card p-2 shadow-md z-50 space-y-1 font-mono text-xs animate-in fade-in slide-in-from-top-1 duration-150"
         >
           {/* User Identity Header */}
           <div className="px-3 py-2.5 border-b border-line space-y-1">
             <div className="flex items-center justify-between">
               <span className="font-bold text-text-0 truncate">{user.name}</span>
               <span
-                className={`text-[9.5px] uppercase px-1.5 py-0.5 rounded font-bold ${
+                className={`text-xs uppercase px-2 py-0.5 rounded font-medium border border-line ${
                   isAdmin
-                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
-                    : 'bg-card text-text-1 border border-line'
+                    ? 'text-text-0'
+                    : 'text-text-1'
                 }`}
               >
                 {isAdmin ? 'Admin / Auditor' : 'Developer'}
               </span>
             </div>
-            <div className="text-[11px] text-text-1 truncate">@{user.username}</div>
+            <div className="text-xs text-text-1 truncate">@{user.username}</div>
           </div>
 
           {/* Navigation Links */}
@@ -110,17 +110,17 @@ export const UserMenu: React.FC = () => {
             <Link
               href={`/p/${user.username}`}
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-radius text-text-0 hover:bg-card transition-colors"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-radius text-text-0 hover:bg-ink-1 transition-colors"
               role="menuitem"
             >
-              <User className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
+              <User className="w-3.5 h-3.5 text-text-1" />
               <span>Public Portfolio</span>
             </Link>
 
             <Link
               href="/dashboard"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-radius text-text-0 hover:bg-card transition-colors"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-radius text-text-0 hover:bg-ink-1 transition-colors"
               role="menuitem"
             >
               <LayoutDashboard className="w-3.5 h-3.5 text-text-1" />
@@ -130,7 +130,7 @@ export const UserMenu: React.FC = () => {
             <Link
               href="/settings"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-radius text-text-0 hover:bg-card transition-colors"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-radius text-text-0 hover:bg-ink-1 transition-colors"
               role="menuitem"
             >
               <Settings className="w-3.5 h-3.5 text-text-1" />
@@ -141,7 +141,7 @@ export const UserMenu: React.FC = () => {
               <Link
                 href="/admin"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 px-3 py-2 rounded-radius text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors font-semibold"
+                className="flex items-center gap-2.5 px-3 py-2 rounded-radius text-text-0 hover:bg-ink-1 transition-colors font-medium"
                 role="menuitem"
               >
                 <ShieldCheck className="w-3.5 h-3.5" />

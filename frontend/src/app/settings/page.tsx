@@ -377,7 +377,7 @@ export default function SettingsPage() {
                 <CreditCard className="w-4 h-4 text-text-1" aria-hidden="true" />
                 <span>Consensus Membership & Guarantee</span>
               </div>
-              <span className="text-[10px] text-emerald-700 dark:text-emerald-400 uppercase border border-emerald-500/30 px-2 py-0.5 rounded font-mono font-semibold">
+              <span className="text-xs text-text-0 border border-line px-2.5 py-1 rounded font-mono font-medium">
                 Active Certificate
               </span>
             </div>
