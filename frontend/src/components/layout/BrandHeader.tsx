@@ -111,7 +111,7 @@ export const BrandHeader: React.FC = () => {
            * BUSINESS LOGIC:
            * Authenticated users get the full UserMenu dropdown (portfolio, settings, admin, sign out).
            * Unauthenticated users get the "Connect" CTA which opens the AuthModal.
-           * UserMenu encapsulates all post-auth navigation — BrandHeader stays thin.
+           * UserMenu encapsulates all post-auth navigation - BrandHeader stays thin.
            */}
           {isLoggedIn ? (
             <UserMenu />

@@ -63,7 +63,7 @@ export function useAuth() {
       },
     });
 
-    // Use router.push for internal navigation — avoids full page reload and
+    // Use router.push for internal navigation - avoids full page reload and
     // satisfies the Next.js no-location-assign-relative-destination rule.
     router.push('/');
   }, [router]);

@@ -27,14 +27,14 @@ import {
  * audit of the candidate's verified ledger entries against a specific job's technical
  * requirements. There are two outcome branches:
  *
- *   1. "ready" — All proof points verified. The AI synthesizes an ATS-safe CV and
+ *   1. "ready" - All proof points verified. The AI synthesizes an ATS-safe CV and
  *      tailored cover letter, both pre-populated with commit hashes and performance metrics.
  *
- *   2. "gap" — A skill gap is identified. The user is redirected to a targeted problem
+ *   2. "gap" - A skill gap is identified. The user is redirected to a targeted problem
  *      in the Idea Bank that closes the gap. This is the core "incentive loop" of DevLedgr.
  *
  * The audit delegates entirely to aiService.runScrutinyAudit(), which calls the AI gateway
- * if available or runs a deterministic heuristic fallback — callers never need to distinguish.
+ * if available or runs a deterministic heuristic fallback - callers never need to distinguish.
  * Mutations (generating CV content) never silently fall back to mocks; they either succeed
  * or fail loudly so users always know what they're getting.
  *
@@ -71,7 +71,7 @@ export default function JobApplyPage() {
    * BUSINESS LOGIC:
    * Delegates the full audit pipeline to the AI service. The onLog callback streams
    * audit steps back to the terminal UI in real-time. The ScrutinyResult drives
-   * which branch is rendered — the service hides the AI/fallback implementation detail.
+   * which branch is rendered - the service hides the AI/fallback implementation detail.
    *
    * forceGap=true is only used for demo/test purposes to exercise the gap branch.
    */
@@ -91,7 +91,7 @@ export default function JobApplyPage() {
         setGeneratedDocs({ cvMarkdown: result.cvMarkdown, coverLetter: result.coverLetter });
       }
     } catch {
-      // Surface failure explicitly — never silently continue with stale mock docs
+      // Surface failure explicitly - never silently continue with stale mock docs
       setAnalysisResult('gap');
     } finally {
       setScrutinizing(false);
@@ -183,7 +183,7 @@ export default function JobApplyPage() {
         </div>
       )}
 
-      {/* Step 2: Live Terminal Log — streams audit steps via aiService onLog callback */}
+      {/* Step 2: Live Terminal Log - streams audit steps via aiService onLog callback */}
       {scrutinizing && (
         <div className="rounded-radius border border-line bg-ink-0 p-5 space-y-3">
           <div className="flex items-center gap-2 text-green-700 dark:text-green-400 pb-2 border-b border-line">
@@ -203,7 +203,7 @@ export default function JobApplyPage() {
         </div>
       )}
 
-      {/* Step 3a: Branch — Ready → ATS CV Draft + Cover Letter Package */}
+      {/* Step 3a: Branch - Ready -> ATS CV Draft + Cover Letter Package */}
       {analysisResult === 'ready' && generatedDocs && (
         <div className="space-y-6">
           <div className="p-4 rounded-radius border border-green-500/25 bg-green-500/10 flex items-start gap-3">
@@ -311,7 +311,7 @@ export default function JobApplyPage() {
         </div>
       )}
 
-      {/* Step 3b: Branch — Gap → Route user to targeted Idea Bank problem */}
+      {/* Step 3b: Branch - Gap -> Route user to targeted Idea Bank problem */}
       {analysisResult === 'gap' && (
         <div className="space-y-6">
           <div className="p-4 rounded-radius border border-amber-500/25 bg-amber-500/5 flex items-start gap-3">

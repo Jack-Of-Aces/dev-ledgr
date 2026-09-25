@@ -20,7 +20,7 @@ import { setAuthCookies } from '@/lib/cookies';
 
 export const AuthModal: React.FC = () => {
   const { isAuthModalOpen, closeAuthModal, completeOnboarding, user } = useAppStore();
-  // useAuth used for cookie sync on completion — login flow is handled by onboarding step
+  // useAuth used for cookie sync on completion - login flow is handled by onboarding step
   useAuth();
 
   const [step, setStep] = useState<'oauth' | 'onboarding'>('oauth');
