@@ -219,12 +219,12 @@ export default function DashboardPage() {
                   key={n.id}
                   className="p-3.5 rounded-radius border border-line bg-card/50 space-y-1 text-xs"
                 >
-                  <div className="flex justify-between items-center text-[10px] text-text-1">
+                  <div className="flex justify-between items-center text-xs text-text-1">
                     <span className="font-semibold text-green-700 dark:text-green-400 uppercase font-mono">{n.type}</span>
                     <span className="font-mono">{n.time}</span>
                   </div>
                   <div className="font-semibold text-text-0">{n.title}</div>
-                  <p className="text-text-1 text-[11.5px] leading-relaxed">{n.desc}</p>
+                  <p className="text-text-1 text-xs leading-relaxed">{n.desc}</p>
                 </div>
               ))}
             </div>
