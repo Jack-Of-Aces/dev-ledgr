@@ -4,7 +4,7 @@ import { BrandMark } from '../brand/BrandMark';
 
 export const BrandFooter: React.FC = () => {
   return (
-    <footer className="mt-24 border-t border-line bg-card/40 text-text-1 text-[13px] font-sans">
+    <footer className="mt-24 border-t border-line bg-card/40 text-text-1 text-xs font-sans">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
           {/* Brand Column */}
@@ -13,7 +13,7 @@ export const BrandFooter: React.FC = () => {
               <BrandMark size={24} />
               <span className="font-sans text-lg font-semibold tracking-tight text-text-0">DevLedgr</span>
             </div>
-            <p className="text-[13px] leading-relaxed max-w-md text-text-1">
+            <p className="text-xs leading-relaxed max-w-md text-text-1">
               A ledger, not a resume. Every problem solved is an entry: timestamped, verifiable, and permanent.
             </p>
             <div className="pt-1 flex items-center gap-3 text-xs font-mono">
@@ -31,7 +31,7 @@ export const BrandFooter: React.FC = () => {
             <div className="text-xs font-sans font-semibold text-text-0 mb-3">
               Ledger Core
             </div>
-            <ul className="space-y-2 text-[13px]">
+            <ul className="space-y-2 text-xs">
               <li>
                 <Link href="/ideas" className="hover:text-text-0 transition-colors">
                   Idea Bank (Problems)
@@ -60,7 +60,7 @@ export const BrandFooter: React.FC = () => {
             <div className="text-xs font-sans font-semibold text-text-0 mb-3">
               Platform
             </div>
-            <ul className="space-y-2 text-[12px]">
+            <ul className="space-y-2 text-xs">
               <li>
                 <Link href="/about" className="hover:text-text-0 transition-colors">
                   Manifesto & About
