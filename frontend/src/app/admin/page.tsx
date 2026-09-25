@@ -249,7 +249,7 @@ export default function AdminPage() {
                 <div>
                   <label
                     htmlFor="seed-title"
-                    className="block text-[11px] uppercase tracking-wider text-text-1 font-semibold mb-1"
+                    className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1"
                   >
                     Problem Title *
                   </label>
@@ -266,7 +266,7 @@ export default function AdminPage() {
                 <div>
                   <label
                     htmlFor="seed-tagline"
-                    className="block text-[11px] uppercase tracking-wider text-text-1 font-semibold mb-1"
+                    className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1"
                   >
                     Tagline / High-Level Thesis *
                   </label>
@@ -284,7 +284,7 @@ export default function AdminPage() {
                   <div>
                     <label
                       htmlFor="seed-domain"
-                      className="block text-[11px] uppercase tracking-wider text-text-1 font-semibold mb-1"
+                      className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1"
                     >
                       Domain
                     </label>
@@ -305,7 +305,7 @@ export default function AdminPage() {
                   <div>
                     <label
                       htmlFor="seed-difficulty"
-                      className="block text-[11px] uppercase tracking-wider text-text-1 font-semibold mb-1"
+                      className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1"
                     >
                       Difficulty
                     </label>
@@ -325,7 +325,7 @@ export default function AdminPage() {
                   <div>
                     <label
                       htmlFor="seed-hours"
-                      className="block text-[11px] uppercase tracking-wider text-text-1 font-semibold mb-1"
+                      className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1"
                     >
                       Estimated Hours
                     </label>
@@ -342,7 +342,7 @@ export default function AdminPage() {
                   <div>
                     <label
                       htmlFor="seed-tags"
-                      className="block text-[11px] uppercase tracking-wider text-text-1 font-semibold mb-1"
+                      className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1"
                     >
                       Tags (comma separated)
                     </label>
@@ -358,7 +358,7 @@ export default function AdminPage() {
                 <div>
                   <label
                     htmlFor="seed-origin"
-                    className="block text-[11px] uppercase tracking-wider text-text-1 font-semibold mb-1"
+                    className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1"
                   >
                     Origin Context / Quote
                   </label>
@@ -374,7 +374,7 @@ export default function AdminPage() {
                 <div>
                   <label
                     htmlFor="seed-problem"
-                    className="block text-[11px] uppercase tracking-wider text-text-1 font-semibold mb-1"
+                    className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1"
                   >
                     Problem Description
                   </label>
@@ -390,7 +390,7 @@ export default function AdminPage() {
                 <div>
                   <label
                     htmlFor="seed-tech-reqs"
-                    className="block text-[11px] uppercase tracking-wider text-text-1 font-semibold mb-1"
+                    className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1"
                   >
                     Technical Requirements (one per line)
                   </label>
