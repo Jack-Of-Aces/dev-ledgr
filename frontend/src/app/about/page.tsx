@@ -34,7 +34,7 @@ export default function AboutPage() {
           Hiring teams routinely ignore portfolio projects. A cloned streaming service or mock store built from a video guide proves neither architectural discipline nor the ability to handle broken production networks.
         </p>
 
-        <blockquote className="p-6 rounded-radius border border-green-500/20 bg-green-500/5 space-y-3">
+        <blockquote className="p-5 sm:p-6 rounded-radius border border-green-500/20 bg-green-500/5 space-y-3">
           <p className="text-base sm:text-lg font-medium text-text-0 leading-snug">
             &ldquo;Every problem solved is a permanent ledger entry: timestamped, verified, and inspectable by any technical team.&rdquo;
           </p>
@@ -53,7 +53,7 @@ export default function AboutPage() {
         </ul>
       </div>
 
-      <div className="p-6 rounded-radius border border-line bg-card space-y-3 max-w-prose">
+      <div className="p-5 sm:p-6 rounded-radius border border-line bg-card space-y-3 max-w-prose">
         <div className="flex items-center gap-2 text-lg font-semibold text-text-0">
           <Mail className="w-4 h-4 text-green-700 dark:text-green-400" />
           <span>Contact & Operator Partnerships</span>
@@ -61,7 +61,7 @@ export default function AboutPage() {
         <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
           Are you an engineering leader with real operational problems (fintech, logistics, distributed systems)? Submit a spec to our Idea Bank to receive pre-vetted, proof-proven candidate solutions.
         </p>
-        <div className="pt-1 text-xs font-mono">
+        <div className="pt-1 text-xs font-mono break-all">
           Email: <a href="mailto:partners@devledgr.io" className="text-green-700 dark:text-green-400 hover:underline font-semibold">partners@devledgr.io</a>
         </div>
       </div>

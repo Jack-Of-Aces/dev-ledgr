@@ -109,7 +109,7 @@ export default function AdminPage() {
               new real-world problems.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setActiveTab("submissions")}
               className={`px-3 py-1.5 rounded-radius cursor-pointer text-xs font-medium ${
@@ -146,16 +146,16 @@ export default function AdminPage() {
                   className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
                 >
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="commit-hash font-mono">#{sub.hash}</span>
-                      <span className="font-semibold text-text-0">{sub.ideaTitle}</span>
-                      <span className="text-text-1 font-mono">by @{sub.authorUsername}</span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="commit-hash font-mono shrink-0">#{sub.hash}</span>
+                      <span className="font-semibold text-text-0 break-words">{sub.ideaTitle}</span>
+                      <span className="text-text-1 font-mono shrink-0">by @{sub.authorUsername}</span>
                     </div>
                     <p className="text-text-1 text-xs max-w-md line-clamp-1">
                       {sub.architectureNotes}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
                     <button
                       onClick={() => verifySubmission(sub.hash)}
                       className="text-green-700 dark:text-green-400 font-medium flex items-center gap-1 cursor-pointer hover:underline"
@@ -179,13 +179,13 @@ export default function AdminPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex justify-between items-center text-xs text-text-1">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-text-1">
               <span>
                 Currently active problem specifications in the Idea Bank ({ideas.length}):
               </span>
               <button
                 onClick={() => setSeedModalOpen(true)}
-                className="btn-brass text-xs py-1.5 px-3 cursor-pointer"
+                className="btn-brass text-xs py-1.5 px-3 cursor-pointer self-start sm:self-auto shrink-0"
               >
                 <Plus className="w-3 h-3" />
                 <span>Seed New Problem</span>
@@ -228,7 +228,7 @@ export default function AdminPage() {
               role="dialog"
               aria-modal="true"
               aria-labelledby="seed-modal-title"
-              className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-radius border border-line bg-ink-0 p-6 text-xs space-y-4 shadow-2xl"
+              className="w-full max-w-xl max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-radius border border-line bg-ink-0 p-5 sm:p-6 text-xs space-y-4 shadow-2xl"
             >
               <div className="flex items-center justify-between pb-3 border-b border-line">
                 <h2
@@ -280,7 +280,7 @@ export default function AdminPage() {
                     className="w-full px-3 py-1.5 rounded border border-line bg-card text-text-0 outline-none focus:border-brass"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label
                       htmlFor="seed-domain"
@@ -321,7 +321,7 @@ export default function AdminPage() {
                     </select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label
                       htmlFor="seed-hours"

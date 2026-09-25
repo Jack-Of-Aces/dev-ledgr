@@ -90,7 +90,7 @@ export default function CoachingDetailPage() {
         aria-labelledby={`tab-week-${selectedMilestone.week}`}
         className="grid grid-cols-1 md:grid-cols-3 gap-6"
       >
-        <div style={{ maxWidth: '65ch' }} className="md:col-span-2 space-y-5 rounded-radius border border-line bg-card/40 p-6">
+        <div style={{ maxWidth: '65ch' }} className="md:col-span-2 space-y-5 rounded-radius border border-line bg-card/40 p-5 sm:p-6">
           <div className="space-y-1">
             <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
               {selectedMilestone.title}
@@ -101,7 +101,7 @@ export default function CoachingDetailPage() {
           </div>
 
           {selectedMilestone.ideaIdRef && (
-            <div className="pl-3 border-l-2 border-green-500/40 flex items-center justify-between text-xs py-1">
+            <div className="pl-3 border-l-2 border-green-500/40 flex flex-wrap items-center justify-between gap-2 text-xs py-1">
               <span className="text-text-1">Paired Challenge Spec:</span>
               <Link
                 href={`/ideas/${selectedMilestone.ideaIdRef}`}
