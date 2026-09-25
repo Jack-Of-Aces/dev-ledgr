@@ -138,12 +138,12 @@ export const AuthModal: React.FC = () => {
               </p>
             </div>
 
-            <div className="p-4 rounded-radius border border-line bg-card/50 text-left space-y-2 text-[11.5px] text-text-1">
+            <div className="p-4 rounded-radius border border-line bg-card/50 text-left space-y-2 text-xs text-text-1">
               <div className="flex items-center gap-2 text-text-0 font-semibold">
                 <Shield className="w-3.5 h-3.5 text-brass" aria-hidden="true" />
                 <span>Requested Permissions</span>
               </div>
-              <ul className="space-y-1 pl-4 list-disc text-[11px]">
+              <ul className="space-y-1 pl-4 list-disc text-xs">
                 <li>Read public repository trees for test verification</li>
                 <li>Verify commit email & PGP signing identity</li>
                 <li>Issue cryptographically valid 1-year portfolio URLs</li>
@@ -158,7 +158,7 @@ export const AuthModal: React.FC = () => {
               <span>Authorize with GitHub</span>
             </button>
 
-            <div className="text-[10.5px] text-text-1">
+            <div className="text-xs text-text-1">
               No write access to private repositories is requested.
             </div>
           </div>
@@ -166,7 +166,7 @@ export const AuthModal: React.FC = () => {
           /* Step 2: Onboarding Survey */
           <form onSubmit={handleFinishOnboarding} className="space-y-5">
             <div className="space-y-1">
-              <span className="text-[10px] text-brass uppercase font-semibold">
+              <span className="text-xs text-brass uppercase font-semibold">
                 Step 2 of 2 · Onboarding
               </span>
               <h2 id="auth-modal-title-onboarding" className="font-serif text-2xl font-medium text-text-0">
@@ -179,7 +179,7 @@ export const AuthModal: React.FC = () => {
 
             <div className="space-y-3">
               <div>
-                <label htmlFor="auth-full-name" className="block text-[11px] uppercase tracking-wider text-text-1 font-semibold mb-1">
+                <label htmlFor="auth-full-name" className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1">
                   Your Full Name
                 </label>
                 <input
@@ -193,7 +193,7 @@ export const AuthModal: React.FC = () => {
               </div>
 
               <div>
-                <label htmlFor="auth-github-handle" className="block text-[11px] uppercase tracking-wider text-text-1 font-semibold mb-1">
+                <label htmlFor="auth-github-handle" className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1">
                   GitHub Handle
                 </label>
                 <input
@@ -207,7 +207,7 @@ export const AuthModal: React.FC = () => {
               </div>
 
               <div>
-                <label htmlFor="auth-target-track" className="block text-[11px] uppercase tracking-wider text-text-1 font-semibold mb-1">
+                <label htmlFor="auth-target-track" className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1">
                   Target Track
                 </label>
                 <select
@@ -224,7 +224,7 @@ export const AuthModal: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[11px] uppercase tracking-wider text-text-1 font-semibold mb-1.5">
+                <label className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1.5">
                   Select Your Active Stacks (Used for Job Matching)
                 </label>
                 <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1">
