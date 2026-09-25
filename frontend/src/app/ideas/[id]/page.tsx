@@ -37,10 +37,10 @@ export default function IdeaDetailPage() {
       {/* Hero Problem Overview */}
       <section className="space-y-4">
         <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
-          <span className={`uppercase tracking-wider px-2 py-0.5 rounded border text-xs font-semibold ${domainStyle.badge}`}>
+          <span className={`uppercase tracking-wider px-2.5 py-1 rounded border text-xs font-semibold ${domainStyle.badge}`}>
             {domainStyle.name}
           </span>
-          <span className={`px-2 py-0.5 rounded border text-xs font-medium ${diffStyle.badge}`}>
+          <span className={`px-2.5 py-1 rounded border text-xs font-medium ${diffStyle.badge}`}>
             {diffStyle.name}
           </span>
           <span className="flex items-center gap-1 text-text-1">

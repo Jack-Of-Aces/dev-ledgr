@@ -125,7 +125,7 @@ ${userSubmissions
           <div>
             <div className="font-semibold text-text-0 text-sm flex items-center gap-2 font-sans">
               <span>Public Developer Ledger</span>
-              <span className="text-xs text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20 font-mono font-medium">
+              <span className="text-xs text-green-700 dark:text-green-400 bg-green-500/10 px-2.5 py-1 rounded-full border border-green-500/20 font-mono font-medium">
                 cryptographically signed
               </span>
             </div>
@@ -217,7 +217,7 @@ ${userSubmissions
           {displayUser.statedSkills.map((skill) => (
             <span
               key={skill}
-              className="px-2 py-0.5 rounded border border-line bg-card text-text-0 text-xs"
+              className="px-2.5 py-1 rounded border border-line bg-card text-text-0 text-xs"
             >
               {skill}
             </span>
@@ -329,21 +329,21 @@ ${userSubmissions
                     <pre className="text-xs leading-relaxed overflow-x-auto font-mono rounded bg-card/40 p-2.5 border border-line">
                       <code>
                         <span className="text-zinc-500 block pb-0.5">@@ -14,8 +14,24 @@ func (e *Engine) DispatchOrder(ctx context.Context, ord Order) (*Route, error) &#123;</span>
-                        <span className="text-rose-700 dark:text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded-xs block my-0.5">-  // Unconstrained naive route</span>
-                        <span className="text-rose-700 dark:text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded-xs block my-0.5">-  return e.naiveRoute(ord)</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-xs block my-0.5">+  // Idempotency check with Redis sliding window lock</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-xs block my-0.5">+  if locked := e.redis.SetNX(ctx, &quot;lock:&quot;+ord.IdempotencyKey, 1, 30*time.Second); !locked &#123;</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-xs block my-0.5">+    return e.cachedRoute(ord.IdempotencyKey)</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-xs block my-0.5">+  &#125;</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-xs block my-0.5">+  // Compute capacity-constrained Voronoi cluster</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-xs block my-0.5">+  depot := e.nearestDepot(ord.Lat, ord.Lng)</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-xs block my-0.5">+  route, err := e.solver.ConstrainedDijkstra(ctx, depot, ord.WeightKg)</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-xs block my-0.5">+  if err != nil &#123;</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-xs block my-0.5">+    return nil, fmt.Errorf(&quot;dispatch failure: %w&quot;, err)</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-xs block my-0.5">+  &#125;</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-xs block my-0.5">+  // Telemetry recording: p99 latency &lt; 40ms</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-xs block my-0.5">+  e.metrics.RecordDispatchLatency(time.Since(start))</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-xs block my-0.5">+  return route, nil</span>
+                        <span className="text-rose-700 dark:text-rose-400 bg-rose-500/10 px-2 py-1 rounded block my-0.5">-  // Unconstrained naive route</span>
+                        <span className="text-rose-700 dark:text-rose-400 bg-rose-500/10 px-2 py-1 rounded block my-0.5">-  return e.naiveRoute(ord)</span>
+                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  // Idempotency check with Redis sliding window lock</span>
+                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  if locked := e.redis.SetNX(ctx, &quot;lock:&quot;+ord.IdempotencyKey, 1, 30*time.Second); !locked &#123;</span>
+                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+    return e.cachedRoute(ord.IdempotencyKey)</span>
+                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  &#125;</span>
+                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  // Compute capacity-constrained Voronoi cluster</span>
+                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  depot := e.nearestDepot(ord.Lat, ord.Lng)</span>
+                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  route, err := e.solver.ConstrainedDijkstra(ctx, depot, ord.WeightKg)</span>
+                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  if err != nil &#123;</span>
+                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+    return nil, fmt.Errorf(&quot;dispatch failure: %w&quot;, err)</span>
+                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  &#125;</span>
+                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  // Telemetry recording: p99 latency &lt; 40ms</span>
+                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  e.metrics.RecordDispatchLatency(time.Since(start))</span>
+                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  return route, nil</span>
                         <span className="text-text-0 block pt-0.5">&#125;</span>
                       </code>
                     </pre>

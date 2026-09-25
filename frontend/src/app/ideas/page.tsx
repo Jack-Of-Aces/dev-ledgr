@@ -105,10 +105,10 @@ export default function IdeasPage() {
                   {/* Meta tags */}
                   <div className="flex items-center justify-between gap-2 text-xs font-mono">
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded border text-xs font-semibold ${domainStyle.badge}`}>
+                      <span className={`px-2.5 py-1 rounded border text-xs font-semibold ${domainStyle.badge}`}>
                         {domainStyle.name}
                       </span>
-                      <span className={`px-2 py-0.5 rounded border text-xs font-medium ${diffStyle.badge}`}>
+                      <span className={`px-2.5 py-1 rounded border text-xs font-medium ${diffStyle.badge}`}>
                         {diffStyle.name}
                       </span>
                     </div>

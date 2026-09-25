@@ -121,7 +121,7 @@ export default function DashboardPage() {
           <div>
             <div className="font-medium text-text-0 flex items-center gap-2">
               <span>Public Portfolio Guarantee</span>
-              <span className="text-xs text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20 font-mono font-medium">
+              <span className="text-xs text-green-700 dark:text-green-400 bg-green-500/10 px-2.5 py-1 rounded border border-green-500/20 font-mono font-medium">
                 verified online
               </span>
             </div>
