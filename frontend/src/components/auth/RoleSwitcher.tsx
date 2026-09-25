@@ -25,7 +25,7 @@ export const RoleSwitcher: React.FC = () => {
           aria-expanded={open}
           aria-label="Toggle Developer Sandbox Persona Bar"
         >
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="w-2 h-2 rounded-full bg-emerald-500" />
           <span className="font-semibold">
             {role === 'admin' ? 'Admin Mode' : 'User Mode'}
           </span>
