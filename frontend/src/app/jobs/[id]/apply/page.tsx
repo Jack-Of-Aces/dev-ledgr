@@ -151,7 +151,7 @@ export default function JobApplyPage() {
 
       {/* Step 1: Audit Trigger Card */}
       {!analysisResult && !scrutinizing && (
-        <div className="p-8 rounded-radius border border-line bg-card text-center space-y-5">
+        <div className="p-5 sm:p-8 rounded-radius border border-line bg-card text-center space-y-5">
           <Sparkles className="w-8 h-8 text-green-700 dark:text-green-400 mx-auto" />
           <div className="space-y-1 max-w-lg mx-auto">
             <h2 className="text-xl font-semibold tracking-tight text-text-0">

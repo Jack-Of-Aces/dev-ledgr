@@ -123,7 +123,7 @@ ${userSubmissions
         <div className="flex items-start sm:items-center gap-3">
           <ShieldCheck className="w-6 h-6 text-green-700 dark:text-green-400 shrink-0 mt-0.5 sm:mt-0" />
           <div>
-            <div className="font-semibold text-text-0 text-sm flex items-center gap-2 font-sans">
+            <div className="font-semibold text-text-0 text-sm flex flex-wrap items-center gap-2 font-sans">
               <span>Public Developer Ledger</span>
               <span className="text-xs text-green-700 dark:text-green-400 bg-green-500/10 px-2.5 py-1 rounded-full border border-green-500/20 font-mono font-medium">
                 cryptographically signed
@@ -139,7 +139,7 @@ ${userSubmissions
           </div>
         </div>
 
-        <div className="flex items-center gap-2 font-sans">
+        <div className="flex flex-wrap items-center gap-2 font-sans">
           {isLoggedIn && slug.toLowerCase() === user.username.toLowerCase() && (
             <Link
               href="/settings"

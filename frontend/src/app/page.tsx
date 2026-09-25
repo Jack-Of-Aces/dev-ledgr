@@ -222,7 +222,7 @@ export default function HomePage() {
       </section>
 
       {/* Bottom CTA Block */}
-      <section className="p-8 sm:p-12 border border-line bg-card text-center space-y-6">
+      <section className="p-6 sm:p-12 border border-line bg-card text-center space-y-6">
         <BrandMark size={36} className="mx-auto" />
         <div className="max-w-xl mx-auto space-y-2">
           <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text-0">

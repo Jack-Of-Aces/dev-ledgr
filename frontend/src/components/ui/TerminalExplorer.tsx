@@ -55,20 +55,20 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
   return (
     <div className="rounded-radius border border-line bg-ink-0 overflow-hidden font-mono text-xs">
       {/* Terminal Title Bar */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-line">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-2.5 border-b border-line">
         <div className="flex items-center gap-2">
-          <Terminal className="w-4 h-4 text-brass" />
+          <Terminal className="w-4 h-4 text-brass shrink-0" />
           <span className="font-semibold text-text-0 text-xs tracking-tight">
             Mock Infrastructure & Test Harness
           </span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <span className="text-xs text-text-1 hidden sm:inline">
             base: <code className="text-text-0">{mockInfra.baseUrl}</code>
           </span>
           <button
             onClick={handleCopyCurl}
-            className="flex items-center gap-1.5 px-2 py-1 text-xs text-text-1 hover:text-text-0 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2 py-1 text-xs text-text-1 hover:text-text-0 transition-colors cursor-pointer shrink-0"
           >
             {copiedCurl ? (
               <>

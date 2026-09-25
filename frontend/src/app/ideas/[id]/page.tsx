@@ -147,7 +147,7 @@ export default function IdeaDetailPage() {
             ))}
           </div>
         ) : (
-          <div className="p-8 rounded-radius border border-dashed border-line text-center font-mono text-xs text-text-1 space-y-2">
+          <div className="p-6 sm:p-8 rounded-radius border border-dashed border-line text-center font-mono text-xs text-text-1 space-y-2">
             <div>No submissions recorded yet for this problem.</div>
             <button
               onClick={() => setModalOpen(true)}

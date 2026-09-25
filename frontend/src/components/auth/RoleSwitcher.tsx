@@ -16,7 +16,7 @@ export const RoleSwitcher: React.FC = () => {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="fixed bottom-3 right-3 z-50 font-mono text-xs">
+    <div className="fixed bottom-3 right-3 z-50 font-mono text-xs max-w-[calc(100vw-1.5rem)]">
       <div className="rounded-radius border border-line bg-card shadow-md overflow-hidden">
         {/* Toggle Bar */}
         <button
@@ -35,7 +35,7 @@ export const RoleSwitcher: React.FC = () => {
 
         {/* Dropdown Options */}
         {open && (
-          <div className="p-3 border-t border-line space-y-2.5 min-w-64">
+          <div className="p-3 border-t border-line space-y-2.5 w-64 max-w-full">
             <div className="flex items-center justify-between text-xs text-text-1 uppercase tracking-wider font-semibold">
               <span>Switch Persona</span>
               <span className="text-text-0">

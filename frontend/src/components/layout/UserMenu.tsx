@@ -73,7 +73,7 @@ export const UserMenu: React.FC = () => {
           <span className="w-2 h-2 rounded-full bg-diff-green block" aria-hidden="true" />
         )}
 
-        <span className="font-semibold max-w-25 sm:max-w-none truncate">@{user.username}</span>
+        <span className="font-semibold max-w-20 sm:max-w-none truncate">@{user.username}</span>
 
         <span className="hidden sm:inline text-xs text-text-1 bg-card px-2 py-0.5 rounded border border-line font-medium">
           {userSubmissions.length} proofs
@@ -86,7 +86,7 @@ export const UserMenu: React.FC = () => {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-64 rounded-radius border border-line bg-card p-2 shadow-md z-50 space-y-1 font-mono text-xs animate-in fade-in slide-in-from-top-1 duration-150"
+          className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-radius border border-line bg-card p-2 shadow-md z-50 space-y-1 font-mono text-xs animate-in fade-in slide-in-from-top-1 duration-150"
         >
           {/* User Identity Header */}
           <div className="px-3 py-2.5 border-b border-line space-y-1">
