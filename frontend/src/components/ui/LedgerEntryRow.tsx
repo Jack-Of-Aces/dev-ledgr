@@ -96,18 +96,18 @@ export const LedgerEntryRow: React.FC<LedgerEntryRowProps> = ({
         {entry.metrics && (
           <div className="flex flex-wrap items-center gap-3 pt-1 text-xs font-mono text-text-1">
             {entry.metrics.latencyP99 && (
-              <span className="bg-card px-1.5 py-0.5 rounded border border-line">
-                p99: <b className="text-text-0">{entry.metrics.latencyP99}</b>
+              <span>
+                p99: <b className="text-text-0 font-medium">{entry.metrics.latencyP99}</b>
               </span>
             )}
             {entry.metrics.throughput && (
-              <span className="bg-card px-1.5 py-0.5 rounded border border-line">
-                throughput: <b className="text-text-0">{entry.metrics.throughput}</b>
+              <span>
+                throughput: <b className="text-text-0 font-medium">{entry.metrics.throughput}</b>
               </span>
             )}
             {entry.metrics.coverage && (
-              <span className="bg-card px-1.5 py-0.5 rounded border border-line">
-                coverage: <b className="text-text-0">{entry.metrics.coverage}</b>
+              <span>
+                coverage: <b className="text-text-0 font-medium">{entry.metrics.coverage}</b>
               </span>
             )}
             <span className="text-text-1">

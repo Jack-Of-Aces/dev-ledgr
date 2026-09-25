@@ -61,7 +61,7 @@ function LoginForm() {
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12 font-sans">
-      <div className="w-full max-w-md rounded-radius border border-line bg-card/60 backdrop-blur-md p-6 sm:p-8 space-y-6 shadow-2xl">
+      <div className="w-full max-w-md rounded-radius border border-line bg-card p-6 sm:p-8 space-y-6 shadow-sm">
         {/* Header */}
         <div className="text-center space-y-2">
           <Link href="/" className="inline-block hover:opacity-80 transition-opacity">
@@ -86,9 +86,9 @@ function LoginForm() {
             <span>Continue with GitHub</span>
           </button>
 
-          <div className="flex items-center justify-between text-[11px] text-text-1 font-mono px-1">
+          <div className="flex items-center justify-between text-xs text-text-1 font-mono px-1">
             <span>Identity Provider:</span>
-            <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
+            <span className="text-text-0 font-medium">
               {envConfig.githubClientId ? 'Live GitHub OAuth App' : 'Instant Sandbox Provider'}
             </span>
           </div>
@@ -96,7 +96,7 @@ function LoginForm() {
 
         <div className="relative flex items-center justify-center">
           <div className="border-t border-line w-full" />
-          <span className="bg-card px-3 text-[11px] uppercase tracking-wider text-text-1 font-mono">
+          <span className="bg-card px-3 text-xs uppercase tracking-wider text-text-1 font-mono">
             Or Work Email
           </span>
         </div>
@@ -104,7 +104,7 @@ function LoginForm() {
         {/* Secondary: Email Magic Link */}
         <form onSubmit={handleEmailSubmit} className="space-y-3">
           <div>
-            <label htmlFor="login-email" className="block text-[11px] uppercase tracking-wider text-text-1 font-semibold mb-1">
+            <label htmlFor="login-email" className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1">
               Email Address
             </label>
             <div className="relative">
@@ -114,7 +114,7 @@ function LoginForm() {
                 placeholder="alex@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 pl-9 rounded-radius border border-line bg-ink-0 text-xs text-text-0 outline-none focus:border-emerald-500 font-mono"
+                className="w-full px-3 py-2 pl-9 rounded-radius border border-line bg-ink-0 text-xs text-text-0 outline-none focus:border-text-0 font-mono"
               />
               <Mail className="w-4 h-4 text-text-1 absolute left-2.5 top-2.5 pointer-events-none" />
             </div>
@@ -130,7 +130,7 @@ function LoginForm() {
           >
             {emailSent ? (
               <>
-                <Check className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
+                <Check className="w-3.5 h-3.5 text-text-0" />
                 <span>Link Dispatched</span>
               </>
             ) : (
@@ -143,8 +143,8 @@ function LoginForm() {
         </form>
 
         {/* Sandbox Quick Personas for Evaluation */}
-        <div className="p-4 rounded-radius border border-emerald-500/20 bg-ink-0 space-y-2 text-xs">
-          <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-semibold font-mono text-[11px]">
+        <div className="pt-4 border-t border-line space-y-3 text-xs">
+          <div className="flex items-center gap-1.5 text-text-0 font-semibold font-mono text-xs">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Developer Evaluation Personas</span>
           </div>
@@ -152,23 +152,23 @@ function LoginForm() {
             Test platform capabilities immediately with preset accounts:
           </p>
 
-          <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-xs">
+          <div className="grid grid-cols-2 gap-2 font-mono text-xs">
             <button
               type="button"
               onClick={() => handleQuickPersona('user')}
-              className="p-2 rounded border border-line bg-card hover:border-green-500 text-left transition-colors cursor-pointer"
+              className="p-2.5 rounded border border-line hover:bg-ink-1 text-left transition-colors cursor-pointer"
             >
-              <div className="font-bold text-text-0">@junior_dev</div>
+              <div className="font-semibold text-text-0">@junior_dev</div>
               <div className="text-xs text-text-1">Candidate (User)</div>
             </button>
 
             <button
               type="button"
               onClick={() => handleQuickPersona('admin')}
-              className="p-2 rounded border border-line bg-card hover:border-green-500 text-left transition-colors cursor-pointer"
+              className="p-2.5 rounded border border-line hover:bg-ink-1 text-left transition-colors cursor-pointer"
             >
-              <div className="font-bold text-text-0">@lead_auditor</div>
-              <div className="text-xs text-green-700 dark:text-green-400 font-semibold">Admin / Verifier</div>
+              <div className="font-semibold text-text-0">@lead_auditor</div>
+              <div className="text-xs text-text-1 font-medium">Admin / Verifier</div>
             </button>
           </div>
         </div>

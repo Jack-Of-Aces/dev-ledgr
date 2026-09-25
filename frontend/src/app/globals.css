@@ -351,13 +351,9 @@ input, textarea, select {
 /* Stamped Commit Hash Block */
 @utility commit-hash {
   font-family: var(--font-mono), monospace;
-  font-size: 11.5px;
+  font-size: 12px;
   letter-spacing: 0.02em;
   color: var(--text-0);
-  background: var(--card);
-  padding: 2px 7px;
-  border-radius: var(--radius);
-  border: 1px solid var(--line);
   font-weight: 500;
 }
 

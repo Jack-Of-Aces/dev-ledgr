@@ -22,7 +22,7 @@ export default function IdeaDetailPage() {
   const diffStyle = getDifficultyStyle(idea.difficulty);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-12">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-10">
       {/* Navigation Breadcrumb */}
       <div>
         <Link
@@ -35,12 +35,12 @@ export default function IdeaDetailPage() {
       </div>
 
       {/* Hero Problem Overview */}
-      <section className="space-y-5">
+      <section className="space-y-4">
         <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
-          <span className={`uppercase tracking-wider px-2 py-0.5 rounded border text-[11px] font-semibold ${domainStyle.badge}`}>
+          <span className={`uppercase tracking-wider px-2 py-0.5 rounded border text-xs font-semibold ${domainStyle.badge}`}>
             {domainStyle.name}
           </span>
-          <span className={`px-2 py-0.5 rounded border text-[11px] font-medium ${diffStyle.badge}`}>
+          <span className={`px-2 py-0.5 rounded border text-xs font-medium ${diffStyle.badge}`}>
             {diffStyle.name}
           </span>
           <span className="flex items-center gap-1 text-text-1">
@@ -49,11 +49,11 @@ export default function IdeaDetailPage() {
           </span>
         </div>
 
-        <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight text-text-0 leading-tight">
+        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-text-0 leading-tight">
           {idea.title}
         </h1>
 
-        <p className="text-sm sm:text-base text-text-1 leading-relaxed max-w-3xl">
+        <p style={{ maxWidth: '60ch' }} className="text-sm sm:text-base text-text-1 leading-relaxed">
           {idea.tagline}
         </p>
 
@@ -61,7 +61,7 @@ export default function IdeaDetailPage() {
         <div className="pt-2 flex flex-wrap items-center gap-3">
           <button
             onClick={() => setModalOpen(true)}
-            className="btn-brass text-sm py-2 px-5 cursor-pointer"
+            className="btn-brass text-xs py-2 px-4 cursor-pointer"
           >
             <ShieldCheck className="w-4 h-4" />
             <span>Submit Solution & Docs</span>
@@ -71,7 +71,7 @@ export default function IdeaDetailPage() {
             href={idea.mockInfra.starterRepoUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-outline text-sm py-2 px-4 inline-flex items-center gap-2"
+            className="btn-outline text-xs py-2 px-4 inline-flex items-center gap-2"
           >
             <GitBranch className="w-4 h-4 text-green-700 dark:text-green-400" />
             <span>Fork Starter Repo</span>
@@ -81,35 +81,35 @@ export default function IdeaDetailPage() {
       </section>
 
       {/* Origin Story Context */}
-      <section className="p-5 border border-line bg-card/40 space-y-2">
-        <div className="text-xs font-mono text-green-700 dark:text-green-400 font-semibold">
+      <section className="pl-4 border-l-2 border-line space-y-1.5 my-6">
+        <div className="text-xs font-mono text-text-1 uppercase tracking-wider font-semibold">
           Operator Origin Dispatch
         </div>
-        <p className="italic text-sm sm:text-base text-text-0 leading-relaxed max-w-2xl">
+        <p style={{ maxWidth: '60ch' }} className="italic text-sm sm:text-base text-text-0 leading-relaxed">
           &ldquo;{idea.originStory}&rdquo;
         </p>
       </section>
 
       {/* Technical Problem Brief */}
-      <section className="space-y-4">
+      <section className="space-y-3">
         <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
           Technical Problem Statement
         </h2>
-        <div className="text-sm text-text-0 leading-relaxed whitespace-pre-line p-5 rounded-radius border border-line bg-card/20 max-w-3xl">
-          <p className="max-w-2xl leading-relaxed">{idea.problemStatement}</p>
+        <div style={{ maxWidth: '60ch' }} className="text-sm text-text-0 leading-relaxed whitespace-pre-line">
+          <p className="leading-relaxed">{idea.problemStatement}</p>
         </div>
       </section>
 
       {/* Technical Requirements Checklist */}
-      <section className="space-y-4">
+      <section className="space-y-3">
         <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
           Required Engineering Constraints
         </h2>
-        <div className="p-5 rounded-radius border border-line bg-card/30 space-y-3 text-xs sm:text-sm max-w-3xl">
+        <div style={{ maxWidth: '60ch' }} className="space-y-2.5 text-xs sm:text-sm">
           {idea.technicalRequirements.map((req, i) => (
-            <div key={i} className="flex items-start gap-3 text-text-0 max-w-2xl">
-              <span className="text-green-700 dark:text-green-400 font-mono font-bold mt-0.5">[{i + 1}]</span>
-              <span className="leading-relaxed">{req}</span>
+            <div key={i} style={{ maxWidth: '60ch' }} className="flex items-start gap-2.5 text-text-0">
+              <span className="text-text-1 font-mono font-medium mt-0.5 shrink-0">[{i + 1}]</span>
+              <p className="leading-relaxed">{req}</p>
             </div>
           ))}
         </div>
@@ -121,7 +121,7 @@ export default function IdeaDetailPage() {
           <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
             Starter Mock Infrastructure
           </h2>
-          <p className="text-xs text-text-1">
+          <p style={{ maxWidth: '60ch' }} className="text-xs text-text-1">
             Build against this live mock server. You can simulate requests and verify JSON contract schemas directly below.
           </p>
         </div>

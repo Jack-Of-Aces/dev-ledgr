@@ -40,22 +40,22 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
   const getMethodBadgeClass = (method: string) => {
     switch (method.toUpperCase()) {
       case 'GET':
-        return 'text-green-700 dark:text-green-400 bg-green-500/10 border border-green-500/20';
+        return 'text-green-700 dark:text-green-400 font-semibold';
       case 'POST':
-        return 'text-blue-700 dark:text-blue-300 bg-blue-500/10 border border-blue-500/20';
+        return 'text-blue-700 dark:text-blue-400 font-semibold';
       case 'PUT':
-        return 'text-amber-800 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20';
+        return 'text-amber-700 dark:text-amber-400 font-semibold';
       case 'DELETE':
-        return 'text-rose-700 dark:text-rose-300 bg-rose-500/10 border border-rose-500/20';
+        return 'text-rose-700 dark:text-rose-400 font-semibold';
       default:
-        return 'text-text-0 bg-card border border-line';
+        return 'text-text-0 font-semibold';
     }
   };
 
   return (
-    <div className="rounded-radius border border-line bg-card/50 overflow-hidden font-mono text-[12px]">
+    <div className="rounded-radius border border-line bg-ink-0 overflow-hidden font-mono text-xs">
       {/* Terminal Title Bar */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-card border-b border-line">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-line">
         <div className="flex items-center gap-2">
           <Terminal className="w-4 h-4 text-brass" />
           <span className="font-semibold text-text-0 text-xs tracking-tight">
@@ -68,7 +68,7 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
           </span>
           <button
             onClick={handleCopyCurl}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-radius border border-line bg-ink-0 text-text-0 hover:border-brass transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2 py-1 text-xs text-text-1 hover:text-text-0 transition-colors cursor-pointer"
           >
             {copiedCurl ? (
               <>
@@ -86,7 +86,7 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
       </div>
 
       {/* Endpoint Tabs */}
-      <div role="tablist" aria-label="Mock infrastructure endpoints" className="flex border-b border-line overflow-x-auto bg-ink-0/40 px-2 pt-2">
+      <div role="tablist" aria-label="Mock infrastructure endpoints" className="flex border-b border-line overflow-x-auto px-2 pt-1 gap-1">
         {mockInfra.endpoints.map((ep, idx) => {
           const isSelected = idx === selectedEndpointIndex;
           return (
@@ -102,15 +102,13 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
                 setResponseLog(null);
                 setLatency(null);
               }}
-              className={`flex items-center gap-2 px-3 py-1.5 text-xs border-t border-l border-r border-line -mb-px rounded-t-radius cursor-pointer whitespace-nowrap transition-colors ${
+              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-mono cursor-pointer whitespace-nowrap transition-colors border-b-2 -mb-px ${
                 isSelected
-                  ? 'bg-card text-text-0 font-semibold border-b-card'
-                  : 'text-text-1 hover:text-text-0'
+                  ? 'border-text-0 text-text-0 font-medium'
+                  : 'border-transparent text-text-1 hover:text-text-0'
               }`}
             >
-              <span
-                className={`text-xs px-2 py-0.5 rounded font-semibold font-mono ${getMethodBadgeClass(ep.method)}`}
-              >
+              <span className={`text-xs font-mono ${getMethodBadgeClass(ep.method)}`}>
                 {ep.method}
               </span>
               <span>{ep.path}</span>
@@ -127,7 +125,7 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
         className="p-4 space-y-3"
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <p className="text-text-1 max-w-2xl leading-relaxed">{currentEndpoint.description}</p>
+          <p style={{ maxWidth: '65ch' }} className="text-text-1 leading-relaxed">{currentEndpoint.description}</p>
           <button
             onClick={handleSimulate}
             disabled={simulating}
@@ -141,7 +139,7 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
         {/* Live Response Box */}
         <div
           aria-live="polite"
-          className="relative bg-ink-0 p-3 border-t border-b border-line -mx-4"
+          className="relative p-3 border-t border-line -mx-4"
         >
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-line text-xs text-text-1">
             <span className="flex items-center gap-2">

@@ -146,7 +146,7 @@ export default function JobApplyPage() {
         <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text-0">
           {job.title} · {job.company}
         </h1>
-        <p className="text-text-1 leading-relaxed text-xs sm:text-sm max-w-2xl">{job.description}</p>
+        <p className="text-text-1 leading-relaxed text-xs sm:text-sm max-w-prose">{job.description}</p>
       </div>
 
       {/* Step 1: Audit Trigger Card */}
@@ -157,7 +157,7 @@ export default function JobApplyPage() {
             <h2 className="text-xl font-semibold tracking-tight text-text-0">
               Audit Portfolio Against Job Spec
             </h2>
-            <p className="text-text-1 text-xs leading-relaxed max-w-md mx-auto">
+            <p className="text-text-1 text-xs leading-relaxed max-w-prose mx-auto">
               Match your verified test telemetry against {job.company}&apos;s technical requirements.
               If criteria pass, export an ATS-safe application package with verified commit links.
             </p>
@@ -188,11 +188,11 @@ export default function JobApplyPage() {
         <div className="rounded-radius border border-line bg-ink-0 p-5 space-y-3">
           <div className="flex items-center gap-2 text-green-700 dark:text-green-400 pb-2 border-b border-line">
             <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="font-semibold uppercase tracking-wider text-[11px] font-mono">
+            <span className="font-semibold uppercase tracking-wider text-xs font-mono">
               Audit Engine Active
             </span>
           </div>
-          <div className="space-y-1.5 text-[11.5px] text-text-0 font-mono">
+          <div className="space-y-1.5 text-xs text-text-0 font-mono">
             {scanLog.map((log, idx) => (
               <div key={idx} className="flex items-center gap-2">
                 <span className="text-green-700 dark:text-green-400">›</span>
@@ -285,7 +285,7 @@ export default function JobApplyPage() {
               aria-labelledby={activeTab === 'cv' ? 'tab-cv' : 'tab-coverLetter'}
               className="p-5"
             >
-              <pre className="overflow-x-auto whitespace-pre-wrap leading-relaxed text-[12px] text-text-0 bg-ink-0 p-4 rounded-radius border border-line max-h-125">
+              <pre className="overflow-x-auto whitespace-pre-wrap leading-relaxed text-xs text-text-0 bg-ink-0 p-4 rounded-radius border border-line max-h-125">
                 {activeDocContent}
               </pre>
             </div>
@@ -320,7 +320,7 @@ export default function JobApplyPage() {
               <div className="font-semibold text-text-0 text-sm">
                 Targeted Gap Identified: Database Internals & DDL Safety
               </div>
-              <p className="text-text-1 mt-0.5 leading-relaxed text-xs">
+              <p className="text-text-1 mt-0.5 leading-relaxed text-xs max-w-prose">
                 {job.company} explicitly requires demonstrated proof in Postgres lock contention and
                 zero-downtime schema deployments. Submitting now without this proof risks ATS rejection.
               </p>
@@ -333,14 +333,14 @@ export default function JobApplyPage() {
               <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
                 {gapProblem.title}
               </h2>
-              <p className="text-text-1 text-xs mt-1.5 leading-relaxed">
+              <p className="text-text-1 text-xs mt-1.5 leading-relaxed max-w-prose">
                 {gapProblem.tagline}
               </p>
             </div>
 
             <div className="pl-3 border-l-2 border-green-500/40 text-xs text-text-0 space-y-1 py-1">
               <div className="font-semibold text-green-700 dark:text-green-400">Why this closes the gap:</div>
-              <div className="text-text-1 leading-relaxed">
+              <div className="text-text-1 leading-relaxed max-w-prose">
                 Solving this problem proves to {job.company} that you can prevent table-locking outages
                 on multi-tenant production databases.
               </div>

@@ -36,7 +36,7 @@ export default function CoachingDetailPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-8 text-sm font-sans">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-8 text-sm font-sans">
       <div>
         <Link
           href="/coaching"
@@ -47,14 +47,14 @@ export default function CoachingDetailPage() {
         </Link>
       </div>
 
-      <div className="space-y-2 pb-6 border-b border-line">
+      <div style={{ maxWidth: '54ch' }} className="space-y-2 pb-6 border-b border-line">
         <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-text-0">
           {itinerary.title}
         </h1>
         <div className="text-xs font-mono text-green-700 dark:text-green-400 font-medium">
           4-Week Track · Target: {itinerary.targetRole}
         </div>
-        <p className="text-text-1 text-xs sm:text-sm max-w-2xl leading-relaxed pt-1">
+        <p style={{ maxWidth: '54ch' }} className="text-text-1 text-xs sm:text-sm leading-relaxed pt-1">
           {itinerary.subtitle}
         </p>
       </div>
@@ -90,12 +90,12 @@ export default function CoachingDetailPage() {
         aria-labelledby={`tab-week-${selectedMilestone.week}`}
         className="grid grid-cols-1 md:grid-cols-3 gap-6"
       >
-        <div className="md:col-span-2 space-y-5 rounded-radius border border-line bg-card/40 p-6">
+        <div style={{ maxWidth: '65ch' }} className="md:col-span-2 space-y-5 rounded-radius border border-line bg-card/40 p-6">
           <div className="space-y-1">
             <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
               {selectedMilestone.title}
             </h2>
-            <p className="text-text-0 pt-1 leading-relaxed text-xs sm:text-sm max-w-xl">
+            <p className="text-text-0 pt-1 leading-relaxed text-xs sm:text-sm">
               {selectedMilestone.deliverable}
             </p>
           </div>
@@ -113,7 +113,7 @@ export default function CoachingDetailPage() {
           )}
 
           {/* Socratic Prompts */}
-          <div className="space-y-3 pt-3">
+          <div style={{ maxWidth: '65ch' }} className="space-y-3 pt-3">
             <h3 className="text-xs font-semibold text-text-0">
               Interactive Guided Prompts
             </h3>
@@ -125,15 +125,15 @@ export default function CoachingDetailPage() {
                   className="w-full text-left p-3 rounded-radius border border-line bg-card hover:border-green-500/50 text-text-0 text-xs transition-colors flex items-center justify-between group cursor-pointer"
                 >
                   <span>&ldquo;{p}&rdquo;</span>
-                  <Sparkles className="w-3.5 h-3.5 text-green-700 dark:text-green-400 opacity-60 group-hover:opacity-100" />
+                  <Sparkles className="w-3.5 h-3.5 text-green-700 dark:text-green-400 opacity-60 group-hover:opacity-100 shrink-0 ml-2" />
                 </button>
               ))}
             </div>
           </div>
 
           {isLoadingCoach && (
-            <div className="p-4 rounded-(--radius) border border-(--line) bg-(--ink-0) flex items-center gap-2 text-xs text-(--text-1)">
-              <Loader2 className="w-4 h-4 animate-spin text-emerald-700 dark:text-emerald-400" />
+            <div className="p-4 rounded-radius border border-line bg-ink-0 flex items-center gap-2 text-xs text-text-1">
+              <Loader2 className="w-4 h-4 animate-spin text-text-0" />
               <span>Generating guidance...</span>
             </div>
           )}
@@ -180,7 +180,10 @@ export default function CoachingDetailPage() {
             ))}
           </div>
 
-          <div className="pt-4 border-t border-line text-xs text-text-1 leading-relaxed">
+          <div
+            style={{ maxWidth: '40ch' }}
+            className="pt-4 border-t border-line text-xs text-text-1 leading-relaxed"
+          >
             Completing this itinerary provides 4 verified commits, unlocking automatic 90%+ match scoring on junior platform roles.
           </div>
         </div>
