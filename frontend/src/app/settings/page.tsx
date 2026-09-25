@@ -103,7 +103,7 @@ export default function SettingsPage() {
 
         <form onSubmit={handleSave} className="space-y-8">
           {/* Section 1: Developer Ledger Identity */}
-          <section className="p-6 rounded-radius border border-line bg-card/40 space-y-5">
+          <section className="p-5 sm:p-6 rounded-radius border border-line bg-card/40 space-y-5">
             <div className="flex items-center gap-2 text-base font-semibold text-text-0 pb-2 border-b border-line">
               <User className="w-4 h-4 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
               <span>Developer Ledger Identity</span>
@@ -250,7 +250,7 @@ export default function SettingsPage() {
           </section>
 
           {/* Section 2: Verified Technical Stack (Skills) */}
-          <section className="p-6 rounded-radius border border-line bg-card/40 space-y-4">
+          <section className="p-5 sm:p-6 rounded-radius border border-line bg-card/40 space-y-4">
             <div className="flex items-center gap-2 text-base font-semibold text-text-0 pb-2 border-b border-line">
               <Code2 className="w-4 h-4 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
               <span>Verified Technical Stack</span>
@@ -286,7 +286,7 @@ export default function SettingsPage() {
           </section>
 
           {/* Section 3: AI Compute Model: Full-Service vs BYOK */}
-          <section className="p-6 rounded-radius border border-line bg-card space-y-4">
+          <section className="p-5 sm:p-6 rounded-radius border border-line bg-card space-y-4">
             <div className="flex items-center gap-2 text-base font-semibold text-text-0 pb-2 border-b border-line">
               <Key className="w-4 h-4 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
               <span>AI Model & Compute Tier</span>
@@ -371,8 +371,8 @@ export default function SettingsPage() {
           </section>
 
           {/* Section 4: Subscription Mock */}
-          <section className="p-6 rounded-radius border border-line bg-card/40 space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-line">
+          <section className="p-5 sm:p-6 rounded-radius border border-line bg-card/40 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-line">
               <div className="flex items-center gap-2 text-base font-semibold text-text-0">
                 <CreditCard className="w-4 h-4 text-text-1" aria-hidden="true" />
                 <span>Consensus Membership & Guarantee</span>
@@ -382,7 +382,7 @@ export default function SettingsPage() {
               </span>
             </div>
 
-            <div className="flex items-center justify-between text-xs text-text-1 font-mono">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-1 font-mono">
               <span>Ledger Guarantee Expiry:</span>
               <span className="text-text-0 font-semibold">
                 {new Date(user.portfolioValidUntil).toLocaleDateString(undefined, {
@@ -399,7 +399,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={isSaving}
-              className="btn-brass text-xs py-2 px-6 cursor-pointer flex items-center gap-2 font-mono"
+              className="btn-brass text-xs py-2 px-6 cursor-pointer flex items-center justify-center gap-2 font-mono w-full sm:w-auto"
             >
               {isSaving ? (
                 <>

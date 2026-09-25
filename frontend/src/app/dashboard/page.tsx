@@ -119,19 +119,19 @@ export default function DashboardPage() {
         <div className="flex items-start sm:items-center gap-3">
           <ShieldCheck className="w-5 h-5 text-green-700 dark:text-green-400 shrink-0 mt-0.5 sm:mt-0" />
           <div>
-            <div className="font-medium text-text-0 flex items-center gap-2">
+            <div className="font-medium text-text-0 flex flex-wrap items-center gap-2">
               <span>Public Portfolio Guarantee</span>
               <span className="text-xs text-green-700 dark:text-green-400 bg-green-500/10 px-2.5 py-1 rounded border border-green-500/20 font-mono font-medium">
                 verified online
               </span>
             </div>
-            <div className="text-xs text-text-1 mt-0.5 font-mono">
+            <div className="text-xs text-text-1 mt-0.5 font-mono break-all sm:break-normal">
               {user.username}.devledgr.io · Valid through Sep 2027
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 font-mono text-text-0">
+        <div className="flex flex-wrap items-center gap-2 font-mono text-text-0">
           <span className="text-text-1">Valid for:</span>
           <span className="text-green-700 dark:text-green-400 font-semibold tabular">
             {countdown.days}d {countdown.hours.toString().padStart(2, '0')}h {countdown.minutes.toString().padStart(2, '0')}m {countdown.seconds.toString().padStart(2, '0')}s
@@ -166,7 +166,7 @@ export default function DashboardPage() {
 
       {/* Personal Provenance Ledger History */}
       <section className="space-y-4 pt-2">
-        <div className="flex items-center justify-between pb-2 border-b border-line">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-line">
           <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
             Recorded Entries ({userSubmissions.length})
           </h2>

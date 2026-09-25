@@ -140,10 +140,10 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="submit-solution-modal-title"
-        className="relative w-full max-w-xl rounded-radius border border-brass bg-ink-0 shadow-2xl overflow-hidden font-mono"
+        className="relative w-full max-w-xl max-h-[calc(100dvh-2rem)] flex flex-col rounded-radius border border-brass bg-ink-0 shadow-lg overflow-hidden font-mono"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 bg-card border-b border-line">
+        <div className="flex items-center justify-between px-5 py-3.5 bg-card border-b border-line shrink-0">
           <div className="flex items-center gap-2">
             <GitCommit className="w-4 h-4 text-brass" aria-hidden="true" />
             <h2 id="submit-solution-modal-title" className="font-serif text-lg font-medium text-text-0">
@@ -160,7 +160,7 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-5 sm:p-6 overflow-y-auto">
           {completedEntry ? (
             <div className="space-y-5 text-center py-4">
               <div className="w-12 h-12 rounded-full bg-diff-green/15 border border-diff-green/30 mx-auto flex items-center justify-center">

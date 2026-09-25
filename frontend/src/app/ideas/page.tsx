@@ -99,11 +99,11 @@ export default function IdeasPage() {
             return (
               <div
                 key={idea.id}
-                className="rounded-radius border border-line bg-card hover:border-zinc-700/80 transition-all p-6 flex flex-col justify-between space-y-5"
+                className="rounded-radius border border-line bg-card hover:border-zinc-700/80 transition-all p-5 sm:p-6 flex flex-col justify-between space-y-5"
               >
                 <div className="space-y-4">
                   {/* Meta tags */}
-                  <div className="flex items-center justify-between gap-2 text-xs font-mono">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
                     <div className="flex items-center gap-2">
                       <span className={`px-2.5 py-1 rounded border text-xs font-semibold ${domainStyle.badge}`}>
                         {domainStyle.name}
@@ -153,7 +153,7 @@ export default function IdeasPage() {
               </div>
 
               {/* Bottom Actions */}
-              <div className="pt-4 border-t border-line flex items-center justify-between gap-4 text-xs">
+              <div className="pt-4 border-t border-line flex flex-wrap items-center justify-between gap-3 text-xs">
                 <span className="text-xs text-green-700 dark:text-green-400 flex items-center gap-1.5 font-medium font-mono">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-600 dark:bg-green-500" />
                   Mock Infra Ready

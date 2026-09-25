@@ -64,12 +64,12 @@ export const LedgerEntryRow: React.FC<LedgerEntryRowProps> = ({
           {showIdeaLink ? (
             <Link
               href={`/ideas/${entry.ideaId}`}
-              className="font-medium text-sm text-text-0 hover:text-brass transition-colors hover:underline truncate max-w-full"
+              className="font-medium text-sm text-text-0 hover:text-brass transition-colors hover:underline wrap-break-word"
             >
               {entry.ideaTitle}
             </Link>
           ) : (
-            <span className="font-medium text-sm text-text-0 truncate max-w-full">
+            <span className="font-medium text-sm text-text-0 wrap-break-word">
               {entry.ideaTitle}
             </span>
           )}

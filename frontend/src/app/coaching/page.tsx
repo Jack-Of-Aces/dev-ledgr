@@ -21,7 +21,7 @@ export default function CoachingListPage() {
         {INITIAL_COACHING.map((track) => (
           <div
             key={track.id}
-            className="rounded-radius border border-line bg-card hover:border-zinc-700/80 transition-all p-6 space-y-5"
+            className="rounded-radius border border-line bg-card hover:border-zinc-700/80 transition-all p-5 sm:p-6 space-y-5"
           >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-line">
               <div>
@@ -33,14 +33,14 @@ export default function CoachingListPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
                 <span className="flex items-center gap-1 text-text-1 text-xs font-mono">
                   <Clock className="w-3.5 h-3.5" />
                   {track.durationWeeks} Weeks
                 </span>
                 <Link
                   href={`/coaching/${track.id}`}
-                  className="btn-brass text-xs py-1.5 px-4"
+                  className="btn-brass text-xs py-1.5 px-4 shrink-0"
                 >
                   <span>Open Itinerary</span>
                   <ArrowRight className="w-3.5 h-3.5" />

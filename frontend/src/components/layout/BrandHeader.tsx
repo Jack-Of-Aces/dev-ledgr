@@ -38,6 +38,11 @@ export const BrandHeader: React.FC = () => {
         const parsed = JSON.parse(savedTheme);
         if (parsed.state?.theme) {
           document.documentElement.setAttribute('data-theme', parsed.state.theme);
+          if (parsed.state.theme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
         }
       } catch {
         // ignore malformed storage

@@ -114,7 +114,7 @@ export const AuthModal: React.FC = () => {
         role="dialog"
         aria-modal="true"
         aria-labelledby={step === 'oauth' ? 'auth-modal-title-oauth' : 'auth-modal-title-onboarding'}
-        className="relative w-full max-w-md rounded-radius border border-brass bg-ink-0 shadow-2xl p-6 font-mono text-xs space-y-6"
+        className="relative w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-radius border border-brass bg-ink-0 shadow-lg p-6 font-mono text-xs space-y-6"
       >
         {/* Close Button */}
         <button

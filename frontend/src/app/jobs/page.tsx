@@ -68,8 +68,8 @@ export default function JobsPage() {
                   </h2>
                 </div>
 
-                <div className="flex items-center gap-3 font-mono">
-                  <div className="text-right">
+                <div className="flex items-center justify-between sm:justify-end gap-3 font-mono w-full sm:w-auto">
+                  <div className="text-left sm:text-right">
                     <div
                       className={`text-sm font-bold ${
                         isHighMatch ? 'text-green-700 dark:text-green-400' : 'text-zinc-600 dark:text-zinc-400'
@@ -84,7 +84,7 @@ export default function JobsPage() {
 
                   <Link
                     href={`/jobs/${job.id}/apply`}
-                    className="btn-brass text-xs py-2 px-4"
+                    className="btn-brass text-xs py-2 px-4 shrink-0"
                   >
                     <span>Run AI Scrutiny</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -116,7 +116,7 @@ export default function JobsPage() {
               </div>
 
               {/* Salary & Type */}
-              <div className="flex items-center justify-between pt-3 border-t border-line text-xs text-text-1">
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-line text-xs text-text-1">
                 <span className="font-semibold text-text-0">
                   Compensation: {job.salary}
                 </span>

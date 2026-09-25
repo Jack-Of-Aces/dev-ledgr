@@ -142,7 +142,7 @@ export default function JobApplyPage() {
       </div>
 
       {/* Target Job Header */}
-      <div className="border border-line bg-card/50 p-6 space-y-3 rounded-radius">
+      <div className="border border-line bg-card/50 p-5 sm:p-6 space-y-3 rounded-radius">
         <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text-0">
           {job.title} · {job.company}
         </h1>
@@ -151,7 +151,7 @@ export default function JobApplyPage() {
 
       {/* Step 1: Audit Trigger Card */}
       {!analysisResult && !scrutinizing && (
-        <div className="p-8 rounded-radius border border-line bg-card text-center space-y-5">
+        <div className="p-5 sm:p-8 rounded-radius border border-line bg-card text-center space-y-5">
           <Sparkles className="w-8 h-8 text-green-700 dark:text-green-400 mx-auto" />
           <div className="space-y-1 max-w-lg mx-auto">
             <h2 className="text-xl font-semibold tracking-tight text-text-0">
@@ -221,8 +221,8 @@ export default function JobApplyPage() {
 
           {/* Package Tabs */}
           <div className="rounded-radius border border-line bg-card/40 overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-2.5 bg-card border-b border-line">
-              <div role="tablist" aria-label="Application package tabs" className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-2.5 bg-card border-b border-line">
+              <div role="tablist" aria-label="Application package tabs" className="flex flex-wrap items-center gap-2">
                 <button
                   id="tab-cv"
                   role="tab"
@@ -253,7 +253,7 @@ export default function JobApplyPage() {
                 </button>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-end gap-2">
                 <button
                   onClick={handleDownload}
                   className="btn-outline text-xs py-1 px-3 cursor-pointer flex items-center gap-1.5"
@@ -291,10 +291,10 @@ export default function JobApplyPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
             <button
               onClick={() => runScrutiny(false)}
-              className="text-text-1 hover:underline"
+              className="text-text-1 hover:underline text-left cursor-pointer"
             >
               Re-run analysis
             </button>
@@ -302,7 +302,7 @@ export default function JobApplyPage() {
               href={`https://${job.company.toLowerCase()}.com/careers`}
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-brass text-xs py-2 px-5"
+              className="btn-brass text-xs py-2 px-5 inline-flex items-center justify-center gap-2"
             >
               <span>Submit to {job.company} with Verified URL</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -328,7 +328,7 @@ export default function JobApplyPage() {
           </div>
 
           {/* Recommended Problem to close the gap */}
-          <div className="border border-line bg-card p-6 space-y-4 rounded-radius">
+          <div className="border border-line bg-card p-5 sm:p-6 space-y-4 rounded-radius">
             <div>
               <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
                 {gapProblem.title}
@@ -346,16 +346,16 @@ export default function JobApplyPage() {
               </div>
             </div>
 
-            <div className="pt-2 flex items-center justify-between">
+            <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <button
                 onClick={() => setAnalysisResult('ready')}
-                className="text-text-1 hover:underline text-xs cursor-pointer"
+                className="text-text-1 hover:underline text-xs cursor-pointer text-left"
               >
                 (Override: proceed to CV anyway)
               </button>
               <Link
                 href={`/ideas/${gapProblem.id}`}
-                className="btn-brass text-xs py-2 px-5"
+                className="btn-brass text-xs py-2 px-5 inline-flex items-center justify-center gap-2"
               >
                 <span>Go to Idea Bank Spec</span>
                 <ArrowRight className="w-3.5 h-3.5" />

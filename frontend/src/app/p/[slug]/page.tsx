@@ -119,31 +119,31 @@ ${userSubmissions
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-12">
       {/* 1-Year Guarantee Banner (Standalone Proof Badge) */}
-      <div className="rounded-radius border border-green-500/20 bg-green-500/5 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-mono">
+      <div className="rounded-radius border border-green-500/20 bg-green-500/5 p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs font-mono">
         <div className="flex items-start sm:items-center gap-3">
           <ShieldCheck className="w-6 h-6 text-green-700 dark:text-green-400 shrink-0 mt-0.5 sm:mt-0" />
-          <div>
-            <div className="font-semibold text-text-0 text-sm flex items-center gap-2 font-sans">
+          <div className="space-y-1">
+            <div className="font-semibold text-text-0 text-sm flex flex-wrap items-center gap-2 font-sans">
               <span>Public Developer Ledger</span>
-              <span className="text-xs text-green-700 dark:text-green-400 bg-green-500/10 px-2.5 py-1 rounded-full border border-green-500/20 font-mono font-medium">
+              <span className="text-xs text-green-700 dark:text-green-400 bg-green-500/10 px-2.5 py-0.5 rounded-full border border-green-500/20 font-mono font-medium">
                 cryptographically signed
               </span>
             </div>
-            <div className="text-xs text-text-1 mt-1 font-mono max-w-xl">
-              Permanent URL:{" "}
-              <code className="text-green-700 dark:text-green-400 font-medium">
+            <div className="text-xs text-text-1 font-mono break-words leading-relaxed">
+              <span>Permanent URL: </span>
+              <code className="text-green-700 dark:text-green-400 font-semibold break-all">
                 {slug}.devledgr.io
               </code>{" "}
-              · Valid through Sep 2027 (1-Year Guarantee)
+              <span className="text-text-1">· Valid through Sep 2027 (1-Year Guarantee)</span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 font-sans">
+        <div className="flex flex-wrap items-center gap-2 font-sans pt-1 md:pt-0">
           {isLoggedIn && slug.toLowerCase() === user.username.toLowerCase() && (
             <Link
               href="/settings"
-              className="btn-brass text-xs py-1.5 px-3 flex items-center gap-1.5 font-mono"
+              className="btn-brass text-xs py-1.5 px-3 flex items-center justify-center gap-1.5 font-mono flex-1 sm:flex-initial"
               title="Edit your public ledger identity"
             >
               <Edit3 className="w-3.5 h-3.5" />
@@ -153,9 +153,8 @@ ${userSubmissions
 
           <button
             onClick={handleShare}
-            className="btn-outline text-xs py-1.5 px-3"
+            className="btn-outline text-xs py-1.5 px-3 flex items-center justify-center gap-1.5 font-mono flex-1 sm:flex-initial cursor-pointer"
           >
-
             {copiedUrl ? (
               <>
                 <Check className="w-3.5 h-3.5 text-green-700 dark:text-green-400" />
@@ -171,7 +170,7 @@ ${userSubmissions
 
           <button
             onClick={() => setShowExportModal(true)}
-            className="btn-brass text-xs py-1.5 px-3.5"
+            className="btn-brass text-xs py-1.5 px-3.5 flex items-center justify-center gap-1.5 font-mono w-full sm:w-auto cursor-pointer"
           >
             <FileText className="w-3.5 h-3.5" />
             <span>Export Recruiter Docket</span>
@@ -183,12 +182,18 @@ ${userSubmissions
       <div className="space-y-4 pb-8 border-b border-line">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="space-y-2">
-            <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight text-text-0">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-text-0">
               {displayUser.name}
             </h1>
-            <p className="text-sm text-green-700 dark:text-green-400 font-medium font-mono">
-              @{displayUser.username} · {displayUser.headline}
-            </p>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm">
+              <span className="font-mono font-semibold text-green-700 dark:text-green-400">
+                @{displayUser.username}
+              </span>
+              <span className="text-text-1">·</span>
+              <span className="text-text-1">
+                {displayUser.headline}
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -205,19 +210,19 @@ ${userSubmissions
           </div>
         </div>
 
-        <p className="text-sm text-text-1 max-w-xl leading-relaxed">
+        <p className="text-xs sm:text-sm text-text-1 max-w-xl leading-relaxed">
           {displayUser.bio}
         </p>
 
         {/* Skills pill row */}
         <div className="flex flex-wrap items-center gap-1.5 pt-2 text-xs">
-          <span className="text-xs text-text-1 mr-1">
+          <span className="text-xs text-text-1 mr-1 font-mono">
             Verified Stack:
           </span>
           {displayUser.statedSkills.map((skill) => (
             <span
               key={skill}
-              className="px-2.5 py-1 rounded border border-line bg-card text-text-0 text-xs"
+              className="px-2.5 py-1 rounded border border-line bg-card text-text-0 text-xs font-mono"
             >
               {skill}
             </span>
@@ -227,9 +232,9 @@ ${userSubmissions
 
       {/* Verified Problem Proof Entries */}
       <section className="space-y-6">
-        <div className="flex items-center justify-between pb-2 border-b border-line">
+        <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 sm:gap-4 pb-2 border-b border-line">
           <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
-            Verified Entries ({userSubmissions.length})
+            Verified Entries <span className="text-text-1 font-normal text-base font-mono">({userSubmissions.length})</span>
           </h2>
           <span className="text-xs text-text-1">
             Accepted solutions with full test telemetry
@@ -243,34 +248,37 @@ ${userSubmissions
             return (
               <div
                 key={sub.hash}
-                className="border border-line bg-card/40 p-6 space-y-5 rounded-radius text-xs"
+                className="border border-line bg-card/40 p-5 sm:p-6 space-y-5 rounded-radius text-xs"
               >
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-line">
-                  <div className="flex items-center gap-3">
-                    <span className="commit-hash text-xs font-bold text-text-0">
-                      #{sub.hash}
-                    </span>
-                    <Link
-                      href={`/ideas/${sub.ideaId}`}
-                      className="text-lg sm:text-xl font-semibold tracking-tight text-text-0 hover:text-green-700 dark:hover:text-green-400 hover:underline"
-                    >
-                      {sub.ideaTitle}
-                    </Link>
-                  </div>
+                <div className="space-y-2 pb-3 border-b border-line">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 font-mono text-xs">
+                      <span className="commit-hash font-bold text-text-0">
+                        #{sub.hash}
+                      </span>
+                      <span className="text-text-1">·</span>
+                      <span className="text-text-1">Production Proof</span>
+                    </div>
 
-                  <div className="flex items-center gap-2">
-                    <span className="verified-chip text-xs">
+                    <span className="verified-chip text-xs shrink-0">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-600 dark:bg-green-500" />
                       verified proof
                     </span>
                   </div>
+
+                  <Link
+                    href={`/ideas/${sub.ideaId}`}
+                    className="text-lg sm:text-xl font-semibold tracking-tight text-text-0 hover:text-green-700 dark:hover:text-green-400 hover:underline block leading-snug"
+                  >
+                    {sub.ideaTitle}
+                  </Link>
                 </div>
 
                 {/* Architecture write-up */}
                 <div className="space-y-1.5">
                   <div className="text-xs text-green-700 dark:text-green-400 font-semibold font-mono">
-                    Engineering Decisions & Trade-offs:
+                    Engineering Decisions &amp; Trade-offs:
                   </div>
                   <p className="text-text-0 leading-relaxed text-xs sm:text-sm max-w-xl">
                     {sub.architectureNotes}
@@ -283,7 +291,7 @@ ${userSubmissions
                     <div className="text-xs text-text-1 uppercase font-mono">
                       P99 Latency
                     </div>
-                    <div className="font-bold text-text-0 text-sm">
+                    <div className="font-bold text-text-0 text-sm font-mono mt-0.5">
                       {sub.metrics?.latencyP99 || "32ms"}
                     </div>
                   </div>
@@ -291,7 +299,7 @@ ${userSubmissions
                     <div className="text-xs text-text-1 uppercase font-mono">
                       Throughput
                     </div>
-                    <div className="font-bold text-text-0 text-sm">
+                    <div className="font-bold text-text-0 text-sm font-mono mt-0.5">
                       {sub.metrics?.throughput || "180 req/s"}
                     </div>
                   </div>
@@ -299,7 +307,7 @@ ${userSubmissions
                     <div className="text-xs text-text-1 uppercase font-mono">
                       Code Coverage
                     </div>
-                    <div className="font-bold text-text-0 text-sm">
+                    <div className="font-bold text-text-0 text-sm font-mono mt-0.5">
                       {sub.metrics?.coverage || "95.0%"}
                     </div>
                   </div>
@@ -307,7 +315,7 @@ ${userSubmissions
                     <div className="text-xs text-text-1 uppercase font-mono">
                       CI Test Suite
                     </div>
-                    <div className="font-bold text-diff-green text-sm">
+                    <div className="font-bold text-green-700 dark:text-green-400 text-sm font-mono mt-0.5">
                       {sub.testResults.passed}/{sub.testResults.total} passed
                     </div>
                   </div>
@@ -367,13 +375,13 @@ ${userSubmissions
                     )}
                   </button>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                     {sub.repoUrl && (
                       <a
                         href={sub.repoUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="hover:text-text-0 hover:underline inline-flex items-center gap-1 font-semibold"
+                        className="text-text-1 hover:text-text-0 hover:underline inline-flex items-center gap-1 font-medium font-mono"
                       >
                         <GithubIcon className="w-3.5 h-3.5" />
                         <span>Review Code</span>
@@ -386,7 +394,7 @@ ${userSubmissions
                         href={sub.demoUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-brass hover:underline inline-flex items-center gap-1 font-semibold"
+                        className="text-green-700 dark:text-green-400 hover:underline inline-flex items-center gap-1 font-medium font-mono"
                       >
                         <span>Live Demo</span>
                         <ExternalLink className="w-3 h-3" />

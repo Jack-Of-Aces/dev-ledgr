@@ -85,9 +85,9 @@ export const BrandFooter: React.FC = () => {
           </div>
         </div>
 
-        <div className="pt-8 ledger-border-t flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-text-1">
+        <div className="pt-8 ledger-border-t flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-text-1 text-center sm:text-left">
           <div>DevLedgr v0.2. Built for software engineers.</div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3 sm:gap-4">
             <a
               href="https://github.com/Jack-Of-Aces/dev-ledgr"
               target="_blank"
