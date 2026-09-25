@@ -1,0 +1,400 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --color-ink-0: var(--ink-0);
+  --color-ink-1: var(--ink-1);
+  --color-text-0: var(--text-0);
+  --color-text-1: var(--text-1);
+  --color-card: var(--card);
+  --color-line: var(--line);
+  --color-line-subtle: var(--line-subtle);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-text: var(--primary-text);
+
+  --color-emerald: var(--emerald);
+  --color-emerald-text: var(--emerald-text);
+  --color-emerald-hover: var(--emerald-hover);
+  --color-emerald-tint: var(--emerald-tint);
+  --color-emerald-border: var(--emerald-border);
+
+  --color-brass: var(--brass);
+  --color-brass-hover: var(--brass-hover);
+  --color-brass-tint: var(--brass-tint);
+  --color-diff-green: var(--diff-green);
+  --color-diff-green-tint: var(--diff-green-tint);
+
+  --color-bg-base: var(--bg-base);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-subtle: var(--bg-subtle);
+  --color-text-main: var(--text-main);
+  --color-text-muted: var(--text-muted);
+
+  --radius-radius: var(--radius);
+  --radius-DEFAULT: 8px;
+}
+
+:root {
+  /* Linear / Obsidian Clean: Light Theme */
+  --font-sans: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --bg-base: #FAFAFA;
+  --bg-surface: #FFFFFF;
+  --bg-subtle: #F4F4F5;
+  --text-main: #09090B;
+  --text-muted: #52525B;
+  --line: #E4E4E7;
+  --line-subtle: #F4F4F5;
+  
+  --primary: #09090B;
+  --primary-hover: #27272A;
+  --primary-text: #FAFAFA;
+  
+  --emerald: #15803D;
+  --emerald-text: #166534;
+  --emerald-hover: #14532D;
+  --emerald-tint: rgba(21, 128, 61, 0.08);
+  --emerald-border: rgba(21, 128, 61, 0.25);
+  
+  /* System token mappings */
+  --ink-0: var(--bg-base);
+  --ink-1: var(--bg-subtle);
+  --text-0: var(--text-main);
+  --text-1: var(--text-muted);
+  --card: var(--bg-surface);
+  --brass: var(--emerald);
+  --brass-hover: var(--emerald-hover);
+  --brass-tint: var(--emerald-tint);
+  --diff-green: var(--emerald);
+  --diff-green-tint: var(--emerald-tint);
+  --radius: 8px;
+}
+
+[data-theme="dark"] {
+  /* Linear / Obsidian Clean: Dark Theme (Primary) */
+  --bg-base: #09090B;
+  --bg-surface: #121215;
+  --bg-subtle: #18181B;
+  --text-main: #F4F4F5;
+  --text-muted: #A1A1AA;
+  --line: rgba(255, 255, 255, 0.09);
+  --line-subtle: rgba(255, 255, 255, 0.04);
+  
+  --primary: #FFFFFF;
+  --primary-hover: #E4E4E7;
+  --primary-text: #09090B;
+  
+  --emerald: #22C55E;
+  --emerald-text: #4ADE80;
+  --emerald-hover: #4ADE80;
+  --emerald-tint: rgba(34, 197, 94, 0.12);
+  --emerald-border: rgba(34, 197, 94, 0.3);
+  
+  --ink-0: var(--bg-base);
+  --ink-1: var(--bg-subtle);
+  --text-0: var(--text-main);
+  --text-1: var(--text-muted);
+  --card: var(--bg-surface);
+  --brass: var(--emerald);
+  --brass-hover: var(--emerald-hover);
+  --brass-tint: var(--emerald-tint);
+  --diff-green: var(--emerald);
+  --diff-green-tint: var(--emerald-tint);
+  --radius: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-base: #09090B;
+    --bg-surface: #121215;
+    --bg-subtle: #18181B;
+    --text-main: #F4F4F5;
+    --text-muted: #A1A1AA;
+    --line: rgba(255, 255, 255, 0.09);
+    --line-subtle: rgba(255, 255, 255, 0.04);
+    
+    --primary: #FFFFFF;
+    --primary-hover: #E4E4E7;
+    --primary-text: #09090B;
+    
+    --emerald: #22C55E;
+    --emerald-text: #4ADE80;
+    --emerald-hover: #4ADE80;
+    --emerald-tint: rgba(34, 197, 94, 0.12);
+    --emerald-border: rgba(34, 197, 94, 0.3);
+    
+    --ink-0: var(--bg-base);
+    --ink-1: var(--bg-subtle);
+    --text-0: var(--text-main);
+    --text-1: var(--text-muted);
+    --card: var(--bg-surface);
+    --brass: var(--emerald);
+    --brass-hover: var(--emerald-hover);
+    --brass-tint: var(--emerald-tint);
+    --diff-green: var(--emerald);
+    --diff-green-tint: var(--emerald-tint);
+    --radius: 8px;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: var(--emerald-tint);
+  color: var(--text-0);
+}
+
+body {
+  margin: 0;
+  background-color: var(--ink-0);
+  color: var(--text-0);
+  font-family: var(--font-sans), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  min-height: 100vh;
+}
+
+/* Browser Surfaces Theming */
+:focus-visible {
+  outline: 2px solid var(--emerald);
+  outline-offset: 2px;
+}
+
+input, textarea, select {
+  caret-color: var(--emerald);
+}
+
+/* Keyframe Animations */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in-from-top {
+  from { transform: translateY(-0.5rem); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slide-in-from-bottom {
+  from { transform: translateY(1rem); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Tailwind CSS v4 Standard Utilities */
+@utility animate-in {
+  animation-duration: 0.2s;
+  animation-fill-mode: both;
+}
+
+@utility fade-in {
+  animation-name: fade-in;
+}
+
+@utility slide-in-from-top-2 {
+  animation-name: slide-in-from-top;
+}
+
+@utility slide-in-from-bottom-4 {
+  animation-name: slide-in-from-bottom;
+}
+
+@utility font-serif {
+  font-family: var(--font-sans), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  letter-spacing: -0.025em;
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Modern Typography Scale */
+@utility disp-1 {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: clamp(34px, 5.5vw, 60px);
+  letter-spacing: -0.035em;
+  line-height: 1.06;
+}
+
+@utility disp-2 {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-weight: 400;
+  font-size: clamp(17px, 2.5vw, 22px);
+  letter-spacing: -0.015em;
+  color: var(--text-1);
+}
+
+@utility mono-1 {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+@utility mono-2 {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: var(--text-1);
+}
+
+/* Hairlines & Rules */
+@utility rule {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 36px 0;
+}
+
+@utility ledger-border {
+  border: 1px solid var(--line);
+}
+
+@utility ledger-border-t {
+  border-top: 1px solid var(--line);
+}
+
+@utility ledger-border-b {
+  border-bottom: 1px solid var(--line);
+}
+
+@utility ledger-border-l {
+  border-left: 1px solid var(--line);
+}
+
+@utility ledger-border-r {
+  border-right: 1px solid var(--line);
+}
+
+/* Modern Tactile Buttons */
+@utility btn-brass {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: var(--primary);
+  color: var(--primary-text);
+  border: 1px solid var(--primary);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+
+  &:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+@utility btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: transparent;
+  color: var(--text-0);
+  border: 1px solid var(--line);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+
+  &:hover {
+    background-color: var(--card);
+    border-color: var(--text-1);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+/* Status chips & tags */
+@utility verified-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--diff-green);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+@utility verified-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--diff-green);
+  display: inline-block;
+}
+
+/* Stamped Commit Hash Block */
+@utility commit-hash {
+  font-family: var(--font-mono), monospace;
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: var(--text-0);
+  background: var(--card);
+  padding: 2px 7px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  font-weight: 500;
+}
+
+/* Ledger Entry List Component */
+@utility entry-row {
+  display: grid;
+  grid-template-columns: 88px 1fr auto;
+  gap: 12px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--line);
+  align-items: start;
+  transition: background-color 0.12s ease;
+
+  &:hover {
+    background-color: var(--card);
+  }
+
+  &:last-child {
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+/* Sleek Scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--ink-0);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: var(--radius);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-1);
+}
