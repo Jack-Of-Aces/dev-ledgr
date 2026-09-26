@@ -141,7 +141,7 @@ export default function OpenGraphImage() {
             <span>Deterministic SLA Proof</span>
           </div>
           <span style={{ fontSize: '18px', fontWeight: 600, color: '#10B981', fontFamily: 'monospace' }}>
-            devledgr.io
+            devledgr.xyz
           </span>
         </div>
       </div>

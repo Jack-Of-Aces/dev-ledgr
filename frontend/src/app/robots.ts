@@ -9,7 +9,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/admin', '/settings'],
       },
     ],
-    sitemap: 'https://devledgr.io/sitemap.xml',
-    host: 'https://devledgr.io',
+    sitemap: 'https://devledgr.xyz/sitemap.xml',
+    host: 'https://devledgr.xyz',
   };
 }

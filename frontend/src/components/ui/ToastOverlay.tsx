@@ -31,19 +31,19 @@ export const ToastOverlay: React.FC = () => {
             <ShieldCheck className="w-5 h-5 text-diff-green" aria-hidden="true" />
           </div>
           <div>
-            <div className="font-mono text-sm font-semibold text-text-0 flex items-center gap-2">
+            <div className="font-mono text-sm lg:text-base font-semibold text-text-0 flex items-center gap-2">
               {activeToast.title}
               {activeToast.hash && (
-                <span className="text-xs font-mono text-diff-green bg-diff-green/10 px-2 py-0.5 rounded border border-diff-green/20">
+                <span className="text-xs md:text-sm font-mono text-diff-green bg-diff-green/10 px-2 py-0.5 rounded border border-diff-green/20">
                   verified ✓
                 </span>
               )}
             </div>
-            <div className="font-mono text-xs text-text-1 mt-1 leading-relaxed">
+            <div className="font-mono text-xs md:text-sm text-text-1 mt-1 leading-relaxed">
               {activeToast.message}
             </div>
             {activeToast.hash && (
-              <div className="mt-2 flex items-center gap-2 font-mono text-xs">
+              <div className="mt-2 flex items-center gap-2 font-mono text-xs md:text-sm">
                 <Link
                   href={`/p/${user.username}`}
                   className="text-brass hover:underline inline-flex items-center gap-1 font-semibold"

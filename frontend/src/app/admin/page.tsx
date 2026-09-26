@@ -63,9 +63,9 @@ export default function AdminPage() {
         .split("\\n")
         .filter((r) => r.trim().length > 0),
       mockInfra: {
-        baseUrl: `https://mock-infra.devledgr.io/api/v1/${newIdeaId}`,
+        baseUrl: `https://mock-infra.devledgr.xyz/api/v1/${newIdeaId}`,
         starterRepoUrl: "https://github.com/devledgr-starters/base-starter",
-        curlExample: `curl -X GET https://mock-infra.devledgr.io/api/v1/${newIdeaId}/health`,
+        curlExample: `curl -X GET https://mock-infra.devledgr.xyz/api/v1/${newIdeaId}/health`,
         endpoints: [
           {
             method: "GET",
@@ -97,22 +97,22 @@ export default function AdminPage() {
 
   return (
     <AuthGuard allowedRoles={['admin', 'reviewer']}>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-10 text-sm font-sans">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-10 text-sm lg:text-base font-sans">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-line">
           <div>
             <h1 className="text-3xl font-semibold tracking-tight text-text-0">
               Ledger Review &amp; Problem Seeder
             </h1>
-            <p className="text-text-1 mt-1 text-xs max-w-md leading-relaxed">
+            <p className="text-text-1 mt-1 text-xs md:text-sm max-w-md leading-relaxed">
               Gated review console for verifiers to audit incoming code and seed
               new real-world problems.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setActiveTab("submissions")}
-              className={`px-3 py-1.5 rounded-radius cursor-pointer text-xs font-medium ${
+              className={`px-3 py-1.5 rounded-radius cursor-pointer text-xs md:text-sm font-medium ${
                 activeTab === "submissions"
                   ? "bg-card text-text-0 border border-green-500"
                   : "text-text-1"
@@ -122,7 +122,7 @@ export default function AdminPage() {
             </button>
             <button
               onClick={() => setActiveTab("ideas")}
-              className={`px-3 py-1.5 rounded-radius cursor-pointer text-xs font-medium ${
+              className={`px-3 py-1.5 rounded-radius cursor-pointer text-xs md:text-sm font-medium ${
                 activeTab === "ideas"
                   ? "bg-card text-text-0 border border-green-500"
                   : "text-text-1"
@@ -136,26 +136,26 @@ export default function AdminPage() {
         {/* Tab Content */}
         {activeTab === "submissions" ? (
           <div className="space-y-4">
-            <div className="text-xs text-text-1 max-w-md">
+            <div className="text-xs md:text-sm text-text-1 max-w-md">
               Incoming proof submissions awaiting reviewer stamp or automated consensus:
             </div>
             <div className="rounded-radius border border-line bg-card/40 divide-y divide-line overflow-hidden">
               {submissions.map((sub) => (
                 <div
                   key={sub.hash}
-                  className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                  className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs md:text-sm"
                 >
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="commit-hash font-mono">#{sub.hash}</span>
-                      <span className="font-semibold text-text-0">{sub.ideaTitle}</span>
-                      <span className="text-text-1 font-mono">by @{sub.authorUsername}</span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="commit-hash font-mono shrink-0">#{sub.hash}</span>
+                      <span className="font-semibold text-text-0 break-words">{sub.ideaTitle}</span>
+                      <span className="text-text-1 font-mono shrink-0">by @{sub.authorUsername}</span>
                     </div>
-                    <p className="text-text-1 text-xs max-w-md line-clamp-1">
+                    <p className="text-text-1 text-xs md:text-sm max-w-md line-clamp-1">
                       {sub.architectureNotes}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
                     <button
                       onClick={() => verifySubmission(sub.hash)}
                       className="text-green-700 dark:text-green-400 font-medium flex items-center gap-1 cursor-pointer hover:underline"
@@ -167,7 +167,7 @@ export default function AdminPage() {
                       href={sub.repoUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="btn-outline text-xs py-1 px-2.5 flex items-center gap-1 font-mono"
+                      className="btn-outline text-xs md:text-sm py-1 px-2.5 flex items-center gap-1 font-mono"
                     >
                       <span>Inspect Code</span>
                       <ExternalLink className="w-3 h-3" />
@@ -179,13 +179,13 @@ export default function AdminPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex justify-between items-center text-xs text-text-1">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs md:text-sm text-text-1">
               <span>
                 Currently active problem specifications in the Idea Bank ({ideas.length}):
               </span>
               <button
                 onClick={() => setSeedModalOpen(true)}
-                className="btn-brass text-xs py-1.5 px-3 cursor-pointer"
+                className="btn-brass text-xs md:text-sm py-1.5 px-3 cursor-pointer self-start sm:self-auto shrink-0"
               >
                 <Plus className="w-3 h-3" />
                 <span>Seed New Problem</span>
@@ -195,9 +195,9 @@ export default function AdminPage() {
               {ideas.map((idea) => (
                 <div
                   key={idea.id}
-                  className="p-4 rounded-radius border border-line bg-card/40 space-y-2 text-xs"
+                  className="p-4 rounded-radius border border-line bg-card/40 space-y-2 text-xs md:text-sm"
                 >
-                  <div className="flex justify-between items-center text-xs text-green-700 dark:text-green-400 font-mono uppercase font-semibold">
+                  <div className="flex justify-between items-center text-xs md:text-sm text-green-700 dark:text-green-400 font-mono uppercase font-semibold">
                     <span>{idea.domain}</span>
                     <span>{idea.submissionCount} proofs</span>
                   </div>
@@ -207,7 +207,7 @@ export default function AdminPage() {
                   >
                     {idea.title}
                   </Link>
-                  <p className="text-text-1 line-clamp-2 text-xs leading-relaxed">
+                  <p className="text-text-1 line-clamp-2 text-xs md:text-sm leading-relaxed">
                     {idea.tagline}
                   </p>
                 </div>
@@ -228,7 +228,7 @@ export default function AdminPage() {
               role="dialog"
               aria-modal="true"
               aria-labelledby="seed-modal-title"
-              className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-radius border border-line bg-ink-0 p-6 text-xs space-y-4 shadow-2xl"
+              className="w-full max-w-xl max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-radius border border-line bg-ink-0 p-5 sm:p-6 text-xs md:text-sm space-y-4 shadow-2xl"
             >
               <div className="flex items-center justify-between pb-3 border-b border-line">
                 <h2
@@ -249,7 +249,7 @@ export default function AdminPage() {
                 <div>
                   <label
                     htmlFor="seed-title"
-                    className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1"
+                    className="block text-xs md:text-sm uppercase tracking-wider text-text-1 font-semibold mb-1"
                   >
                     Problem Title *
                   </label>
@@ -266,7 +266,7 @@ export default function AdminPage() {
                 <div>
                   <label
                     htmlFor="seed-tagline"
-                    className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1"
+                    className="block text-xs md:text-sm uppercase tracking-wider text-text-1 font-semibold mb-1"
                   >
                     Tagline / High-Level Thesis *
                   </label>
@@ -280,11 +280,11 @@ export default function AdminPage() {
                     className="w-full px-3 py-1.5 rounded border border-line bg-card text-text-0 outline-none focus:border-brass"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label
                       htmlFor="seed-domain"
-                      className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1"
+                      className="block text-xs md:text-sm uppercase tracking-wider text-text-1 font-semibold mb-1"
                     >
                       Domain
                     </label>
@@ -305,7 +305,7 @@ export default function AdminPage() {
                   <div>
                     <label
                       htmlFor="seed-difficulty"
-                      className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1"
+                      className="block text-xs md:text-sm uppercase tracking-wider text-text-1 font-semibold mb-1"
                     >
                       Difficulty
                     </label>
@@ -321,11 +321,11 @@ export default function AdminPage() {
                     </select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label
                       htmlFor="seed-hours"
-                      className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1"
+                      className="block text-xs md:text-sm uppercase tracking-wider text-text-1 font-semibold mb-1"
                     >
                       Estimated Hours
                     </label>
@@ -342,7 +342,7 @@ export default function AdminPage() {
                   <div>
                     <label
                       htmlFor="seed-tags"
-                      className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1"
+                      className="block text-xs md:text-sm uppercase tracking-wider text-text-1 font-semibold mb-1"
                     >
                       Tags (comma separated)
                     </label>
@@ -358,7 +358,7 @@ export default function AdminPage() {
                 <div>
                   <label
                     htmlFor="seed-origin"
-                    className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1"
+                    className="block text-xs md:text-sm uppercase tracking-wider text-text-1 font-semibold mb-1"
                   >
                     Origin Context / Quote
                   </label>
@@ -374,7 +374,7 @@ export default function AdminPage() {
                 <div>
                   <label
                     htmlFor="seed-problem"
-                    className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1"
+                    className="block text-xs md:text-sm uppercase tracking-wider text-text-1 font-semibold mb-1"
                   >
                     Problem Description
                   </label>
@@ -390,7 +390,7 @@ export default function AdminPage() {
                 <div>
                   <label
                     htmlFor="seed-tech-reqs"
-                    className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1"
+                    className="block text-xs md:text-sm uppercase tracking-wider text-text-1 font-semibold mb-1"
                   >
                     Technical Requirements (one per line)
                   </label>
@@ -407,11 +407,11 @@ export default function AdminPage() {
                   <button
                     type="button"
                     onClick={() => setSeedModalOpen(false)}
-                    className="btn-outline text-xs py-1.5 px-4"
+                    className="btn-outline text-xs md:text-sm py-1.5 px-4"
                   >
                     Cancel
                   </button>
-                  <button type="submit" className="btn-brass text-xs py-1.5 px-4">
+                  <button type="submit" className="btn-brass text-xs md:text-sm py-1.5 px-4">
                     Publish to Idea Bank
                   </button>
                 </div>

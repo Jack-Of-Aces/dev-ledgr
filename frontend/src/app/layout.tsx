@@ -6,6 +6,7 @@ import { BrandHeader } from '@/components/layout/BrandHeader';
 import { BrandFooter } from '@/components/layout/BrandFooter';
 import { ToastOverlay } from '@/components/ui/ToastOverlay';
 import { AuthModal } from '@/components/ui/AuthModal';
+import { SupabaseAuthSync } from '@/components/auth/SupabaseAuthSync';
 import { RoleSwitcher } from '@/components/auth/RoleSwitcher';
 
 
@@ -17,7 +18,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://devledgr.io'),
+  metadataBase: new URL('https://devledgr.xyz'),
   title: {
     default: 'DevLedgr: Proof of work, not another tutorial clone',
     template: '%s · DevLedgr',
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
     'ATS safe resume',
     'technical hiring',
   ],
-  authors: [{ name: 'DevLedgr Core Team', url: 'https://devledgr.io' }],
+  authors: [{ name: 'DevLedgr Core Team', url: 'https://devledgr.xyz' }],
   creator: 'DevLedgr',
   publisher: 'DevLedgr',
   applicationName: 'DevLedgr',
@@ -50,7 +51,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://devledgr.io',
+    url: 'https://devledgr.xyz',
     siteName: 'DevLedgr',
     title: 'DevLedgr: Proof of work, not another tutorial clone',
     description:
@@ -96,28 +97,28 @@ export default function RootLayout({
     '@graph': [
       {
         '@type': 'WebSite',
-        '@id': 'https://devledgr.io/#website',
-        url: 'https://devledgr.io',
+        '@id': 'https://devledgr.xyz/#website',
+        url: 'https://devledgr.xyz',
         name: 'DevLedgr',
         description: 'Cryptographic ledger of engineering proof-of-work for software engineers.',
         publisher: {
-          '@id': 'https://devledgr.io/#organization',
+          '@id': 'https://devledgr.xyz/#organization',
         },
         potentialAction: {
           '@type': 'SearchAction',
           target: {
             '@type': 'EntryPoint',
-            urlTemplate: 'https://devledgr.io/ideas?search={search_term_string}',
+            urlTemplate: 'https://devledgr.xyz/ideas?search={search_term_string}',
           },
           'query-input': 'required name=search_term_string',
         },
       },
       {
         '@type': 'Organization',
-        '@id': 'https://devledgr.io/#organization',
+        '@id': 'https://devledgr.xyz/#organization',
         name: 'DevLedgr',
-        url: 'https://devledgr.io',
-        logo: 'https://devledgr.io/icon',
+        url: 'https://devledgr.xyz',
+        logo: 'https://devledgr.xyz/icon',
         sameAs: ['https://github.com/Jack-Of-Aces/dev-ledgr'],
       },
       {
@@ -144,6 +145,11 @@ export default function RootLayout({
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <head>
         <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=localStorage.getItem('devledgr_storage_v1');var t=s?JSON.parse(s).state?.theme:'dark';if(!t)t='dark';document.documentElement.setAttribute('data-theme',t);if(t==='dark'){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}}catch(e){document.documentElement.setAttribute('data-theme','dark');document.documentElement.classList.add('dark')}})();`,
+          }}
+        />
+        <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
@@ -152,7 +158,7 @@ export default function RootLayout({
         {/* WCAG Accessible Skip Link */}
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-text focus:border focus:border-green-500 focus:rounded-radius focus:outline-none focus:ring-2 focus:ring-green-400 font-mono text-xs"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-text focus:border focus:border-green-500 focus:rounded-radius focus:outline-none focus:ring-2 focus:ring-green-400 font-mono text-xs md:text-sm"
         >
           Skip to main content
         </a>
@@ -164,7 +170,8 @@ export default function RootLayout({
         <BrandFooter />
         <ToastOverlay />
         <AuthModal />
-        <RoleSwitcher />
+        <SupabaseAuthSync />
+        {process.env.NEXT_PUBLIC_SHOW_DEV_PERSONAS === 'true' && <RoleSwitcher />}
       </body>
     </html>
   );

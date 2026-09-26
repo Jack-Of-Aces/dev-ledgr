@@ -27,7 +27,7 @@ export default function IdeaDetailPage() {
       <div>
         <Link
           href="/ideas"
-          className="inline-flex items-center gap-1.5 text-xs font-mono text-text-1 hover:text-text-0 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs md:text-sm font-mono text-text-1 hover:text-text-0 transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Back to Idea Bank</span>
@@ -36,11 +36,11 @@ export default function IdeaDetailPage() {
 
       {/* Hero Problem Overview */}
       <section className="space-y-4">
-        <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
-          <span className={`uppercase tracking-wider px-2.5 py-1 rounded border text-xs font-semibold ${domainStyle.badge}`}>
+        <div className="flex flex-wrap items-center gap-2 font-mono text-xs md:text-sm">
+          <span className={`uppercase tracking-wider px-2.5 py-1 rounded border text-xs md:text-sm font-semibold ${domainStyle.badge}`}>
             {domainStyle.name}
           </span>
-          <span className={`px-2.5 py-1 rounded border text-xs font-medium ${diffStyle.badge}`}>
+          <span className={`px-2.5 py-1 rounded border text-xs md:text-sm font-medium ${diffStyle.badge}`}>
             {diffStyle.name}
           </span>
           <span className="flex items-center gap-1 text-text-1">
@@ -53,7 +53,7 @@ export default function IdeaDetailPage() {
           {idea.title}
         </h1>
 
-        <p style={{ maxWidth: '60ch' }} className="text-sm sm:text-base text-text-1 leading-relaxed">
+        <p style={{ maxWidth: '60ch' }} className="text-sm lg:text-base sm:text-base text-text-1 leading-relaxed">
           {idea.tagline}
         </p>
 
@@ -61,7 +61,7 @@ export default function IdeaDetailPage() {
         <div className="pt-2 flex flex-wrap items-center gap-3">
           <button
             onClick={() => setModalOpen(true)}
-            className="btn-brass text-xs py-2 px-4 cursor-pointer"
+            className="btn-brass text-xs md:text-sm py-2 px-4 cursor-pointer"
           >
             <ShieldCheck className="w-4 h-4" />
             <span>Submit Solution & Docs</span>
@@ -71,7 +71,7 @@ export default function IdeaDetailPage() {
             href={idea.mockInfra.starterRepoUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-outline text-xs py-2 px-4 inline-flex items-center gap-2"
+            className="btn-outline text-xs md:text-sm py-2 px-4 inline-flex items-center gap-2"
           >
             <GitBranch className="w-4 h-4 text-green-700 dark:text-green-400" />
             <span>Fork Starter Repo</span>
@@ -82,10 +82,10 @@ export default function IdeaDetailPage() {
 
       {/* Origin Story Context */}
       <section className="pl-4 border-l-2 border-line space-y-1.5 my-6">
-        <div className="text-xs font-mono text-text-1 uppercase tracking-wider font-semibold">
+        <div className="text-xs md:text-sm font-mono text-text-1 uppercase tracking-wider font-semibold">
           Operator Origin Dispatch
         </div>
-        <p style={{ maxWidth: '60ch' }} className="italic text-sm sm:text-base text-text-0 leading-relaxed">
+        <p style={{ maxWidth: '60ch' }} className="italic text-sm lg:text-base sm:text-base text-text-0 leading-relaxed">
           &ldquo;{idea.originStory}&rdquo;
         </p>
       </section>
@@ -95,7 +95,7 @@ export default function IdeaDetailPage() {
         <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
           Technical Problem Statement
         </h2>
-        <div style={{ maxWidth: '60ch' }} className="text-sm text-text-0 leading-relaxed whitespace-pre-line">
+        <div style={{ maxWidth: '60ch' }} className="text-sm lg:text-base text-text-0 leading-relaxed whitespace-pre-line">
           <p className="leading-relaxed">{idea.problemStatement}</p>
         </div>
       </section>
@@ -105,7 +105,7 @@ export default function IdeaDetailPage() {
         <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
           Required Engineering Constraints
         </h2>
-        <div style={{ maxWidth: '60ch' }} className="space-y-2.5 text-xs sm:text-sm">
+        <div style={{ maxWidth: '60ch' }} className="space-y-2.5 text-xs md:text-sm sm:text-sm lg:text-base">
           {idea.technicalRequirements.map((req, i) => (
             <div key={i} style={{ maxWidth: '60ch' }} className="flex items-start gap-2.5 text-text-0">
               <span className="text-text-1 font-mono font-medium mt-0.5 shrink-0">[{i + 1}]</span>
@@ -121,7 +121,7 @@ export default function IdeaDetailPage() {
           <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
             Starter Mock Infrastructure
           </h2>
-          <p style={{ maxWidth: '60ch' }} className="text-xs text-text-1">
+          <p style={{ maxWidth: '60ch' }} className="text-xs md:text-sm text-text-1">
             Build against this live mock server. You can simulate requests and verify JSON contract schemas directly below.
           </p>
         </div>
@@ -135,7 +135,7 @@ export default function IdeaDetailPage() {
           <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
             Verified Submissions ({problemSubmissions.length})
           </h2>
-          <span className="text-xs text-text-1">
+          <span className="text-xs md:text-sm text-text-1">
             Permanently stamped commit records
           </span>
         </div>
@@ -147,7 +147,7 @@ export default function IdeaDetailPage() {
             ))}
           </div>
         ) : (
-          <div className="p-8 rounded-radius border border-dashed border-line text-center font-mono text-xs text-text-1 space-y-2">
+          <div className="p-6 sm:p-8 rounded-radius border border-dashed border-line text-center font-mono text-xs md:text-sm text-text-1 space-y-2">
             <div>No submissions recorded yet for this problem.</div>
             <button
               onClick={() => setModalOpen(true)}

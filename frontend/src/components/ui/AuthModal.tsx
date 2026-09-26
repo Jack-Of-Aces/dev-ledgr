@@ -17,11 +17,11 @@ const GithubIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
 
 import { useAuth } from '@/hooks/useAuth';
 import { setAuthCookies } from '@/lib/cookies';
+import { envConfig } from '@/lib/config';
 
 export const AuthModal: React.FC = () => {
   const { isAuthModalOpen, closeAuthModal, completeOnboarding, user } = useAppStore();
-  // useAuth used for cookie sync on completion - login flow is handled by onboarding step
-  useAuth();
+  const { loginWithGitHub } = useAuth();
 
   const [step, setStep] = useState<'oauth' | 'onboarding'>('oauth');
   const [username, setUsername] = useState(user.username || 'junior_dev');
@@ -83,8 +83,13 @@ export const AuthModal: React.FC = () => {
     }
   };
 
-  const handleOAuthConnect = () => {
-    setStep('onboarding');
+  const handleOAuthConnect = async () => {
+    if (envConfig.hasSupabase) {
+      closeAuthModal();
+      await loginWithGitHub();
+    } else {
+      setStep('onboarding');
+    }
   };
 
   const handleFinishOnboarding = (e: React.FormEvent) => {
@@ -114,7 +119,7 @@ export const AuthModal: React.FC = () => {
         role="dialog"
         aria-modal="true"
         aria-labelledby={step === 'oauth' ? 'auth-modal-title-oauth' : 'auth-modal-title-onboarding'}
-        className="relative w-full max-w-md rounded-radius border border-brass bg-ink-0 shadow-2xl p-6 font-mono text-xs space-y-6"
+        className="relative w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-radius border border-brass bg-ink-0 shadow-lg p-6 font-mono text-xs md:text-sm space-y-6"
       >
         {/* Close Button */}
         <button
@@ -133,17 +138,17 @@ export const AuthModal: React.FC = () => {
               <h2 id="auth-modal-title-oauth" className="font-serif text-2xl font-medium text-text-0">
                 Connect with GitHub
               </h2>
-              <p className="text-text-1 text-xs leading-relaxed">
+              <p className="text-text-1 text-xs md:text-sm leading-relaxed">
                 DevLedgr anchors your verified proof directly to your cryptographic GitHub commit identity.
               </p>
             </div>
 
-            <div className="p-4 rounded-radius border border-line bg-card/50 text-left space-y-2 text-xs text-text-1">
+            <div className="p-4 rounded-radius border border-line bg-card/50 text-left space-y-2 text-xs md:text-sm text-text-1">
               <div className="flex items-center gap-2 text-text-0 font-semibold">
                 <Shield className="w-3.5 h-3.5 text-brass" aria-hidden="true" />
                 <span>Requested Permissions</span>
               </div>
-              <ul className="space-y-1 pl-4 list-disc text-xs">
+              <ul className="space-y-1 pl-4 list-disc text-xs md:text-sm">
                 <li>Read public repository trees for test verification</li>
                 <li>Verify commit email & PGP signing identity</li>
                 <li>Issue cryptographically valid 1-year portfolio URLs</li>
@@ -152,34 +157,55 @@ export const AuthModal: React.FC = () => {
 
             <button
               onClick={handleOAuthConnect}
-              className="w-full btn-brass text-xs py-2.5 flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full btn-brass text-xs md:text-sm py-2.5 flex items-center justify-center gap-2 cursor-pointer"
             >
               <GithubIcon className="w-4 h-4" />
               <span>Authorize with GitHub</span>
             </button>
 
-            <div className="text-xs text-text-1">
-              No write access to private repositories is requested.
+            <div className="text-xs text-text-1 space-y-1">
+              <div>No write access to private repositories is requested.</div>
+              <div>
+                By authorizing, you agree to our{' '}
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-text-0 underline hover:text-emerald-text"
+                >
+                  Terms
+                </a>{' '}
+                and{' '}
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-text-0 underline hover:text-emerald-text"
+                >
+                  Privacy Policy
+                </a>
+                .
+              </div>
             </div>
           </div>
         ) : (
           /* Step 2: Onboarding Survey */
           <form onSubmit={handleFinishOnboarding} className="space-y-5">
             <div className="space-y-1">
-              <span className="text-xs text-brass uppercase font-semibold">
+              <span className="text-xs md:text-sm text-brass uppercase font-semibold">
                 Step 2 of 2 · Onboarding
               </span>
               <h2 id="auth-modal-title-onboarding" className="font-serif text-2xl font-medium text-text-0">
                 Tailor Your Match Engine
               </h2>
-              <p className="text-text-1 text-xs">
+              <p className="text-text-1 text-xs md:text-sm">
                 Tell us your current target stack so we can surface matched Idea Bank problems and company opportunities.
               </p>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label htmlFor="auth-full-name" className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1">
+                <label htmlFor="auth-full-name" className="block text-xs md:text-sm uppercase tracking-wider text-text-1 font-semibold mb-1">
                   Your Full Name
                 </label>
                 <input
@@ -193,7 +219,7 @@ export const AuthModal: React.FC = () => {
               </div>
 
               <div>
-                <label htmlFor="auth-github-handle" className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1">
+                <label htmlFor="auth-github-handle" className="block text-xs md:text-sm uppercase tracking-wider text-text-1 font-semibold mb-1">
                   GitHub Handle
                 </label>
                 <input
@@ -207,7 +233,7 @@ export const AuthModal: React.FC = () => {
               </div>
 
               <div>
-                <label htmlFor="auth-target-track" className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1">
+                <label htmlFor="auth-target-track" className="block text-xs md:text-sm uppercase tracking-wider text-text-1 font-semibold mb-1">
                   Target Track
                 </label>
                 <select
@@ -224,7 +250,7 @@ export const AuthModal: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1.5">
+                <label className="block text-xs md:text-sm uppercase tracking-wider text-text-1 font-semibold mb-1.5">
                   Select Your Active Stacks (Used for Job Matching)
                 </label>
                 <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1">
@@ -236,7 +262,7 @@ export const AuthModal: React.FC = () => {
                         key={s}
                         aria-pressed={active}
                         onClick={() => handleToggleSkill(s)}
-                        className={`px-2.5 py-1 rounded-radius border text-xs cursor-pointer transition-colors ${
+                        className={`px-2.5 py-1 rounded-radius border text-xs md:text-sm cursor-pointer transition-colors ${
                           active
                             ? 'border-brass bg-brass text-ink-0 font-semibold'
                             : 'border-line bg-card text-text-1'
@@ -253,7 +279,7 @@ export const AuthModal: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full btn-brass text-xs py-2.5 flex items-center justify-center gap-2 cursor-pointer mt-4"
+              className="w-full btn-brass text-xs md:text-sm py-2.5 flex items-center justify-center gap-2 cursor-pointer mt-4"
             >
               <span>Initialize Ledger Session</span>
               <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />

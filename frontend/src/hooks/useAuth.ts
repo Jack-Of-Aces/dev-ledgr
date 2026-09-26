@@ -20,9 +20,15 @@ export function useAuth() {
 
 
   const loginWithGitHub = useCallback(
-    async (username = 'junior_dev', name = 'Alex Okafor') => {
+    async (username?: string, name?: string) => {
       const session = await authService.loginWithGitHub(username, name);
-      const profile = session.role === 'admin' ? ADMIN_USER : { ...DEFAULT_USER, username, name };
+      if (session.token === 'pending_oauth_redirect') {
+        return session;
+      }
+
+      const uname = username || session.username || 'junior_dev';
+      const rname = name || session.name || 'Alex Okafor';
+      const profile = session.role === 'admin' ? ADMIN_USER : { ...DEFAULT_USER, username: uname, name: rname };
 
       useAppStore.setState({
         isLoggedIn: true,
@@ -39,16 +45,30 @@ export function useAuth() {
     []
   );
 
-  const loginWithEmail = useCallback(
-    async (email: string) => {
-      const result = await authService.loginWithEmail(email);
-      showToast({
-        title: 'Magic Link Dispatched',
-        message: result.message,
+  const loginWithGoogle = useCallback(
+    async (email?: string, name?: string) => {
+      const session = await authService.loginWithGoogle(email, name);
+      if (session.token === 'pending_oauth_redirect') {
+        return session;
+      }
+
+      const uname = email?.split('@')[0] || session.username || 'developer';
+      const rname = name || session.name || 'Developer';
+      const profile = { ...DEFAULT_USER, username: uname, name: rname };
+
+      useAppStore.setState({
+        isLoggedIn: true,
+        user: profile,
+        activeToast: {
+          title: `Authenticated via Google: @${profile.username}`,
+          message: `Connected to DevLedgr consensus network.`,
+        },
       });
-      return result;
+
+      setAuthCookies(session.token, session.role);
+      return session;
     },
-    [showToast]
+    []
   );
 
   const logout = useCallback(async () => {
@@ -99,7 +119,7 @@ export function useAuth() {
     isLoggedIn,
     isAdmin: user.role === 'admin' || user.role === 'reviewer',
     loginWithGitHub,
-    loginWithEmail,
+    loginWithGoogle,
     logout,
     switchRole,
     can,

@@ -4,7 +4,7 @@ import { BrandMark } from '../brand/BrandMark';
 
 export const BrandFooter: React.FC = () => {
   return (
-    <footer className="mt-24 border-t border-line bg-card/40 text-text-1 text-xs font-sans">
+    <footer className="mt-24 border-t border-line bg-card/40 text-text-1 text-xs md:text-sm font-sans">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
           {/* Brand Column */}
@@ -13,10 +13,10 @@ export const BrandFooter: React.FC = () => {
               <BrandMark size={24} />
               <span className="font-sans text-lg font-semibold tracking-tight text-text-0">DevLedgr</span>
             </div>
-            <p className="text-xs leading-relaxed max-w-md text-text-1">
+            <p className="text-xs md:text-sm leading-relaxed max-w-md text-text-1">
               A ledger, not a resume. Every problem solved is an entry: timestamped, verifiable, and permanent.
             </p>
-            <div className="pt-1 flex items-center gap-3 text-xs font-mono">
+            <div className="pt-1 flex items-center gap-3 text-xs md:text-sm font-mono">
               <span className="inline-flex items-center gap-1.5 text-green-700 dark:text-green-400 font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-600 dark:bg-green-500" />
                 Consensus Online
@@ -28,10 +28,10 @@ export const BrandFooter: React.FC = () => {
 
           {/* Navigation Links */}
           <div className="space-y-2">
-            <div className="text-xs font-sans font-semibold text-text-0 mb-3">
+            <div className="text-xs md:text-sm font-sans font-semibold text-text-0 mb-3">
               Ledger Core
             </div>
-            <ul className="space-y-2 text-xs">
+            <ul className="space-y-2 text-xs md:text-sm">
               <li>
                 <Link href="/ideas" className="hover:text-text-0 transition-colors">
                   Idea Bank (Problems)
@@ -57,10 +57,10 @@ export const BrandFooter: React.FC = () => {
 
           {/* System & Access */}
           <div className="space-y-2">
-            <div className="text-xs font-sans font-semibold text-text-0 mb-3">
+            <div className="text-xs md:text-sm font-sans font-semibold text-text-0 mb-3">
               Platform
             </div>
-            <ul className="space-y-2 text-xs">
+            <ul className="space-y-2 text-xs md:text-sm">
               <li>
                 <Link href="/about" className="hover:text-text-0 transition-colors">
                   Manifesto & About
@@ -81,13 +81,31 @@ export const BrandFooter: React.FC = () => {
                   Gated Review Panel
                 </Link>
               </li>
+              <li>
+                <Link href="/terms" className="hover:text-text-0 transition-colors">
+                  Terms of Service
+                </Link>
+              </li>
+              <li>
+                <Link href="/privacy" className="hover:text-text-0 transition-colors">
+                  Privacy Policy
+                </Link>
+              </li>
             </ul>
           </div>
         </div>
 
-        <div className="pt-8 ledger-border-t flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-text-1">
+        <div className="pt-8 ledger-border-t flex flex-col sm:flex-row items-center justify-between gap-4 text-xs md:text-sm text-text-1 text-center sm:text-left">
           <div>DevLedgr v0.2. Built for software engineers.</div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3 sm:gap-4">
+            <Link href="/terms" className="hover:text-text-0 transition-colors">
+              Terms of Service
+            </Link>
+            <span>·</span>
+            <Link href="/privacy" className="hover:text-text-0 transition-colors">
+              Privacy Policy
+            </Link>
+            <span>·</span>
             <a
               href="https://github.com/Jack-Of-Aces/dev-ledgr"
               target="_blank"

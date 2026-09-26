@@ -53,6 +53,7 @@ export interface SubmissionEntry {
     throughput?: string;
     coverage?: string;
   };
+  proofSignature?: string;
 }
 
 export interface JobOpportunity {
