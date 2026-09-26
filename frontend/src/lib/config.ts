@@ -30,6 +30,23 @@ export const envConfig = {
   githubClientId: process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID || '',
 
   /**
+   * Supabase Cloud Project URL
+   */
+  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+
+  /**
+   * Supabase Cloud Anonymous API Key
+   */
+  supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+
+  /**
+   * Flag indicating whether real Supabase backend is configured and active.
+   */
+  hasSupabase: Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  ),
+
+  /**
    * Request timeout in milliseconds for network calls.
    */
   requestTimeoutMs: 12000,

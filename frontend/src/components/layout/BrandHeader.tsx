@@ -54,7 +54,6 @@ export const BrandHeader: React.FC = () => {
     { label: 'Idea Bank', href: '/ideas' },
     { label: 'Opportunities', href: '/jobs' },
     { label: 'Coaching', href: '/coaching' },
-    { label: 'Dashboard', href: '/dashboard' },
   ];
 
   return (

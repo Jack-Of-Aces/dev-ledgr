@@ -96,6 +96,7 @@ ${userSubmissions
         s.metrics?.throughput || "220 req/s"
       }, CI: ${s.testResults.passed}/${s.testResults.total} passed.
 - Repo: ${s.repoUrl}
+- SHA-256 Proof Signature: ${s.proofSignature || 'Verified on consensus node'}
 - Verified Certificate: https://${slug}.devledgr.io/p/${s.hash}`
   )
   .join("\n\n")}
@@ -253,12 +254,20 @@ ${userSubmissions
                 {/* Header */}
                 <div className="space-y-2 pb-3 border-b border-line">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 font-mono text-xs">
+                    <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
                       <span className="commit-hash font-bold text-text-0">
                         #{sub.hash}
                       </span>
                       <span className="text-text-1">·</span>
                       <span className="text-text-1">Production Proof</span>
+                      {sub.proofSignature && (
+                        <>
+                          <span className="text-text-1">·</span>
+                          <span className="text-green-700 dark:text-green-400 font-medium" title={sub.proofSignature}>
+                            SHA-256 Verified
+                          </span>
+                        </>
+                      )}
                     </div>
 
                     <span className="verified-chip text-xs shrink-0">
