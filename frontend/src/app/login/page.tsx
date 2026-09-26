@@ -115,7 +115,7 @@ function LoginForm() {
           <button
             onClick={handleGitHubAuth}
             disabled={loadingProvider !== null}
-            className="w-full btn-brass text-xs md:text-sm py-2.5 flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
+            className="w-full btn-brass min-h-[44px] text-xs md:text-sm py-2.5 flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
           >
             <GithubIcon className="w-4 h-4" />
             <span>
@@ -127,7 +127,7 @@ function LoginForm() {
           <button
             onClick={handleGoogleAuth}
             disabled={loadingProvider !== null}
-            className="w-full px-4 py-2.5 rounded-radius border border-line bg-card hover:bg-ink-1 text-text-0 text-xs md:text-sm font-medium flex items-center justify-center gap-2.5 transition-colors cursor-pointer disabled:opacity-50"
+            className="w-full min-h-[44px] px-4 py-2.5 rounded-radius border border-line bg-card hover:bg-ink-1 text-text-0 text-xs md:text-sm font-medium flex items-center justify-center gap-2.5 transition-colors cursor-pointer disabled:opacity-50"
           >
             <GoogleIcon className="w-4 h-4" />
             <span>
@@ -143,6 +143,18 @@ function LoginForm() {
                 : 'Local Developer Sandbox'}
             </span>
           </div>
+
+          <p className="text-xs text-text-1 text-center font-mono pt-1">
+            By signing in, you agree to our{' '}
+            <Link href="/terms" className="text-text-0 underline hover:text-emerald-text">
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="text-text-0 underline hover:text-emerald-text">
+              Privacy Policy
+            </Link>
+            .
+          </p>
         </div>
 
         {/* Optional Sandbox Evaluation Accordion */}
@@ -150,17 +162,19 @@ function LoginForm() {
           <button
             type="button"
             onClick={() => setShowSandbox(!showSandbox)}
-            className="w-full flex items-center justify-between text-text-1 hover:text-text-0 font-mono text-xs md:text-sm py-1 cursor-pointer"
+            aria-expanded={showSandbox}
+            aria-controls="sandbox-persona-list"
+            className="w-full min-h-[44px] flex items-center justify-between text-text-1 hover:text-text-0 font-mono text-xs md:text-sm py-1 cursor-pointer"
           >
             <span className="flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3 text-brass" />
+              <Sparkles className="w-3 h-3 text-emerald-text" />
               <span>Sandbox Evaluation Personas</span>
             </span>
             <span>{showSandbox ? '▲ Hide' : '▼ View demo accounts'}</span>
           </button>
 
           {showSandbox && (
-            <div className="space-y-2 animate-in fade-in duration-150 pt-1 font-mono">
+            <div id="sandbox-persona-list" className="space-y-2 animate-in fade-in duration-150 pt-1 font-mono">
               <p className="text-xs md:text-sm text-text-1 leading-relaxed">
                 Skip OAuth connection during local evaluation to test candidate or auditor modes:
               </p>

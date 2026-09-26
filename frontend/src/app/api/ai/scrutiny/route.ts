@@ -150,7 +150,7 @@ Format your output strictly as a JSON object with two string fields:
     // 4. Heuristic Fallback Engine
     const cvMarkdown = `# ${user.name}
 ${user.headline}
-Email: ${user.email || `${user.username}@devledgr.me`} | Portfolio: https://${user.username}.devledgr.io
+Email: ${user.email || `${user.username}@devledgr.me`} | Portfolio: https://${user.username}.devledgr.xyz
 GitHub: ${user.githubUrl} | Verification: Stamped on DevLedgr (1-Year Certificate)
 
 ---
@@ -169,7 +169,7 @@ ${userSubmissions
 - **Architecture & Implementation:** ${sub.architectureNotes}
 - **Performance & Constraints:** Sustained p99 latency of ${sub.metrics?.latencyP99 || '28ms'} at ${sub.metrics?.throughput || '240 req/s'}.
 - **Verification Suite:** Passed 100% of automated test vectors (${sub.testResults.passed}/${sub.testResults.total} tests in ${sub.testResults.suiteName}).
-- **Permanent Ledger Link:** https://${user.username}.devledgr.io/p/${sub.hash}`
+- **Permanent Ledger Link:** https://${user.username}.devledgr.xyz/p/${sub.hash}`
   )
   .join('\n\n')}
 
@@ -186,7 +186,7 @@ ${userSubmissions
 
 I am writing to express my strong interest in the ${job.title} position.
 
-Unlike traditional applicants submitting unverified claims or tutorial clones, my experience is backed by verifiable proof-of-work recorded on DevLedgr (https://${user.username}.devledgr.io).
+Unlike traditional applicants submitting unverified claims or tutorial clones, my experience is backed by verifiable proof-of-work recorded on DevLedgr (https://${user.username}.devledgr.xyz).
 
 For instance, to demonstrate the distributed transaction and concurrency requirements essential for ${job.company}, I engineered:
 ${userSubmissions

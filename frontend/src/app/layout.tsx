@@ -18,7 +18,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://devledgr.io'),
+  metadataBase: new URL('https://devledgr.xyz'),
   title: {
     default: 'DevLedgr: Proof of work, not another tutorial clone',
     template: '%s · DevLedgr',
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     'ATS safe resume',
     'technical hiring',
   ],
-  authors: [{ name: 'DevLedgr Core Team', url: 'https://devledgr.io' }],
+  authors: [{ name: 'DevLedgr Core Team', url: 'https://devledgr.xyz' }],
   creator: 'DevLedgr',
   publisher: 'DevLedgr',
   applicationName: 'DevLedgr',
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://devledgr.io',
+    url: 'https://devledgr.xyz',
     siteName: 'DevLedgr',
     title: 'DevLedgr: Proof of work, not another tutorial clone',
     description:
@@ -97,28 +97,28 @@ export default function RootLayout({
     '@graph': [
       {
         '@type': 'WebSite',
-        '@id': 'https://devledgr.io/#website',
-        url: 'https://devledgr.io',
+        '@id': 'https://devledgr.xyz/#website',
+        url: 'https://devledgr.xyz',
         name: 'DevLedgr',
         description: 'Cryptographic ledger of engineering proof-of-work for software engineers.',
         publisher: {
-          '@id': 'https://devledgr.io/#organization',
+          '@id': 'https://devledgr.xyz/#organization',
         },
         potentialAction: {
           '@type': 'SearchAction',
           target: {
             '@type': 'EntryPoint',
-            urlTemplate: 'https://devledgr.io/ideas?search={search_term_string}',
+            urlTemplate: 'https://devledgr.xyz/ideas?search={search_term_string}',
           },
           'query-input': 'required name=search_term_string',
         },
       },
       {
         '@type': 'Organization',
-        '@id': 'https://devledgr.io/#organization',
+        '@id': 'https://devledgr.xyz/#organization',
         name: 'DevLedgr',
-        url: 'https://devledgr.io',
-        logo: 'https://devledgr.io/icon',
+        url: 'https://devledgr.xyz',
+        logo: 'https://devledgr.xyz/icon',
         sameAs: ['https://github.com/Jack-Of-Aces/dev-ledgr'],
       },
       {

@@ -61,7 +61,7 @@ export default function HomePage() {
           <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
             Live Verified Ledger Entries
           </h2>
-          <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 max-w-sm">
+          <p className="text-xs sm:text-sm lg:text-base text-text-1 max-w-sm">
             Every submission earns a commit-style hash and{" "}
             <br className="hidden sm:inline" />a permanent portfolio URL,
             guaranteed for one year.
@@ -81,7 +81,7 @@ export default function HomePage() {
           </span>
           <Link
             href="/p/junior_dev"
-            className="text-green-700 dark:text-green-400 hover:underline font-medium flex items-center gap-1 font-mono"
+            className="text-emerald-text hover:underline font-medium flex items-center gap-1 font-mono"
           >
             <span>Inspect sample 1-year public portfolio</span>
             <ExternalLink className="w-3 h-3" />
@@ -111,7 +111,7 @@ export default function HomePage() {
             <h3 className="text-base font-semibold text-text-0">
               Operational Realism
             </h3>
-            <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 leading-relaxed">
+            <p className="text-xs sm:text-sm lg:text-base text-text-1 leading-relaxed">
               Every challenge on DevLedgr originates from real production teams:
               webhook deduplication under concurrency, offline-first sync with
               packet loss, and zero-downtime database migrations.
@@ -122,7 +122,7 @@ export default function HomePage() {
             <h3 className="text-base font-semibold text-text-0">
               Deterministic Verification
             </h3>
-            <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 leading-relaxed">
+            <p className="text-xs sm:text-sm lg:text-base text-text-1 leading-relaxed">
               Solutions run against automated synthetic traffic harnesses
               measuring p99 latency, memory allocations, and edge failure
               recovery. Passing yields an immutable ledger entry.
@@ -139,7 +139,7 @@ export default function HomePage() {
           <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text-0">
             The Protocol
           </h2>
-          <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 max-w-sm">
+          <p className="text-xs sm:text-sm lg:text-base text-text-1 max-w-sm">
             Three phases connecting engineering capability{" "}
             <br className="hidden sm:inline" />
             directly to employment opportunity.
@@ -150,14 +150,14 @@ export default function HomePage() {
           {/* Phase 1 */}
           <div className="py-6 md:px-6 first:pl-0 last:pr-0 space-y-3">
             <h3 className="text-lg font-semibold text-text-0">Idea Bank</h3>
-            <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 leading-relaxed">
+            <p className="text-xs sm:text-sm lg:text-base text-text-1 leading-relaxed">
               Operational challenges sourced from active companies, translated
               into formal engineering specs with live mock servers.
             </p>
             <div className="pt-1">
               <Link
                 href="/ideas"
-                className="text-xs md:text-sm text-green-700 dark:text-green-400 hover:underline inline-flex items-center gap-1 font-medium font-mono"
+                className="text-xs md:text-sm text-emerald-text hover:underline inline-flex items-center gap-1 font-medium font-mono"
               >
                 Browse Problems →
               </Link>
@@ -169,7 +169,7 @@ export default function HomePage() {
             <h3 className="text-lg font-semibold text-text-0">
               Cryptographic Ledger
             </h3>
-            <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 leading-relaxed">
+            <p className="text-xs sm:text-sm lg:text-base text-text-1 leading-relaxed">
               Submit code and architecture notes. Passing automated CI test
               harnesses generates a permanent commit hash and a 1-year verified
               portfolio URL.
@@ -177,7 +177,7 @@ export default function HomePage() {
             <div className="pt-1">
               <Link
                 href="/p/junior_dev"
-                className="text-xs md:text-sm text-green-700 dark:text-green-400 hover:underline inline-flex items-center gap-1 font-medium font-mono"
+                className="text-xs md:text-sm text-emerald-text hover:underline inline-flex items-center gap-1 font-medium font-mono"
               >
                 Inspect Public Proof →
               </Link>
@@ -189,7 +189,7 @@ export default function HomePage() {
             <h3 className="text-lg font-semibold text-text-0">
               AI Scrutiny & Matching
             </h3>
-            <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 leading-relaxed">
+            <p className="text-xs sm:text-sm lg:text-base text-text-1 leading-relaxed">
               Our scrutiny engine audits your verified proofs against live job
               requirements. If ready, it generates an ATS-safe package; if not,
               it identifies the exact missing problem.
@@ -197,7 +197,7 @@ export default function HomePage() {
             <div className="pt-1">
               <Link
                 href="/jobs"
-                className="text-xs md:text-sm text-green-700 dark:text-green-400 hover:underline inline-flex items-center gap-1 font-medium font-mono"
+                className="text-xs md:text-sm text-emerald-text hover:underline inline-flex items-center gap-1 font-medium font-mono"
               >
                 View Matched Roles →
               </Link>
@@ -214,7 +214,7 @@ export default function HomePage() {
           <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
             Verification Specifications
           </h2>
-          <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 max-w-sm">
+          <p className="text-xs sm:text-sm lg:text-base text-text-1 max-w-sm">
             How proof is generated, verified, and sealed{" "}
             <br className="hidden sm:inline" />
             for high-signal engineering hiring.
@@ -271,7 +271,7 @@ export default function HomePage() {
           <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text-0">
             Build proof.
           </h2>
-          <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 leading-relaxed">
+          <p className="text-xs sm:text-sm lg:text-base text-text-1 leading-relaxed">
             Pick a real-world problem from the Idea Bank, build against the
             provided mock infrastructure, and earn your verified 1-year
             portfolio URL today.

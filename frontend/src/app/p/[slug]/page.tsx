@@ -87,7 +87,7 @@ export default function PublicPortfolioPage() {
   };
 
   const exportMarkdown = `# ${displayUser.name} · Verified Engineering Portfolio
-Verified Ledger URL: https://${slug}.devledgr.io (Valid through Sep 2027 · Stamped on DevLedgr)
+Verified Ledger URL: https://${slug}.devledgr.xyz (Valid through Sep 2027 · Stamped on DevLedgr)
 
 ## Verified Proof-of-Work:
 ${userSubmissions
@@ -100,7 +100,7 @@ ${userSubmissions
       }, CI: ${s.testResults.passed}/${s.testResults.total} passed.
 - Repo: ${s.repoUrl}
 - SHA-256 Proof Signature: ${s.proofSignature || 'Verified on consensus node'}
-- Verified Certificate: https://${slug}.devledgr.io/p/${s.hash}`
+- Verified Certificate: https://${slug}.devledgr.xyz/p/${s.hash}`
   )
   .join("\n\n")}
 `;
@@ -150,7 +150,7 @@ ${userSubmissions
               </h1>
 
               <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-                <span className="font-mono font-semibold text-green-700 dark:text-green-400">
+                <span className="font-mono font-semibold text-emerald-text">
                   @{displayUser.username}
                 </span>
                 <span className="text-text-1">·</span>
@@ -183,11 +183,11 @@ ${userSubmissions
             <div className="flex items-center gap-2 w-full">
               <button
                 onClick={handleShare}
-                className="btn-outline text-xs py-1.5 px-3 flex items-center justify-center gap-1.5 font-mono flex-1 cursor-pointer"
+                className="btn-outline min-h-[44px] text-xs py-2 px-3 flex items-center justify-center gap-1.5 font-mono flex-1 cursor-pointer"
               >
                 {copiedUrl ? (
                   <>
-                    <Check className="w-3.5 h-3.5 text-green-700 dark:text-green-400" />
+                    <Check className="w-3.5 h-3.5 text-emerald-text" />
                     <span>Copied</span>
                   </>
                 ) : (
@@ -200,7 +200,7 @@ ${userSubmissions
 
               <button
                 onClick={() => setShowExportModal(true)}
-                className="btn-brass text-xs py-1.5 px-3 flex items-center justify-center gap-1.5 font-mono flex-1 cursor-pointer"
+                className="btn-brass min-h-[44px] text-xs py-2 px-3 flex items-center justify-center gap-1.5 font-mono flex-1 cursor-pointer"
               >
                 <FileText className="w-3.5 h-3.5" />
                 <span>Export</span>
@@ -210,7 +210,7 @@ ${userSubmissions
             {isOwner && (
               <Link
                 href="/settings"
-                className="btn-outline text-xs py-1.5 px-3 flex items-center justify-center gap-1.5 font-mono text-text-1 hover:text-text-0"
+                className="btn-outline min-h-[44px] text-xs py-2 px-3 flex items-center justify-center gap-1.5 font-mono text-text-1 hover:text-text-0"
               >
                 <Edit3 className="w-3.5 h-3.5" />
                 <span>Edit Profile</span>
@@ -236,34 +236,29 @@ ${userSubmissions
       </section>
 
       {/* 2. Cryptographic Ledger Certificate Ribbon */}
-      <section className="rounded-radius border border-green-500/20 bg-green-500/5 p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
+      <section className="rounded-radius border border-emerald-border bg-emerald-tint/40 p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
         <div className="flex items-center gap-2.5 min-w-0">
-          <ShieldCheck className="w-5 h-5 text-green-700 dark:text-green-400 shrink-0" />
+          <ShieldCheck className="w-5 h-5 text-emerald-text shrink-0" />
           <div className="min-w-0 space-y-0.5">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-text-0 text-xs sm:text-sm font-sans">
-                Cryptographic Ledger Certificate
-              </span>
-              <span className="text-[10px] text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-0.2 rounded-full border border-green-500/20 font-mono">
-                verified
-              </span>
-            </div>
+            <span className="font-semibold text-text-0 text-xs sm:text-sm font-sans block">
+              Cryptographic Ledger Certificate
+            </span>
             <div className="flex items-center gap-2 text-text-1 text-xs">
               <span>Permanent Link:</span>
               <button
                 onClick={handleShare}
-                className="text-green-700 dark:text-green-400 font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer truncate"
+                className="text-emerald-text font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer truncate"
               >
-                <span>{slug}.devledgr.io</span>
+                <span>{slug}.devledgr.xyz</span>
                 <Copy className="w-3 h-3 opacity-70 shrink-0" />
               </button>
             </div>
           </div>
         </div>
 
-        <div className="text-[11px] sm:text-xs text-text-1 sm:text-right shrink-0 font-mono border-t sm:border-t-0 pt-2 sm:pt-0 border-green-500/10">
+        <div className="text-[11px] sm:text-xs text-text-1 sm:text-right shrink-0 font-mono border-t sm:border-t-0 pt-2 sm:pt-0 border-line">
           <span>Valid through Sep 2027</span>
-          <span className="block text-[10px] text-text-1/80">365-Day Verification Guarantee</span>
+          <span className="block text-[10px] text-text-1">365-Day Verification Guarantee</span>
         </div>
       </section>
 
@@ -331,22 +326,22 @@ ${userSubmissions
                         {sub.proofSignature && (
                           <>
                             <span className="text-text-1">·</span>
-                            <span className="text-green-700 dark:text-green-400 font-medium" title={sub.proofSignature}>
+                            <span className="text-emerald-text font-medium" title={sub.proofSignature}>
                               SHA-256 Verified
                             </span>
                           </>
                         )}
                       </div>
 
-                      <span className="verified-chip text-xs md:text-sm shrink-0">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-600 dark:bg-green-500" />
-                        verified proof
+                      <span className="text-xs md:text-sm font-mono text-emerald-text inline-flex items-center gap-1.5 shrink-0">
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Verified Proof</span>
                       </span>
                     </div>
 
                     <Link
                       href={`/ideas/${sub.ideaId}`}
-                      className="text-lg sm:text-xl font-semibold tracking-tight text-text-0 hover:text-green-700 dark:hover:text-green-400 hover:underline block leading-snug"
+                      className="text-lg sm:text-xl font-semibold tracking-tight text-text-0 hover:text-emerald-text hover:underline block leading-snug"
                     >
                       {sub.ideaTitle}
                     </Link>
@@ -354,10 +349,10 @@ ${userSubmissions
 
                   {/* Architecture write-up */}
                   <div className="space-y-1.5">
-                    <div className="text-xs md:text-sm text-green-700 dark:text-green-400 font-semibold font-mono">
+                    <div className="text-xs md:text-sm text-emerald-text font-semibold font-mono">
                       Engineering Decisions &amp; Trade-offs:
                     </div>
-                    <p className="text-text-0 leading-relaxed text-xs md:text-sm sm:text-sm lg:text-base max-w-xl">
+                    <p className="text-text-0 leading-relaxed text-xs sm:text-sm lg:text-base max-w-xl">
                       {sub.architectureNotes}
                     </p>
                   </div>
@@ -386,7 +381,7 @@ ${userSubmissions
                       <div className="text-xs md:text-sm text-text-1 uppercase font-mono">
                         Test Suite
                       </div>
-                      <div className="text-sm md:text-base font-semibold text-green-700 dark:text-green-400 font-mono mt-0.5">
+                      <div className="text-sm md:text-base font-semibold text-emerald-text font-mono mt-0.5">
                         {sub.testResults.passed}/{sub.testResults.total} passed
                       </div>
                     </div>
@@ -405,6 +400,8 @@ ${userSubmissions
                   <div className="space-y-2">
                     <button
                       onClick={() => toggleDiff(sub.hash)}
+                      aria-expanded={isDiffOpen}
+                      aria-controls={`diff-${sub.hash}`}
                       className="text-xs md:text-sm font-mono text-text-1 hover:text-text-0 flex items-center gap-1.5 transition-colors cursor-pointer"
                     >
                       <Terminal className="w-3.5 h-3.5" />
@@ -419,17 +416,20 @@ ${userSubmissions
                     </button>
 
                     {isDiffOpen && (
-                      <div className="rounded-radius border border-line bg-ink-0 p-4 font-mono text-xs md:text-sm space-y-3 animate-in fade-in duration-150">
+                      <div
+                        id={`diff-${sub.hash}`}
+                        className="rounded-radius border border-line bg-ink-0 p-4 font-mono text-xs md:text-sm space-y-3 animate-in fade-in duration-150"
+                      >
                         <div className="flex items-center justify-between text-xs text-text-1 border-b border-line pb-2">
                           <span className="flex items-center gap-1.5">
-                            <Code2 className="w-3.5 h-3.5 text-green-700 dark:text-green-400" />
-                            <span>Verification Telemetry &amp; Consensus Hash</span>
+                            <Code2 className="w-3.5 h-3.5 text-emerald-text" />
+                            <span>Verification Telemetry &amp; SHA-256 Digest</span>
                           </span>
                           <span className="text-text-1">{sub.timestamp}</span>
                         </div>
 
                         <pre className="text-text-0 overflow-x-auto p-2 rounded bg-card/50 text-xs md:text-sm leading-relaxed">
-                          {`// Stamped on DevLedgr Consensus Network
+                          {`// Stamped on DevLedgr Verification Network
 // Target: ${sub.ideaTitle}
 // Commit Hash: ${sub.hash}
 // SHA-256 Digest: ${sub.proofSignature || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'}
@@ -466,7 +466,7 @@ ${userSubmissions
                         href={sub.demoUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-green-700 dark:text-green-400 hover:underline inline-flex items-center gap-1 font-medium font-mono"
+                        className="text-emerald-text hover:underline inline-flex items-center gap-1 font-medium font-mono"
                       >
                         <span>Live Demo</span>
                         <ExternalLink className="w-3 h-3" />

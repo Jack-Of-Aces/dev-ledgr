@@ -62,7 +62,7 @@ export default function AboutPage() {
           Are you an engineering leader with real operational problems (fintech, logistics, distributed systems)? Submit a spec to our Idea Bank to receive pre-vetted, proof-proven candidate solutions.
         </p>
         <div className="pt-1 text-xs md:text-sm font-mono break-all">
-          Email: <a href="mailto:partners@devledgr.io" className="text-green-700 dark:text-green-400 hover:underline font-semibold">partners@devledgr.io</a>
+          Email: <a href="mailto:partners@devledgr.xyz" className="text-green-700 dark:text-green-400 hover:underline font-semibold">partners@devledgr.xyz</a>
         </div>
       </div>
     </div>

@@ -63,9 +63,9 @@ export default function AdminPage() {
         .split("\\n")
         .filter((r) => r.trim().length > 0),
       mockInfra: {
-        baseUrl: `https://mock-infra.devledgr.io/api/v1/${newIdeaId}`,
+        baseUrl: `https://mock-infra.devledgr.xyz/api/v1/${newIdeaId}`,
         starterRepoUrl: "https://github.com/devledgr-starters/base-starter",
-        curlExample: `curl -X GET https://mock-infra.devledgr.io/api/v1/${newIdeaId}/health`,
+        curlExample: `curl -X GET https://mock-infra.devledgr.xyz/api/v1/${newIdeaId}/health`,
         endpoints: [
           {
             method: "GET",

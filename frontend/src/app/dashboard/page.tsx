@@ -47,6 +47,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<DashboardTab>('ledger');
   const [proofSearch, setProofSearch] = useState('');
   const [selectedDomain, setSelectedDomain] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'recent' | 'latency' | 'throughput'>('recent');
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [showNotificationMenu, setShowNotificationMenu] = useState(false);
@@ -54,7 +55,7 @@ export default function DashboardPage() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
       id: 1,
-      title: 'Commit Stamped & Consensus Verified',
+      title: 'Commit Stamped & CI Attestation Verified',
       time: '2 hours ago',
       desc: 'Automated CI test suite completed with 100% pass rate for commit #c118e07.',
       type: 'success',
@@ -132,6 +133,20 @@ export default function DashboardPage() {
     return matchesDomain && matchesSearch;
   });
 
+  const sortedSubmissions = [...filteredSubmissions].sort((a, b) => {
+    if (sortBy === 'latency') {
+      const latA = parseInt(a.metrics?.latencyP99?.replace(/[^0-9]/g, '') || '999', 10);
+      const latB = parseInt(b.metrics?.latencyP99?.replace(/[^0-9]/g, '') || '999', 10);
+      return latA - latB;
+    }
+    if (sortBy === 'throughput') {
+      const tpA = parseInt(a.metrics?.throughput?.replace(/[^0-9]/g, '') || '0', 10);
+      const tpB = parseInt(b.metrics?.throughput?.replace(/[^0-9]/g, '') || '0', 10);
+      return tpB - tpA;
+    }
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+  });
+
   const unreadNotificationCount = notifications.filter((n) => !n.read).length;
 
   const handleCopyHash = (hash: string, e: React.MouseEvent) => {
@@ -187,7 +202,7 @@ export default function DashboardPage() {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald" />
               </span>
               <span className="font-semibold text-text-0 uppercase tracking-wider">
-                DevLedgr Consensus Node v2.4
+                DevLedgr CI Attestation Node v2.4
               </span>
               <span className="text-line">/</span>
               <span className="text-emerald-text">State Stamped & Synced</span>
@@ -197,7 +212,7 @@ export default function DashboardPage() {
               <span>
                 Domain:{' '}
                 <span className="text-text-0 font-medium">
-                  {user.username}.devledgr.io
+                  {user.username}.devledgr.xyz
                 </span>
               </span>
               <span className="hidden sm:inline text-line">/</span>
@@ -215,7 +230,7 @@ export default function DashboardPage() {
             <div className="flex items-start gap-4">
               <div className="relative shrink-0">
                 {/* Avatar with status border */}
-                <div className="w-14 h-14 md:w-16 md:md:h-16 rounded-radius border-2 border-line bg-card overflow-hidden flex items-center justify-center font-mono text-lg font-bold text-text-0 shadow-xs">
+                <div className="w-14 h-14 md:w-16 md:h-16 rounded-radius border-2 border-line bg-card overflow-hidden flex items-center justify-center font-mono text-lg font-bold text-text-0 shadow-xs">
                   {user.avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -302,7 +317,7 @@ export default function DashboardPage() {
                   >
                     <div className="flex items-center justify-between pb-2 border-b border-line text-xs">
                       <div className="font-semibold text-text-0">
-                        System & Consensus Alerts
+                        System & Verification Alerts
                       </div>
                       {unreadNotificationCount > 0 ? (
                         <button
@@ -534,10 +549,10 @@ export default function DashboardPage() {
               <div className="p-2 rounded bg-emerald/10 text-emerald-text shrink-0 mt-0.5">
                 <Sparkles className="w-4 h-4" />
               </div>
-              <div className="space-y-0.5">
-                <div className="text-xs font-mono font-semibold text-emerald-text uppercase tracking-wider">
+              <div className="space-y-1">
+                <h3 className="text-xs sm:text-sm font-semibold text-text-0">
                   Targeted Skill Gap Recommendation
-                </div>
+                </h3>
                 <p className="text-xs sm:text-sm text-text-0 font-medium">
                   Solve <span className="font-bold underline">{primaryJobWithGap.gapProblem.title}</span> to
                   boost your <span className="font-bold">{primaryJobWithGap.job.company}</span>{' '}
@@ -571,11 +586,35 @@ export default function DashboardPage() {
             <div
               role="tablist"
               aria-label="Dashboard views"
+              onKeyDown={(e) => {
+                const tabs: DashboardTab[] = ['ledger', 'opportunities', 'coaching', 'activity'];
+                const currentIndex = tabs.indexOf(activeTab);
+                if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  const nextTab = tabs[(currentIndex + 1) % tabs.length];
+                  setActiveTab(nextTab);
+                  document.getElementById(`tab-${nextTab}`)?.focus();
+                } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  const prevTab = tabs[(currentIndex - 1 + tabs.length) % tabs.length];
+                  setActiveTab(prevTab);
+                  document.getElementById(`tab-${prevTab}`)?.focus();
+                } else if (e.key === 'Home') {
+                  e.preventDefault();
+                  setActiveTab(tabs[0]);
+                  document.getElementById(`tab-${tabs[0]}`)?.focus();
+                } else if (e.key === 'End') {
+                  e.preventDefault();
+                  setActiveTab(tabs[tabs.length - 1]);
+                  document.getElementById(`tab-${tabs[tabs.length - 1]}`)?.focus();
+                }
+              }}
               className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-sans"
             >
               <button
                 role="tab"
                 id="tab-ledger"
+                tabIndex={activeTab === 'ledger' ? 0 : -1}
                 aria-selected={activeTab === 'ledger'}
                 aria-controls="panel-ledger"
                 onClick={() => setActiveTab('ledger')}
@@ -595,6 +634,7 @@ export default function DashboardPage() {
               <button
                 role="tab"
                 id="tab-opportunities"
+                tabIndex={activeTab === 'opportunities' ? 0 : -1}
                 aria-selected={activeTab === 'opportunities'}
                 aria-controls="panel-opportunities"
                 onClick={() => setActiveTab('opportunities')}
@@ -614,6 +654,7 @@ export default function DashboardPage() {
               <button
                 role="tab"
                 id="tab-coaching"
+                tabIndex={activeTab === 'coaching' ? 0 : -1}
                 aria-selected={activeTab === 'coaching'}
                 aria-controls="panel-coaching"
                 onClick={() => setActiveTab('coaching')}
@@ -630,6 +671,7 @@ export default function DashboardPage() {
               <button
                 role="tab"
                 id="tab-activity"
+                tabIndex={activeTab === 'activity' ? 0 : -1}
                 aria-selected={activeTab === 'activity'}
                 aria-controls="panel-activity"
                 onClick={() => setActiveTab('activity')}
@@ -706,29 +748,47 @@ export default function DashboardPage() {
                   )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-text-1 font-mono mr-1">Domain:</span>
-                  {['all', 'logistics', 'fintech', 'systems', 'devtools'].map((domain) => (
-                    <button
-                      key={domain}
-                      onClick={() => setSelectedDomain(domain)}
-                      className={`px-2.5 py-1 rounded-radius text-xs capitalize transition-colors font-mono cursor-pointer ${
-                        selectedDomain === domain
-                          ? 'bg-text-0 text-ink-0 font-medium'
-                          : 'bg-card border border-line text-text-1 hover:text-text-0 hover:border-text-1'
-                      }`}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-text-1 font-mono mr-1">Domain:</span>
+                    {['all', 'logistics', 'fintech', 'systems', 'devtools'].map((domain) => (
+                      <button
+                        key={domain}
+                        onClick={() => setSelectedDomain(domain)}
+                        className={`px-2.5 py-1 rounded-radius text-xs capitalize transition-colors font-mono cursor-pointer ${
+                          selectedDomain === domain
+                            ? 'bg-text-0 text-ink-0 font-medium'
+                            : 'bg-card border border-line text-text-1 hover:text-text-0 hover:border-text-1'
+                        }`}
+                      >
+                        {domain}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 pl-2 border-l border-line/60">
+                    <span className="text-text-1 font-mono">Sort:</span>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as 'recent' | 'latency' | 'throughput')}
+                      aria-label="Sort verified proofs"
+                      className="px-2 py-1 rounded-radius bg-card border border-line text-text-0 font-mono text-xs focus:border-emerald outline-none cursor-pointer"
                     >
-                      {domain}
-                    </button>
-                  ))}
-                  {(proofSearch || selectedDomain !== 'all') && (
+                      <option value="recent">Most Recent</option>
+                      <option value="latency">Lowest Latency (p99)</option>
+                      <option value="throughput">Highest Throughput</option>
+                    </select>
+                  </div>
+
+                  {(proofSearch || selectedDomain !== 'all' || sortBy !== 'recent') && (
                     <button
                       onClick={() => {
                         setProofSearch('');
                         setSelectedDomain('all');
+                        setSortBy('recent');
                       }}
                       className="text-text-1 hover:text-text-0 p-1 ml-1"
-                      title="Reset filters"
+                      title="Reset filters and sorting"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                     </button>
@@ -737,9 +797,9 @@ export default function DashboardPage() {
               </div>
 
               {/* Submissions List Container */}
-              {filteredSubmissions.length > 0 ? (
+              {sortedSubmissions.length > 0 ? (
                 <div className="rounded-radius border border-line bg-card/30 divide-y divide-line overflow-hidden">
-                  {filteredSubmissions.map((entry) => {
+                  {sortedSubmissions.map((entry) => {
                     const idea = ideas.find((i) => i.id === entry.ideaId);
                     const domainStyle = idea
                       ? getDomainStyle(idea.domain)
@@ -1053,10 +1113,7 @@ export default function DashboardPage() {
               <div className="p-5 rounded-radius border border-line bg-card space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-line">
                   <div>
-                    <span className="text-xs font-mono uppercase tracking-wider text-emerald-text font-semibold">
-                      Active Career Progression
-                    </span>
-                    <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-text-0 mt-0.5">
+                    <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-text-0">
                       {activeCoaching.title}
                     </h2>
                     <p className="text-xs text-text-1 mt-1 max-w-2xl leading-relaxed">
@@ -1179,7 +1236,7 @@ export default function DashboardPage() {
               className="space-y-4"
             >
               <div className="flex items-center justify-between text-xs font-mono text-text-1 pb-2 border-b border-line">
-                <span>Cryptographic Consensus & Recruiter Activity Stream</span>
+                <span>Cryptographic Attestation & Recruiter Activity Stream</span>
                 {unreadNotificationCount > 0 && (
                   <button
                     onClick={markAllNotificationsRead}
@@ -1194,22 +1251,29 @@ export default function DashboardPage() {
                 {notifications.map((n) => (
                   <div
                     key={n.id}
-                    className={`p-4 rounded-radius border border-line bg-card space-y-1.5 text-xs ${
-                      !n.read ? 'border-l-4 border-l-emerald' : ''
+                    className={`p-4 rounded-radius border bg-card space-y-1.5 text-xs transition-colors ${
+                      !n.read
+                        ? 'border-emerald/40 bg-emerald-tint/20 ring-1 ring-emerald/20'
+                        : 'border-line bg-card/60'
                     }`}
                   >
                     <div className="flex items-center justify-between font-mono text-text-1">
-                      <span
-                        className={`font-semibold uppercase tracking-wider ${
-                          n.type === 'success'
-                            ? 'text-emerald-text'
-                            : n.type === 'info'
-                            ? 'text-blue-600 dark:text-blue-400'
-                            : 'text-text-1'
-                        }`}
-                      >
-                        {n.type}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {!n.read && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald shrink-0" title="Unread notification" />
+                        )}
+                        <span
+                          className={`font-semibold uppercase tracking-wider ${
+                            n.type === 'success'
+                              ? 'text-emerald-text'
+                              : n.type === 'info'
+                              ? 'text-blue-600 dark:text-blue-400'
+                              : 'text-text-1'
+                          }`}
+                        >
+                          {n.type}
+                        </span>
+                      </div>
                       <span>{n.time}</span>
                     </div>
                     <div className="font-semibold text-sm text-text-0 font-sans">
