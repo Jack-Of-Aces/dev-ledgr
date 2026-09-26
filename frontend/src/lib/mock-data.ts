@@ -22,9 +22,9 @@ Build a spatial routing engine that:
       'P95 dispatch endpoint latency < 80ms under 200 concurrent order requests.'
     ],
     mockInfra: {
-      baseUrl: 'https://mock-infra.devledgr.io/api/v1/lpg',
+      baseUrl: 'https://mock-infra.devledgr.xyz/api/v1/lpg',
       starterRepoUrl: 'https://github.com/devledgr-starters/lpg-dispatch-starter',
-      curlExample: `curl -X POST https://mock-infra.devledgr.io/api/v1/lpg/simulate-fleet \\
+      curlExample: `curl -X POST https://mock-infra.devledgr.xyz/api/v1/lpg/simulate-fleet \\
   -H "Authorization: Bearer test_key_lpg_99" \\
   -H "Content-Type: application/json" \\
   -d '{"fleet_size": 12, "active_orders": 45, "depot_geohash": "s10m9r"}`,
@@ -91,9 +91,9 @@ Build an ingestion and replay buffer that guarantees:
       'Graceful backpressure handling during 10,000 req/sec spikes.'
     ],
     mockInfra: {
-      baseUrl: 'https://mock-infra.devledgr.io/api/v1/webhook-firehose',
+      baseUrl: 'https://mock-infra.devledgr.xyz/api/v1/webhook-firehose',
       starterRepoUrl: 'https://github.com/devledgr-starters/webhook-replay-starter',
-      curlExample: `curl -X POST https://mock-infra.devledgr.io/api/v1/webhook-firehose/trigger \\
+      curlExample: `curl -X POST https://mock-infra.devledgr.xyz/api/v1/webhook-firehose/trigger \\
   -H "Content-Type: application/json" \\
   -d '{"spike_rate": 5000, "duplicate_ratio": 0.35, "target_url": "http://localhost:8080/events"}`,
       endpoints: [
@@ -147,9 +147,9 @@ Build a bi-directional conflict-free sync protocol:
       'Bandwidth-optimized compressed binary or delta-JSON transfer.'
     ],
     mockInfra: {
-      baseUrl: 'https://mock-infra.devledgr.io/api/v1/clinic-sync',
+      baseUrl: 'https://mock-infra.devledgr.xyz/api/v1/clinic-sync',
       starterRepoUrl: 'https://github.com/devledgr-starters/offline-crdt-starter',
-      curlExample: `curl -X POST https://mock-infra.devledgr.io/api/v1/clinic-sync/replicate \\
+      curlExample: `curl -X POST https://mock-infra.devledgr.xyz/api/v1/clinic-sync/replicate \\
   -H "X-Client-Clock: 14:nodeB" \\
   -d '{"deltas": [{"entity": "patient_88", "field": "vaccine_dose_2", "val": true}]}'`,
       endpoints: [
@@ -188,9 +188,9 @@ Build a CLI and CI verification tool that:
       'CI exit code 1 with remediation advice snippet.'
     ],
     mockInfra: {
-      baseUrl: 'https://mock-infra.devledgr.io/api/v1/schema-guard',
+      baseUrl: 'https://mock-infra.devledgr.xyz/api/v1/schema-guard',
       starterRepoUrl: 'https://github.com/devledgr-starters/schema-guard-starter',
-      curlExample: `curl -X POST https://mock-infra.devledgr.io/api/v1/schema-guard/audit-ddl \\
+      curlExample: `curl -X POST https://mock-infra.devledgr.xyz/api/v1/schema-guard/audit-ddl \\
   -d '{"sql": "ALTER TABLE transactions ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT \\'pending\\';"}'`,
       endpoints: [
         {
@@ -353,7 +353,7 @@ export const INITIAL_COACHING: CoachingItinerary[] = [
     id: 'backend-fundamentals',
     title: 'Backend Fundamentals: From REST to Distributed Consistency',
     subtitle: 'A 4-week structured track taking you from simple CRUD to failure-resilient distributed architectures.',
-    targetRole: 'Backend Engineer',
+    targetRole: 'Junior Platform Backend Engineer',
     durationWeeks: 4,
     milestones: [
       {
@@ -394,6 +394,84 @@ export const INITIAL_COACHING: CoachingItinerary[] = [
         prompts: [
           'State-based vs Operation-based CRDT trade-offs.',
           'Vector clock vs LWW in intermittent connectivity.'
+        ]
+      }
+    ]
+  },
+  {
+    id: 'fintech-reliability',
+    title: 'Fintech Systems: High-Throughput Idempotency & Financial Auditing',
+    subtitle: 'Focused track tailored for payment processing switches, reconciliation ledgers, and zero-data-loss burst traffic.',
+    targetRole: 'Junior Fintech Infrastructure Engineer',
+    durationWeeks: 3,
+    milestones: [
+      {
+        week: 1,
+        title: 'Sliding Bloom Filters & Timing-Safe HMAC',
+        deliverable: 'Deduplicate 10,000 req/s burst payloads with zero memory leak.',
+        ideaIdRef: 'webhook-deduplicator',
+        prompts: [
+          'How to prevent timing attacks in HMAC signature comparison with constant-time equality.',
+          'Design a Redis sliding window lock with jittered retry to avoid thundering herds.'
+        ]
+      },
+      {
+        week: 2,
+        title: 'High-Volume Transaction Isolation & Locks',
+        deliverable: 'Prevent deadlocks during peak flash-sale balance deductions.',
+        ideaIdRef: 'schema-migration-guard',
+        prompts: [
+          'Compare PostgreSQL row-level locks (FOR UPDATE NOWAIT vs FOR NO KEY UPDATE) in banking ledgers.',
+          'How to implement two-phase commit without microservice transaction coordinator bloat.'
+        ]
+      },
+      {
+        week: 3,
+        title: 'Double-Entry Ledger Invariants & Audit Seals',
+        deliverable: 'Stamp immutable cryptographic proofs of account reconciliation balance.',
+        ideaIdRef: 'offline-sync-clinic',
+        prompts: [
+          'How to design append-only ledger entries that guarantee balance zero-sum integrity.',
+          'Explain deterministic state machine replication across partitioned nodes.'
+        ]
+      }
+    ]
+  },
+  {
+    id: 'devtools-infrastructure',
+    title: 'Developer Infrastructure: Static Analysis & Safe Migrations',
+    subtitle: 'Master database internals, AST query interception, and automated CI safety guards.',
+    targetRole: 'Associate Tooling & Database Engineer',
+    durationWeeks: 3,
+    milestones: [
+      {
+        week: 1,
+        title: 'AST Parsing & Postgres DDL Traps',
+        deliverable: 'Build a shadow query parser that flags dangerous non-concurrent indexes.',
+        ideaIdRef: 'schema-migration-guard',
+        prompts: [
+          'Why does CREATE INDEX without CONCURRENTLY lock table writes in production?',
+          'How to parse SQL AST trees in Go/TypeScript to flag unindexed foreign key lookups.'
+        ]
+      },
+      {
+        week: 2,
+        title: 'Ephemeral Container Test Harnesses',
+        deliverable: 'Automate Dockerized PostgreSQL lock matrix verification in CI pipelines.',
+        ideaIdRef: 'lpg-route-optimizer',
+        prompts: [
+          'How to spin up ephemeral testcontainers in under 800ms for integration runs.',
+          'Design a CI exit code reporter that outputs GitHub Actions check run annotations.'
+        ]
+      },
+      {
+        week: 3,
+        title: 'Zero-Downtime Rollout Orchestration',
+        deliverable: 'Implement blue-green shadow schema migrations with automated rollback.',
+        ideaIdRef: 'offline-sync-clinic',
+        prompts: [
+          'Expand and Contract pattern: Safe column rename strategies without downtime.',
+          'How to monitor pg_stat_activity to automatically cancel query execution on lock cascades.'
         ]
       }
     ]

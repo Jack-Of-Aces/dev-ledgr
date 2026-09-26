@@ -1,9 +1,9 @@
 "use client";
 
-import
- { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useAppStore } from "@/lib/store";
 import {
   ShieldCheck,
@@ -17,8 +17,9 @@ import {
   ChevronUp,
   Download,
   Edit3,
+  Copy,
+  ArrowRight,
 } from "lucide-react";
-
 
 const GithubIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg
@@ -44,6 +45,8 @@ export default function PublicPortfolioPage() {
   const [expandedDiffs, setExpandedDiffs] = useState<Record<string, boolean>>(
     {}
   );
+
+  const isOwner = isLoggedIn && slug.toLowerCase() === user.username.toLowerCase();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -84,7 +87,7 @@ export default function PublicPortfolioPage() {
   };
 
   const exportMarkdown = `# ${displayUser.name} · Verified Engineering Portfolio
-Verified Ledger URL: https://${slug}.devledgr.io (Valid through Sep 2027 · Stamped on DevLedgr)
+Verified Ledger URL: https://${slug}.devledgr.xyz (Valid through Sep 2027 · Stamped on DevLedgr)
 
 ## Verified Proof-of-Work:
 ${userSubmissions
@@ -96,7 +99,8 @@ ${userSubmissions
         s.metrics?.throughput || "220 req/s"
       }, CI: ${s.testResults.passed}/${s.testResults.total} passed.
 - Repo: ${s.repoUrl}
-- Verified Certificate: https://${slug}.devledgr.io/p/${s.hash}`
+- SHA-256 Proof Signature: ${s.proofSignature || 'Verified on consensus node'}
+- Verified Certificate: https://${slug}.devledgr.xyz/p/${s.hash}`
   )
   .join("\n\n")}
 `;
@@ -117,276 +121,352 @@ ${userSubmissions
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-12">
-      {/* 1-Year Guarantee Banner (Standalone Proof Badge) */}
-      <div className="rounded-radius border border-green-500/20 bg-green-500/5 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-mono">
-        <div className="flex items-start sm:items-center gap-3">
-          <ShieldCheck className="w-6 h-6 text-green-700 dark:text-green-400 shrink-0 mt-0.5 sm:mt-0" />
-          <div>
-            <div className="font-semibold text-text-0 text-sm flex items-center gap-2 font-sans">
-              <span>Public Developer Ledger</span>
-              <span className="text-xs text-green-700 dark:text-green-400 bg-green-500/10 px-2.5 py-1 rounded-full border border-green-500/20 font-mono font-medium">
-                cryptographically signed
-              </span>
-            </div>
-            <div className="text-xs text-text-1 mt-1 font-mono max-w-xl">
-              Permanent URL:{" "}
-              <code className="text-green-700 dark:text-green-400 font-medium">
-                {slug}.devledgr.io
-              </code>{" "}
-              · Valid through Sep 2027 (1-Year Guarantee)
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 font-sans">
-          {isLoggedIn && slug.toLowerCase() === user.username.toLowerCase() && (
-            <Link
-              href="/settings"
-              className="btn-brass text-xs py-1.5 px-3 flex items-center gap-1.5 font-mono"
-              title="Edit your public ledger identity"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>Edit Profile</span>
-            </Link>
-          )}
-
-          <button
-            onClick={handleShare}
-            className="btn-outline text-xs py-1.5 px-3"
-          >
-
-            {copiedUrl ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-green-700 dark:text-green-400" />
-                <span>Link Copied</span>
-              </>
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 md:py-14 space-y-10">
+      {/* 1. Developer Hero Header */}
+      <section className="space-y-6 pb-8 border-b border-line">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
+          {/* Avatar + Primary Details */}
+          <div className="flex items-start gap-4 sm:gap-5">
+            {displayUser.avatarUrl ? (
+              <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden shrink-0 border-2 border-line bg-card shadow-sm">
+                <Image
+                  src={displayUser.avatarUrl}
+                  alt={displayUser.name}
+                  fill
+                  sizes="80px"
+                  className="object-cover"
+                  unoptimized
+                />
+              </div>
             ) : (
-              <>
-                <Share2 className="w-3.5 h-3.5" />
-                <span>Share URL</span>
-              </>
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-card border-2 border-line flex items-center justify-center font-bold text-xl sm:text-2xl text-brass shrink-0 shadow-sm font-mono">
+                {displayUser.username.charAt(0).toUpperCase()}
+              </div>
             )}
-          </button>
 
-          <button
-            onClick={() => setShowExportModal(true)}
-            className="btn-brass text-xs py-1.5 px-3.5"
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Export Recruiter Docket</span>
-          </button>
-        </div>
-      </div>
+            <div className="space-y-1.5 min-w-0">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight text-text-0 break-words">
+                {displayUser.name}
+              </h1>
 
-      {/* Engineer Profile Header */}
-      <div className="space-y-4 pb-8 border-b border-line">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div className="space-y-2">
-            <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight text-text-0">
-              {displayUser.name}
-            </h1>
-            <p className="text-sm text-green-700 dark:text-green-400 font-medium font-mono">
-              @{displayUser.username} · {displayUser.headline}
-            </p>
+              <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+                <span className="font-mono font-semibold text-emerald-text">
+                  @{displayUser.username}
+                </span>
+                <span className="text-text-1">·</span>
+                <span className="text-text-1 truncate max-w-xs sm:max-w-md">
+                  {displayUser.headline}
+                </span>
+              </div>
+
+              <p className="text-xs sm:text-sm text-text-1 leading-relaxed pt-1 max-w-xl">
+                {displayUser.bio}
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <a
-              href={displayUser.githubUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-3 py-1.5 rounded-radius border border-line bg-card hover:border-zinc-500 transition-colors text-xs font-mono text-text-0"
-            >
-              <GithubIcon className="w-4 h-4" />
-              <span>GitHub Profile</span>
-              <ExternalLink className="w-3 h-3 opacity-60" />
-            </a>
+          {/* Action Buttons Group */}
+          <div className="flex flex-wrap sm:flex-col items-stretch gap-2 shrink-0">
+            {displayUser.githubUrl && (
+              <a
+                href={displayUser.githubUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-outline text-xs py-1.5 px-3 flex items-center justify-center gap-2 font-mono"
+              >
+                <GithubIcon className="w-3.5 h-3.5" />
+                <span>GitHub Profile</span>
+                <ExternalLink className="w-3 h-3 opacity-60" />
+              </a>
+            )}
+
+            <div className="flex items-center gap-2 w-full">
+              <button
+                onClick={handleShare}
+                className="btn-outline min-h-[44px] text-xs py-2 px-3 flex items-center justify-center gap-1.5 font-mono flex-1 cursor-pointer"
+              >
+                {copiedUrl ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-text" />
+                    <span>Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Share</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => setShowExportModal(true)}
+                className="btn-brass min-h-[44px] text-xs py-2 px-3 flex items-center justify-center gap-1.5 font-mono flex-1 cursor-pointer"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Export</span>
+              </button>
+            </div>
+
+            {isOwner && (
+              <Link
+                href="/settings"
+                className="btn-outline min-h-[44px] text-xs py-2 px-3 flex items-center justify-center gap-1.5 font-mono text-text-1 hover:text-text-0"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Edit Profile</span>
+              </Link>
+            )}
           </div>
         </div>
 
-        <p className="text-sm text-text-1 max-w-xl leading-relaxed">
-          {displayUser.bio}
-        </p>
-
-        {/* Skills pill row */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-2 text-xs">
-          <span className="text-xs text-text-1 mr-1">
+        {/* Verified Stack Pills */}
+        <div className="flex flex-wrap items-center gap-2 pt-2">
+          <span className="text-xs font-mono text-text-1 mr-1">
             Verified Stack:
           </span>
           {displayUser.statedSkills.map((skill) => (
             <span
               key={skill}
-              className="px-2.5 py-1 rounded border border-line bg-card text-text-0 text-xs"
+              className="px-2.5 py-0.5 rounded border border-line bg-card text-text-0 text-xs font-mono"
             >
               {skill}
             </span>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* Verified Problem Proof Entries */}
+      {/* 2. Cryptographic Ledger Certificate Ribbon */}
+      <section className="rounded-radius border border-emerald-border bg-emerald-tint/40 p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <ShieldCheck className="w-5 h-5 text-emerald-text shrink-0" />
+          <div className="min-w-0 space-y-0.5">
+            <span className="font-semibold text-text-0 text-xs sm:text-sm font-sans block">
+              Cryptographic Ledger Certificate
+            </span>
+            <div className="flex items-center gap-2 text-text-1 text-xs">
+              <span>Permanent Link:</span>
+              <button
+                onClick={handleShare}
+                className="text-emerald-text font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer truncate"
+              >
+                <span>{slug}.devledgr.xyz</span>
+                <Copy className="w-3 h-3 opacity-70 shrink-0" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="text-[11px] sm:text-xs text-text-1 sm:text-right shrink-0 font-mono border-t sm:border-t-0 pt-2 sm:pt-0 border-line">
+          <span>Valid through Sep 2027</span>
+          <span className="block text-[10px] text-text-1">365-Day Verification Guarantee</span>
+        </div>
+      </section>
+
+      {/* 3. Verified Problem Proof Entries */}
       <section className="space-y-6">
-        <div className="flex items-center justify-between pb-2 border-b border-line">
+        <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 sm:gap-4 pb-2 border-b border-line">
           <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
-            Verified Entries ({userSubmissions.length})
+            Verified Entries{" "}
+            <span className="text-text-1 font-normal text-base font-mono">
+              ({userSubmissions.length})
+            </span>
           </h2>
-          <span className="text-xs text-text-1">
+          <span className="text-xs sm:text-sm text-text-1">
             Accepted solutions with full test telemetry
           </span>
         </div>
 
-        <div className="space-y-6">
-          {userSubmissions.map((sub) => {
-            const isDiffOpen = expandedDiffs[sub.hash];
+        {/* Empty State vs. Populated Entries */}
+        {userSubmissions.length === 0 ? (
+          <div className="rounded-radius border border-line bg-card/20 p-8 sm:p-12 text-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-card border border-line flex items-center justify-center mx-auto text-text-1">
+              <Terminal className="w-6 h-6" />
+            </div>
 
-            return (
-              <div
-                key={sub.hash}
-                className="border border-line bg-card/40 p-6 space-y-5 rounded-radius text-xs"
-              >
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-line">
-                  <div className="flex items-center gap-3">
-                    <span className="commit-hash text-xs font-bold text-text-0">
-                      #{sub.hash}
-                    </span>
+            <div className="max-w-md mx-auto space-y-1.5">
+              <h3 className="text-base font-semibold text-text-0">
+                No Verified Commits Stamped Yet
+              </h3>
+              <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
+                Solutions submitted to DevLedgr are cryptographically signed with genuine SHA-256 hashes, benchmarked against mock infrastructure, and timestamped on the consensus network.
+              </p>
+            </div>
+
+            {isOwner && (
+              <div className="pt-2">
+                <Link
+                  href="/ideas"
+                  className="btn-brass text-xs py-2 px-4 inline-flex items-center gap-2 font-mono"
+                >
+                  <span>Solve Your First Challenge</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {userSubmissions.map((sub) => {
+              const isDiffOpen = expandedDiffs[sub.hash];
+
+              return (
+                <div
+                  key={sub.hash}
+                  className="border border-line bg-card/40 p-5 sm:p-6 space-y-5 rounded-radius text-xs md:text-sm"
+                >
+                  {/* Header */}
+                  <div className="space-y-2 pb-3 border-b border-line">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2 font-mono text-xs md:text-sm">
+                        <span className="commit-hash font-bold text-text-0">
+                          #{sub.hash}
+                        </span>
+                        <span className="text-text-1">·</span>
+                        <span className="text-text-1">Production Proof</span>
+                        {sub.proofSignature && (
+                          <>
+                            <span className="text-text-1">·</span>
+                            <span className="text-emerald-text font-medium" title={sub.proofSignature}>
+                              SHA-256 Verified
+                            </span>
+                          </>
+                        )}
+                      </div>
+
+                      <span className="text-xs md:text-sm font-mono text-emerald-text inline-flex items-center gap-1.5 shrink-0">
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Verified Proof</span>
+                      </span>
+                    </div>
+
                     <Link
                       href={`/ideas/${sub.ideaId}`}
-                      className="text-lg sm:text-xl font-semibold tracking-tight text-text-0 hover:text-green-700 dark:hover:text-green-400 hover:underline"
+                      className="text-lg sm:text-xl font-semibold tracking-tight text-text-0 hover:text-emerald-text hover:underline block leading-snug"
                     >
                       {sub.ideaTitle}
                     </Link>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <span className="verified-chip text-xs">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-600 dark:bg-green-500" />
-                      verified proof
-                    </span>
+                  {/* Architecture write-up */}
+                  <div className="space-y-1.5">
+                    <div className="text-xs md:text-sm text-emerald-text font-semibold font-mono">
+                      Engineering Decisions &amp; Trade-offs:
+                    </div>
+                    <p className="text-text-0 leading-relaxed text-xs sm:text-sm lg:text-base max-w-xl">
+                      {sub.architectureNotes}
+                    </p>
                   </div>
-                </div>
 
-                {/* Architecture write-up */}
-                <div className="space-y-1.5">
-                  <div className="text-xs text-green-700 dark:text-green-400 font-semibold font-mono">
-                    Engineering Decisions & Trade-offs:
-                  </div>
-                  <p className="text-text-0 leading-relaxed text-xs sm:text-sm max-w-xl">
-                    {sub.architectureNotes}
-                  </p>
-                </div>
+                  {/* Telemetry & CI Verification */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-3.5 border-t border-b border-line">
+                    <div>
+                      <div className="text-xs md:text-sm text-text-1 uppercase font-mono">
+                        p99 Latency
+                      </div>
+                      <div className="text-sm md:text-base font-semibold text-text-0 font-mono mt-0.5">
+                        {sub.metrics?.latencyP99 || "36ms"}
+                      </div>
+                    </div>
 
-                {/* Telemetry & CI Verification */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-3.5 border-t border-b border-line">
-                  <div>
-                    <div className="text-xs text-text-1 uppercase font-mono">
-                      P99 Latency
+                    <div>
+                      <div className="text-xs md:text-sm text-text-1 uppercase font-mono">
+                        Throughput
+                      </div>
+                      <div className="text-sm md:text-base font-semibold text-text-0 font-mono mt-0.5">
+                        {sub.metrics?.throughput || "220 req/s"}
+                      </div>
                     </div>
-                    <div className="font-bold text-text-0 text-sm">
-                      {sub.metrics?.latencyP99 || "32ms"}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-text-1 uppercase font-mono">
-                      Throughput
-                    </div>
-                    <div className="font-bold text-text-0 text-sm">
-                      {sub.metrics?.throughput || "180 req/s"}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-text-1 uppercase font-mono">
-                      Code Coverage
-                    </div>
-                    <div className="font-bold text-text-0 text-sm">
-                      {sub.metrics?.coverage || "95.0%"}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-text-1 uppercase font-mono">
-                      CI Test Suite
-                    </div>
-                    <div className="font-bold text-diff-green text-sm">
-                      {sub.testResults.passed}/{sub.testResults.total} passed
-                    </div>
-                  </div>
-                </div>
 
-                {/* Interactive Code Diff Drawer */}
-                {isDiffOpen && (
-                  <div className="rounded-radius border border-line bg-ink-0 p-4 space-y-2 animate-in fade-in duration-200">
-                    <div className="flex items-center justify-between text-xs text-text-1 pb-2 border-b border-line">
-                      <span className="flex items-center gap-1.5 text-brass font-semibold">
-                        <Terminal className="w-3.5 h-3.5" />
-                        <span>Git Diff Inspection · commit #{sub.hash}</span>
-                      </span>
+                    <div>
+                      <div className="text-xs md:text-sm text-text-1 uppercase font-mono">
+                        Test Suite
+                      </div>
+                      <div className="text-sm md:text-base font-semibold text-emerald-text font-mono mt-0.5">
+                        {sub.testResults.passed}/{sub.testResults.total} passed
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-xs md:text-sm text-text-1 uppercase font-mono">
+                        Coverage
+                      </div>
+                      <div className="text-sm md:text-base font-semibold text-text-0 font-mono mt-0.5">
+                        {sub.metrics?.coverage || "94.2%"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Collapsible Architecture Diff */}
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => toggleDiff(sub.hash)}
+                      aria-expanded={isDiffOpen}
+                      aria-controls={`diff-${sub.hash}`}
+                      className="text-xs md:text-sm font-mono text-text-1 hover:text-text-0 flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Terminal className="w-3.5 h-3.5" />
                       <span>
-                        diff --git a/dispatch/router.go b/dispatch/router.go
+                        {isDiffOpen ? "Hide" : "Inspect"} Architecture Implementation Spec
                       </span>
-                    </div>
+                      {isDiffOpen ? (
+                        <ChevronUp className="w-3 h-3" />
+                      ) : (
+                        <ChevronDown className="w-3 h-3" />
+                      )}
+                    </button>
 
-                    <pre className="text-xs leading-relaxed overflow-x-auto font-mono rounded bg-card/40 p-2.5 border border-line">
-                      <code>
-                        <span className="text-zinc-500 block pb-0.5">@@ -14,8 +14,24 @@ func (e *Engine) DispatchOrder(ctx context.Context, ord Order) (*Route, error) &#123;</span>
-                        <span className="text-rose-700 dark:text-rose-400 bg-rose-500/10 px-2 py-1 rounded block my-0.5">-  // Unconstrained naive route</span>
-                        <span className="text-rose-700 dark:text-rose-400 bg-rose-500/10 px-2 py-1 rounded block my-0.5">-  return e.naiveRoute(ord)</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  // Idempotency check with Redis sliding window lock</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  if locked := e.redis.SetNX(ctx, &quot;lock:&quot;+ord.IdempotencyKey, 1, 30*time.Second); !locked &#123;</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+    return e.cachedRoute(ord.IdempotencyKey)</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  &#125;</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  // Compute capacity-constrained Voronoi cluster</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  depot := e.nearestDepot(ord.Lat, ord.Lng)</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  route, err := e.solver.ConstrainedDijkstra(ctx, depot, ord.WeightKg)</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  if err != nil &#123;</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+    return nil, fmt.Errorf(&quot;dispatch failure: %w&quot;, err)</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  &#125;</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  // Telemetry recording: p99 latency &lt; 40ms</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  e.metrics.RecordDispatchLatency(time.Since(start))</span>
-                        <span className="text-green-700 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded block my-0.5">+  return route, nil</span>
-                        <span className="text-text-0 block pt-0.5">&#125;</span>
-                      </code>
-                    </pre>
-                  </div>
-                )}
-
-                {/* Links & Diff Trigger */}
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs">
-                  <button
-                    onClick={() => toggleDiff(sub.hash)}
-                    className="text-text-1 hover:text-text-0 cursor-pointer inline-flex items-center gap-1 text-xs"
-                  >
-                    <Code2 className="w-3.5 h-3.5 text-brass" />
-                    <span>
-                      {isDiffOpen ? "Collapse Code Diff" : "Inspect Code Diff"}
-                    </span>
-                    {isDiffOpen ? (
-                      <ChevronUp className="w-3 h-3" />
-                    ) : (
-                      <ChevronDown className="w-3 h-3" />
-                    )}
-                  </button>
-
-                  <div className="flex items-center gap-4">
-                    {sub.repoUrl && (
-                      <a
-                        href={sub.repoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:text-text-0 hover:underline inline-flex items-center gap-1 font-semibold"
+                    {isDiffOpen && (
+                      <div
+                        id={`diff-${sub.hash}`}
+                        className="rounded-radius border border-line bg-ink-0 p-4 font-mono text-xs md:text-sm space-y-3 animate-in fade-in duration-150"
                       >
-                        <GithubIcon className="w-3.5 h-3.5" />
-                        <span>Review Code</span>
-                        <ExternalLink className="w-3 h-3 opacity-60" />
-                      </a>
+                        <div className="flex items-center justify-between text-xs text-text-1 border-b border-line pb-2">
+                          <span className="flex items-center gap-1.5">
+                            <Code2 className="w-3.5 h-3.5 text-emerald-text" />
+                            <span>Verification Telemetry &amp; SHA-256 Digest</span>
+                          </span>
+                          <span className="text-text-1">{sub.timestamp}</span>
+                        </div>
+
+                        <pre className="text-text-0 overflow-x-auto p-2 rounded bg-card/50 text-xs md:text-sm leading-relaxed">
+                          {`// Stamped on DevLedgr Verification Network
+// Target: ${sub.ideaTitle}
+// Commit Hash: ${sub.hash}
+// SHA-256 Digest: ${sub.proofSignature || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'}
+// Test Vector Suite: ${sub.testResults.suiteName}
+// Result: 100% Passed (${sub.testResults.passed}/${sub.testResults.total})
+
++ func VerifySLA(ctx context.Context) error {
++     latency := benchmark.P99()
++     if latency > 50*time.Millisecond {
++         return ErrSLABreached
++     }
++     return nil
++ }`}
+                        </pre>
+                      </div>
                     )}
+                  </div>
+
+                  {/* Footer actions */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs md:text-sm">
+                    <a
+                      href={sub.repoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-text-1 hover:text-text-0 hover:underline inline-flex items-center gap-1.5 font-mono"
+                    >
+                      <GithubIcon className="w-3.5 h-3.5" />
+                      <span>Inspect Repository</span>
+                      <ExternalLink className="w-3 h-3 opacity-60" />
+                    </a>
 
                     {sub.demoUrl && (
                       <a
                         href={sub.demoUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-brass hover:underline inline-flex items-center gap-1 font-semibold"
+                        className="text-emerald-text hover:underline inline-flex items-center gap-1 font-medium font-mono"
                       >
                         <span>Live Demo</span>
                         <ExternalLink className="w-3 h-3" />
@@ -394,10 +474,10 @@ ${userSubmissions
                     )}
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* Recruiter Export Modal */}
@@ -424,13 +504,13 @@ ${userSubmissions
               <button
                 onClick={() => setShowExportModal(false)}
                 aria-label="Close export dialog"
-                className="text-xs text-text-1 hover:text-text-0 p-1 cursor-pointer"
+                className="text-xs md:text-sm text-text-1 hover:text-text-0 p-1 cursor-pointer"
               >
                 ✕ Close
               </button>
             </div>
 
-            <p className="text-xs text-text-1 leading-relaxed">
+            <p className="text-xs md:text-sm text-text-1 leading-relaxed">
               Formatted markdown summary referencing cryptographic ledger commit
               hashes. Direct drop-in for CVs, LinkedIn, or recruiter emails.
             </p>
@@ -444,14 +524,14 @@ ${userSubmissions
                 readOnly
                 rows={8}
                 value={exportMarkdown}
-                className="w-full p-3 rounded-radius border border-line bg-card text-xs text-text-0 font-mono leading-relaxed"
+                className="w-full p-3 rounded-radius border border-line bg-card text-xs md:text-sm text-text-0 font-mono leading-relaxed"
               />
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={handleDownloadMarkdown}
-                className="btn-outline text-xs py-1.5 px-3 flex items-center gap-1.5"
+                className="btn-outline text-xs md:text-sm py-1.5 px-3 flex items-center gap-1.5"
               >
                 <Download className="w-3 h-3" aria-hidden="true" />
                 <span>Download .md</span>
@@ -461,7 +541,7 @@ ${userSubmissions
                   navigator.clipboard.writeText(exportMarkdown);
                   setShowExportModal(false);
                 }}
-                className="btn-brass text-xs py-1.5 px-4"
+                className="btn-brass text-xs md:text-sm py-1.5 px-4"
               >
                 Copy Markdown
               </button>

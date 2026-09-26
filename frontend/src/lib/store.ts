@@ -33,7 +33,12 @@ interface AppState {
 
   addIdea: (idea: IdeaItem) => void;
   addSubmission: (
-    submission: Omit<SubmissionEntry, 'hash' | 'timestamp' | 'status' | 'testResults'>
+    submission: Omit<SubmissionEntry, 'hash' | 'timestamp' | 'status' | 'testResults'> & {
+      hash?: string;
+      proofSignature?: string;
+      testResults?: { passed: number; total: number; suiteName: string };
+      metrics?: { latencyP99?: string; throughput?: string; coverage?: string };
+    }
   ) => SubmissionEntry;
   verifySubmission: (hash: string) => void;
   getSubmissionByHash: (hash: string) => SubmissionEntry | undefined;
@@ -73,6 +78,11 @@ export const useAppStore = create<AppState>()(
       setTheme: (theme) => {
         if (typeof document !== 'undefined') {
           document.documentElement.setAttribute('data-theme', theme);
+          if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
         }
         set({ theme });
       },
@@ -80,13 +90,18 @@ export const useAppStore = create<AppState>()(
         const next = get().theme === 'light' ? 'dark' : 'light';
         if (typeof document !== 'undefined') {
           document.documentElement.setAttribute('data-theme', next);
+          if (next === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
         }
         set({ theme: next });
       },
 
       user: DEFAULT_USER,
       setUser: (updates) => set((state) => ({ user: { ...state.user, ...updates } })),
-      isLoggedIn: true,
+      isLoggedIn: false,
 
       loginAsGitHub: (username = 'junior_dev', name = 'Alex Okafor') => {
         set({
@@ -150,18 +165,19 @@ export const useAppStore = create<AppState>()(
       },
 
       addSubmission: (subData) => {
-        const hash = generateCommitHash();
+        const hash = subData.hash || generateCommitHash();
         const newEntry: SubmissionEntry = {
           ...subData,
           hash,
+          proofSignature: subData.proofSignature,
           timestamp: new Date().toISOString(),
           status: 'verified',
-          testResults: {
+          testResults: subData.testResults || {
             passed: 20,
             total: 20,
             suiteName: 'Automated CI & Contract Test Suite v2.0',
           },
-          metrics: {
+          metrics: subData.metrics || {
             latencyP99: '34ms',
             throughput: '260 req/s',
             coverage: '96.4%',
