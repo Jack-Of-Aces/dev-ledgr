@@ -5,8 +5,7 @@
  * or null if running in local sandbox / offline preview mode.
  */
 
-import { createBrowserClient } from '@supabase/ssr';
-import { SupabaseClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { envConfig } from './config';
 
 let supabaseClient: SupabaseClient | null = null;
@@ -17,14 +16,16 @@ export function getSupabase(): SupabaseClient | null {
   }
 
   if (!supabaseClient) {
-    supabaseClient = createBrowserClient(
-      envConfig.supabaseUrl,
-      envConfig.supabaseAnonKey
-    );
+    supabaseClient = createClient(envConfig.supabaseUrl, envConfig.supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    });
   }
 
   return supabaseClient;
 }
 
 export const supabase = getSupabase();
-
