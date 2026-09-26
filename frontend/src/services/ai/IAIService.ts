@@ -27,6 +27,14 @@ export interface CoachPromptParams {
   milestoneTitle: string;
   prompt: string;
   apiKey?: string;
+  candidateContext?: {
+    username: string;
+    name: string;
+    headline?: string;
+    statedSkills?: string[];
+    verifiedProofCount: number;
+    solvedIdeaTitles: string[];
+  };
 }
 
 export interface IAIService {

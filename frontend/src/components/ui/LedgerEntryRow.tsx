@@ -64,37 +64,37 @@ export const LedgerEntryRow: React.FC<LedgerEntryRowProps> = ({
           {showIdeaLink ? (
             <Link
               href={`/ideas/${entry.ideaId}`}
-              className="font-medium text-sm text-text-0 hover:text-brass transition-colors hover:underline wrap-break-word"
+              className="font-medium text-sm lg:text-base text-text-0 hover:text-brass transition-colors hover:underline wrap-break-word"
             >
               {entry.ideaTitle}
             </Link>
           ) : (
-            <span className="font-medium text-sm text-text-0 wrap-break-word">
+            <span className="font-medium text-sm lg:text-base text-text-0 wrap-break-word">
               {entry.ideaTitle}
             </span>
           )}
 
-          <span className="text-xs text-text-1">by</span>
+          <span className="text-xs md:text-sm text-text-1">by</span>
           <Link
             href={`/p/${entry.authorUsername}`}
-            className="text-xs font-mono font-medium text-text-0 hover:underline"
+            className="text-xs md:text-sm font-mono font-medium text-text-0 hover:underline"
           >
             @{entry.authorUsername}
           </Link>
 
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400 text-xs font-mono font-medium ml-1">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400 text-xs md:text-sm font-mono font-medium ml-1">
             <span className="w-1.5 h-1.5 rounded-full bg-green-600 dark:bg-green-500" aria-hidden="true" />
             verified
           </span>
         </div>
 
-        <p className="text-xs text-text-1 line-clamp-2 leading-relaxed wrap-break-word max-w-md">
+        <p className="text-xs md:text-sm text-text-1 line-clamp-2 leading-relaxed wrap-break-word max-w-md">
           {entry.architectureNotes}
         </p>
 
         {/* Metrics Row */}
         {entry.metrics && (
-          <div className="flex flex-wrap items-center gap-3 pt-1 text-xs font-mono text-text-1">
+          <div className="flex flex-wrap items-center gap-3 pt-1 text-xs md:text-sm font-mono text-text-1">
             {entry.metrics.latencyP99 && (
               <span>
                 p99: <b className="text-text-0 font-medium">{entry.metrics.latencyP99}</b>
@@ -118,7 +118,7 @@ export const LedgerEntryRow: React.FC<LedgerEntryRowProps> = ({
       </div>
 
       {/* Meta & Links */}
-      <div className="flex md:flex-col items-center md:items-end justify-between md:justify-start gap-2 pt-0.5 text-xs font-mono text-text-1">
+      <div className="flex md:flex-col items-center md:items-end justify-between md:justify-start gap-2 pt-0.5 text-xs md:text-sm font-mono text-text-1">
         <span>{formatTime(entry.timestamp)}</span>
         <div className="flex items-center gap-2">
           {entry.repoUrl && (

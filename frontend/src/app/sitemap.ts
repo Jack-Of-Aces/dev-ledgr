@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 import { INITIAL_IDEAS, INITIAL_JOBS, INITIAL_COACHING } from '@/lib/mock-data';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://devledgr.io';
+  const baseUrl = 'https://devledgr.xyz';
   const currentDate = new Date().toISOString().split('T')[0];
 
   const staticRoutes: MetadataRoute.Sitemap = [
@@ -35,6 +35,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: currentDate,
       changeFrequency: 'monthly',
       priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/terms`,
+      lastModified: currentDate,
+      changeFrequency: 'monthly',
+      priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/privacy`,
+      lastModified: currentDate,
+      changeFrequency: 'monthly',
+      priority: 0.5,
     },
     {
       url: `${baseUrl}/p/junior_dev`,

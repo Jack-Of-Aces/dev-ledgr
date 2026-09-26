@@ -6,9 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { BrandMark } from '@/components/brand/BrandMark';
 import { useAuth } from '@/hooks/useAuth';
 import { envConfig } from '@/lib/config';
-import { EmailSignInSchema } from '@/lib/schemas/auth';
-import { ArrowLeft, ArrowRight, Mail, Sparkles, Check } from 'lucide-react';
-
+import { ArrowLeft, Sparkles, AlertCircle } from 'lucide-react';
 
 const GithubIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -20,11 +18,33 @@ const GithubIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   </svg>
 );
 
+const GoogleIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+    <path
+      fill="#4285F4"
+      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+    />
+  </svg>
+);
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
-  const { isLoggedIn, loginWithGitHub, loginWithEmail, switchRole } = useAuth();
+  const authError = searchParams.get('error');
+  const { isLoggedIn, loginWithGitHub, loginWithGoogle, switchRole } = useAuth();
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -32,35 +52,35 @@ function LoginForm() {
     }
   }, [isLoggedIn, callbackUrl, router]);
 
-  const [email, setEmail] = useState('');
-  const [emailError, setEmailError] = useState<string | null>(null);
-  const [emailSent, setEmailSent] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loadingProvider, setLoadingProvider] = useState<'github' | 'google' | null>(null);
+  const [showSandbox, setShowSandbox] = useState(false);
 
   const handleGitHubAuth = async () => {
-    setLoading(true);
-    await loginWithGitHub('junior_dev', 'Alex Okafor');
-    router.push(callbackUrl);
+    setLoadingProvider('github');
+    try {
+      await loginWithGitHub();
+      if (!envConfig.hasSupabase) {
+        router.push(callbackUrl);
+      }
+    } catch {
+      setLoadingProvider(null);
+    }
   };
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setEmailError(null);
-
-    const validation = EmailSignInSchema.safeParse({ email });
-    if (!validation.success) {
-      setEmailError(validation.error.issues[0]?.message || 'Invalid email address');
-      return;
+  const handleGoogleAuth = async () => {
+    setLoadingProvider('google');
+    try {
+      await loginWithGoogle();
+      if (!envConfig.hasSupabase) {
+        router.push(callbackUrl);
+      }
+    } catch {
+      setLoadingProvider(null);
     }
-
-    setLoading(true);
-    await loginWithEmail(email);
-    setEmailSent(true);
-    setLoading(false);
   };
 
   const handleQuickPersona = async (role: 'user' | 'admin') => {
-    setLoading(true);
+    setLoadingProvider('github');
     await switchRole(role);
     router.push(role === 'admin' ? '/admin' : callbackUrl);
   };
@@ -76,111 +96,113 @@ function LoginForm() {
           <h1 className="text-2xl font-semibold tracking-tight text-text-0">
             Sign In to DevLedgr
           </h1>
-          <p className="text-xs text-text-1 max-w-xs mx-auto leading-relaxed">
+          <p className="text-xs md:text-sm text-text-1 max-w-xs mx-auto leading-relaxed">
             Anchor your verified problem-solving proof directly to your developer identity.
           </p>
         </div>
 
-        {/* Primary Action: GitHub OAuth */}
-        <div className="space-y-2">
+        {/* Error Notice */}
+        {authError && (
+          <div className="p-3 rounded border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs md:text-sm flex items-center gap-2 font-mono">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>Authentication was interrupted or canceled. Please try again.</span>
+          </div>
+        )}
+
+        {/* OAuth Providers: GitHub & Google Only */}
+        <div className="space-y-3">
+          {/* GitHub OAuth Button */}
           <button
             onClick={handleGitHubAuth}
-            disabled={loading}
-            className="w-full btn-brass text-xs py-2.5 flex items-center justify-center gap-2 cursor-pointer"
+            disabled={loadingProvider !== null}
+            className="w-full btn-brass min-h-[44px] text-xs md:text-sm py-2.5 flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
           >
             <GithubIcon className="w-4 h-4" />
-            <span>Continue with GitHub</span>
+            <span>
+              {loadingProvider === 'github' ? 'Redirecting to GitHub...' : 'Continue with GitHub'}
+            </span>
           </button>
 
-          <div className="flex items-center justify-between text-xs text-text-1 font-mono px-1">
+          {/* Google OAuth Button */}
+          <button
+            onClick={handleGoogleAuth}
+            disabled={loadingProvider !== null}
+            className="w-full min-h-[44px] px-4 py-2.5 rounded-radius border border-line bg-card hover:bg-ink-1 text-text-0 text-xs md:text-sm font-medium flex items-center justify-center gap-2.5 transition-colors cursor-pointer disabled:opacity-50"
+          >
+            <GoogleIcon className="w-4 h-4" />
+            <span>
+              {loadingProvider === 'google' ? 'Redirecting to Google...' : 'Continue with Google'}
+            </span>
+          </button>
+
+          <div className="flex items-center justify-between text-xs md:text-sm text-text-1 font-mono px-1 pt-1">
             <span>Identity Provider:</span>
             <span className="text-text-0 font-medium">
-              {envConfig.githubClientId ? 'Live GitHub OAuth App' : 'Instant Sandbox Provider'}
+              {envConfig.hasSupabase
+                ? 'Supabase OAuth (GitHub & Google)'
+                : 'Local Developer Sandbox'}
             </span>
           </div>
-        </div>
 
-        <div className="relative flex items-center justify-center">
-          <div className="border-t border-line w-full" />
-          <span className="bg-card px-3 text-xs uppercase tracking-wider text-text-1 font-mono">
-            Or Work Email
-          </span>
-        </div>
-
-        {/* Secondary: Email Magic Link */}
-        <form onSubmit={handleEmailSubmit} className="space-y-3">
-          <div>
-            <label htmlFor="login-email" className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1">
-              Email Address
-            </label>
-            <div className="relative">
-              <input
-                id="login-email"
-                type="email"
-                placeholder="alex@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 pl-9 rounded-radius border border-line bg-ink-0 text-xs text-text-0 outline-none focus:border-text-0 font-mono"
-              />
-              <Mail className="w-4 h-4 text-text-1 absolute left-2.5 top-2.5 pointer-events-none" />
-            </div>
-            {emailError && (
-              <p className="text-xs text-rose-700 dark:text-rose-400 mt-1">{emailError}</p>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full btn-outline text-xs py-2 flex items-center justify-center gap-2 cursor-pointer font-sans"
-          >
-            {emailSent ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-text-0" />
-                <span>Link Dispatched</span>
-              </>
-            ) : (
-              <>
-                <span>Send Magic Link</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </>
-            )}
-          </button>
-        </form>
-
-        {/* Sandbox Quick Personas for Evaluation */}
-        <div className="pt-4 border-t border-line space-y-3 text-xs">
-          <div className="flex items-center gap-1.5 text-text-0 font-semibold font-mono text-xs">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Developer Evaluation Personas</span>
-          </div>
-          <p className="text-xs text-text-1 leading-relaxed">
-            Test platform capabilities immediately with preset accounts:
+          <p className="text-xs text-text-1 text-center font-mono pt-1">
+            By signing in, you agree to our{' '}
+            <Link href="/terms" className="text-text-0 underline hover:text-emerald-text">
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="text-text-0 underline hover:text-emerald-text">
+              Privacy Policy
+            </Link>
+            .
           </p>
+        </div>
 
-          <div className="grid grid-cols-2 gap-2 font-mono text-xs">
-            <button
-              type="button"
-              onClick={() => handleQuickPersona('user')}
-              className="p-2.5 rounded border border-line hover:bg-ink-1 text-left transition-colors cursor-pointer"
-            >
-              <div className="font-semibold text-text-0">@junior_dev</div>
-              <div className="text-xs text-text-1">Candidate (User)</div>
-            </button>
+        {/* Optional Sandbox Evaluation Accordion */}
+        <div className="pt-3 border-t border-line space-y-2 text-xs md:text-sm">
+          <button
+            type="button"
+            onClick={() => setShowSandbox(!showSandbox)}
+            aria-expanded={showSandbox}
+            aria-controls="sandbox-persona-list"
+            className="w-full min-h-[44px] flex items-center justify-between text-text-1 hover:text-text-0 font-mono text-xs md:text-sm py-1 cursor-pointer"
+          >
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="w-3 h-3 text-emerald-text" />
+              <span>Sandbox Evaluation Personas</span>
+            </span>
+            <span>{showSandbox ? '▲ Hide' : '▼ View demo accounts'}</span>
+          </button>
 
-            <button
-              type="button"
-              onClick={() => handleQuickPersona('admin')}
-              className="p-2.5 rounded border border-line hover:bg-ink-1 text-left transition-colors cursor-pointer"
-            >
-              <div className="font-semibold text-text-0">@lead_auditor</div>
-              <div className="text-xs text-text-1 font-medium">Admin / Verifier</div>
-            </button>
-          </div>
+          {showSandbox && (
+            <div id="sandbox-persona-list" className="space-y-2 animate-in fade-in duration-150 pt-1 font-mono">
+              <p className="text-xs md:text-sm text-text-1 leading-relaxed">
+                Skip OAuth connection during local evaluation to test candidate or auditor modes:
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-xs md:text-sm">
+                <button
+                  type="button"
+                  onClick={() => handleQuickPersona('user')}
+                  className="p-2 rounded border border-line hover:bg-ink-1 text-left transition-colors cursor-pointer"
+                >
+                  <div className="font-semibold text-text-0">@junior_dev</div>
+                  <div className="text-xs md:text-sm text-text-1">Candidate (User)</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickPersona('admin')}
+                  className="p-2 rounded border border-line hover:bg-ink-1 text-left transition-colors cursor-pointer"
+                >
+                  <div className="font-semibold text-text-0">@lead_auditor</div>
+                  <div className="text-xs md:text-sm text-text-1 font-medium">Platform Auditor (Admin)</div>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
-        <div className="pt-2 text-center text-xs font-mono text-text-1">
+        <div className="pt-2 text-center text-xs md:text-sm font-mono text-text-1">
           <Link href="/" className="inline-flex items-center gap-1 hover:text-text-0">
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to Explorer</span>

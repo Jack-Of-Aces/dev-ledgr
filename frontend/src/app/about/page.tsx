@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12 md:py-20 space-y-12 text-sm font-sans">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12 md:py-20 space-y-12 text-sm lg:text-base font-sans">
       <div className="space-y-4">
         <BrandMark size={36} />
         <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight text-text-0">
@@ -25,7 +25,7 @@ export default function AboutPage() {
         </p>
       </div>
 
-      <div className="space-y-6 text-sm sm:text-base text-text-0 leading-relaxed max-w-xl">
+      <div className="space-y-6 text-sm lg:text-base sm:text-base text-text-0 leading-relaxed max-w-xl">
         <p>
           Engineers learn the core syntax, build a few practice apps, and then hit an immediate wall: <b>&ldquo;I know the basics. What do I build next?&rdquo;</b>
         </p>
@@ -38,7 +38,7 @@ export default function AboutPage() {
           <p className="text-base sm:text-lg font-medium text-text-0 leading-snug">
             &ldquo;Every problem solved is a permanent ledger entry: timestamped, verified, and inspectable by any technical team.&rdquo;
           </p>
-          <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
+          <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 leading-relaxed">
             We provide operational challenges designed around realistic failure modes: packet loss, lock contention, and network partitions. Solutions run against live test harnesses and earn a 365-day cryptographic portfolio guarantee.
           </p>
         </blockquote>
@@ -46,7 +46,7 @@ export default function AboutPage() {
         <h2 className="text-2xl font-semibold tracking-tight text-text-0 pt-4">
           Core Operating Principles
         </h2>
-        <ul className="space-y-2 text-xs sm:text-sm text-text-1 list-disc pl-5">
+        <ul className="space-y-2 text-xs md:text-sm sm:text-sm lg:text-base text-text-1 list-disc pl-5">
           <li>No video courses or passive quizzes. You build and debug against actual test harnesses.</li>
           <li>No generic job listings. Roles surface only when your verified telemetry matches production constraints.</li>
           <li>No unverified resume claims. Every highlighted competency links directly to committed code and test logs.</li>
@@ -58,11 +58,11 @@ export default function AboutPage() {
           <Mail className="w-4 h-4 text-green-700 dark:text-green-400" />
           <span>Contact & Operator Partnerships</span>
         </div>
-        <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
+        <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 leading-relaxed">
           Are you an engineering leader with real operational problems (fintech, logistics, distributed systems)? Submit a spec to our Idea Bank to receive pre-vetted, proof-proven candidate solutions.
         </p>
-        <div className="pt-1 text-xs font-mono break-all">
-          Email: <a href="mailto:partners@devledgr.io" className="text-green-700 dark:text-green-400 hover:underline font-semibold">partners@devledgr.io</a>
+        <div className="pt-1 text-xs md:text-sm font-mono break-all">
+          Email: <a href="mailto:partners@devledgr.xyz" className="text-green-700 dark:text-green-400 hover:underline font-semibold">partners@devledgr.xyz</a>
         </div>
       </div>
     </div>
