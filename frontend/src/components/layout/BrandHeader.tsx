@@ -117,7 +117,15 @@ export const BrandHeader: React.FC = () => {
            * UserMenu encapsulates all post-auth navigation - BrandHeader stays thin.
            */}
           {isLoggedIn ? (
-            <UserMenu />
+            <div className="flex items-center gap-2">
+              <Link
+                href="/dashboard"
+                className="hidden sm:inline-flex text-xs px-2.5 py-1.5 rounded-radius text-text-1 hover:text-text-0 transition-colors font-medium font-sans"
+              >
+                Dashboard
+              </Link>
+              <UserMenu />
+            </div>
           ) : (
             <div className="flex items-center gap-2">
               <Link

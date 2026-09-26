@@ -7,7 +7,7 @@ import { useAppStore } from "@/lib/store";
 import { ArrowRight, ExternalLink } from "lucide-react";
 
 export default function HomePage() {
-  const { submissions } = useAppStore();
+  const { submissions, isLoggedIn } = useAppStore();
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 md:py-20 space-y-20">
@@ -25,13 +25,27 @@ export default function HomePage() {
         </p>
 
         <div className="pt-2 flex flex-wrap items-center gap-3">
-          <Link href="/login" className="btn-brass">
-            <span>Get Started</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-          <Link href="/ideas" className="btn-outline">
-            <span>Explore Problems</span>
-          </Link>
+          {isLoggedIn ? (
+            <>
+              <Link href="/dashboard" className="btn-brass">
+                <span>Go to Dashboard</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+              <Link href="/ideas" className="btn-outline">
+                <span>Explore Problems</span>
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="btn-brass">
+                <span>Get Started</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+              <Link href="/ideas" className="btn-outline">
+                <span>Explore Problems</span>
+              </Link>
+            </>
+          )}
         </div>
 
         <p className="text-xs text-text-1 font-mono pt-1">
