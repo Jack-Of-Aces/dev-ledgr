@@ -22,9 +22,9 @@ Build a spatial routing engine that:
       'P95 dispatch endpoint latency < 80ms under 200 concurrent order requests.'
     ],
     mockInfra: {
-      baseUrl: 'https://mock-infra.devledgr.io/api/v1/lpg',
+      baseUrl: 'https://mock-infra.devledgr.xyz/api/v1/lpg',
       starterRepoUrl: 'https://github.com/devledgr-starters/lpg-dispatch-starter',
-      curlExample: `curl -X POST https://mock-infra.devledgr.io/api/v1/lpg/simulate-fleet \\
+      curlExample: `curl -X POST https://mock-infra.devledgr.xyz/api/v1/lpg/simulate-fleet \\
   -H "Authorization: Bearer test_key_lpg_99" \\
   -H "Content-Type: application/json" \\
   -d '{"fleet_size": 12, "active_orders": 45, "depot_geohash": "s10m9r"}`,
@@ -91,9 +91,9 @@ Build an ingestion and replay buffer that guarantees:
       'Graceful backpressure handling during 10,000 req/sec spikes.'
     ],
     mockInfra: {
-      baseUrl: 'https://mock-infra.devledgr.io/api/v1/webhook-firehose',
+      baseUrl: 'https://mock-infra.devledgr.xyz/api/v1/webhook-firehose',
       starterRepoUrl: 'https://github.com/devledgr-starters/webhook-replay-starter',
-      curlExample: `curl -X POST https://mock-infra.devledgr.io/api/v1/webhook-firehose/trigger \\
+      curlExample: `curl -X POST https://mock-infra.devledgr.xyz/api/v1/webhook-firehose/trigger \\
   -H "Content-Type: application/json" \\
   -d '{"spike_rate": 5000, "duplicate_ratio": 0.35, "target_url": "http://localhost:8080/events"}`,
       endpoints: [
@@ -147,9 +147,9 @@ Build a bi-directional conflict-free sync protocol:
       'Bandwidth-optimized compressed binary or delta-JSON transfer.'
     ],
     mockInfra: {
-      baseUrl: 'https://mock-infra.devledgr.io/api/v1/clinic-sync',
+      baseUrl: 'https://mock-infra.devledgr.xyz/api/v1/clinic-sync',
       starterRepoUrl: 'https://github.com/devledgr-starters/offline-crdt-starter',
-      curlExample: `curl -X POST https://mock-infra.devledgr.io/api/v1/clinic-sync/replicate \\
+      curlExample: `curl -X POST https://mock-infra.devledgr.xyz/api/v1/clinic-sync/replicate \\
   -H "X-Client-Clock: 14:nodeB" \\
   -d '{"deltas": [{"entity": "patient_88", "field": "vaccine_dose_2", "val": true}]}'`,
       endpoints: [
@@ -188,9 +188,9 @@ Build a CLI and CI verification tool that:
       'CI exit code 1 with remediation advice snippet.'
     ],
     mockInfra: {
-      baseUrl: 'https://mock-infra.devledgr.io/api/v1/schema-guard',
+      baseUrl: 'https://mock-infra.devledgr.xyz/api/v1/schema-guard',
       starterRepoUrl: 'https://github.com/devledgr-starters/schema-guard-starter',
-      curlExample: `curl -X POST https://mock-infra.devledgr.io/api/v1/schema-guard/audit-ddl \\
+      curlExample: `curl -X POST https://mock-infra.devledgr.xyz/api/v1/schema-guard/audit-ddl \\
   -d '{"sql": "ALTER TABLE transactions ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT \\'pending\\';"}'`,
       endpoints: [
         {
