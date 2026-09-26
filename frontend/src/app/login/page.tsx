@@ -50,7 +50,12 @@ function LoginForm() {
 
   const [loadingProvider, setLoadingProvider] = useState<'github' | 'google' | null>(null);
   const [showSandbox, setShowSandbox] = useState(false);
-  const [isProcessingHash, setIsProcessingHash] = useState(false);
+  const [isProcessingHash, setIsProcessingHash] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.location.hash.includes('access_token=');
+    }
+    return false;
+  });
 
   // Handle Supabase implicit flow: when the server-side PKCE route receives
   // no ?code= param, it redirects here and the browser preserves the

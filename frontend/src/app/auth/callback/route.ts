@@ -24,8 +24,77 @@ export async function GET(request: Request) {
   }
 
   if (!code) {
-    console.error('[AuthCallback] No code param received. Full URL:', request.url);
-    return NextResponse.redirect(`${origin}/login?error=auth_callback_failed&reason=no_code`);
+    // If no ?code= was received in the query parameters, Supabase might be using
+    // the Implicit Flow where tokens are returned in the URL hash (#access_token=...).
+    // Since browsers never transmit hash fragments to the server over HTTP, return a
+    // lightweight client-side bridge that parses the hash, sets the session cookies,
+    // and seamlessly transitions to /dashboard without ever hitting the login error page.
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Authenticating | DevLedgr</title>
+  <style>
+    body {
+      background-color: #0b0f17;
+      color: #94a3b8;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 2px solid rgba(16, 185, 129, 0.2);
+      border-top-color: #10b981;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+    .msg { font-size: 13px; font-weight: 500; letter-spacing: -0.01em; color: #f1f5f9; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="spinner"></div>
+  <div class="msg">Completing authentication...</div>
+  <script>
+    try {
+      var hash = window.location.hash;
+      if (hash && hash.indexOf('access_token=') !== -1) {
+        var params = new URLSearchParams(hash.substring(1));
+        var token = params.get('access_token');
+        if (token) {
+          var maxAge = 60 * 60 * 24 * 7;
+          var isSecure = window.location.protocol === 'https:';
+          var secureFlag = isSecure ? '; Secure' : '';
+          document.cookie = 'devledgr_token=' + encodeURIComponent(token) + '; path=/; max-age=' + maxAge + '; SameSite=Lax' + secureFlag;
+          document.cookie = 'devledgr_role=user; path=/; max-age=' + maxAge + '; SameSite=Lax' + secureFlag;
+          window.location.replace('/dashboard');
+        } else {
+          window.location.replace('/login?error=auth_callback_failed&reason=no_token');
+        }
+      } else {
+        window.location.replace('/login?error=auth_callback_failed&reason=no_code');
+      }
+    } catch (e) {
+      window.location.replace('/login?error=auth_callback_failed&reason=client_exception');
+    }
+  </script>
+</body>
+</html>`;
+
+    return new Response(html, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store, max-age=0',
+      },
+    });
   }
 
   if (!envConfig.hasSupabase) {
