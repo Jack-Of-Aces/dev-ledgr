@@ -6,6 +6,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { BrandMark } from '@/components/brand/BrandMark';
 import { useAuth } from '@/hooks/useAuth';
 import { envConfig } from '@/lib/config';
+import { getSupabase } from '@/lib/supabase';
+import { setAuthCookies } from '@/lib/cookies';
 import { ArrowLeft, Sparkles, AlertCircle } from 'lucide-react';
 
 const GithubIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
@@ -45,6 +47,37 @@ function LoginForm() {
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
   const authError = searchParams.get('error');
   const { isLoggedIn, loginWithGitHub, loginWithGoogle, switchRole } = useAuth();
+
+  // Handle Supabase implicit flow: when the server-side PKCE route receives
+  // no ?code= param, it redirects here and the browser preserves the
+  // #access_token hash fragment. Parse it client-side and establish the session.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hash = window.location.hash;
+    if (!hash.includes('access_token=')) return;
+
+    const params = new URLSearchParams(hash.slice(1)); // strip leading '#'
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    if (!accessToken || !refreshToken) return;
+
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+      .then(({ data, error }) => {
+        if (error || !data.session) {
+          console.error('[Login] setSession from hash failed:', error?.message);
+          return;
+        }
+        // Set DevLedgr cookies so server-side guards recognise the session
+        setAuthCookies(data.session.access_token, 'user');
+        // Clear the hash from the URL and navigate to dashboard
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        router.replace('/dashboard');
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (isLoggedIn) {
