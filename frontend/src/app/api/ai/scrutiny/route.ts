@@ -1,11 +1,14 @@
 /**
  * @file route.ts
  * @description Next.js Route Handler for automated ATS scrutiny auditing and CV generation.
- * Supports Google Gemini 2.5 Flash with BYOK key and robust heuristic fallback.
+ * Features rate limiting and multi-provider AI Mesh (Gemini 2.5/2.0/1.5, Groq Llama 3.3/3.1, Gemma 2)
+ * with robust heuristic fallback.
  */
 
 import { NextResponse } from 'next/server';
 import { JobOpportunity, UserProfile, SubmissionEntry } from '@/types';
+import { checkRateLimit } from '@/lib/rate-limiter';
+import { runAIMesh } from '@/lib/ai-mesh';
 
 interface ScrutinyRequestBody {
   job: JobOpportunity;
@@ -16,13 +19,34 @@ interface ScrutinyRequestBody {
 }
 
 export async function POST(req: Request) {
+  // 1. Sliding Window Rate Limiting (15 requests per minute per IP)
+  const rl = checkRateLimit(req, 'ai-scrutiny', { limit: 15, windowMs: 60_000 });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      {
+        status: 'gap',
+        error: `Rate limit exceeded. Please wait ${rl.resetInSeconds} seconds before requesting ATS scrutiny.`,
+        limit: rl.limit,
+        remaining: 0,
+        resetInSeconds: rl.resetInSeconds,
+      },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(rl.resetInSeconds),
+          'X-RateLimit-Limit': String(rl.limit),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': String(rl.resetInSeconds),
+        },
+      }
+    );
+  }
+
   try {
     const body: ScrutinyRequestBody = await req.json();
     const { job, user, userSubmissions, forceGap, apiKey: userKey } = body;
 
-    const apiKey = userKey?.trim() || process.env.GEMINI_API_KEY || '';
-
-    // Step 1: Decision logic
+    // 2. Decision Logic
     const solvedIdeaIds = new Set(userSubmissions.map((s) => s.ideaId));
     const hasSolvedGap = job.gapIdeaId ? solvedIdeaIds.has(job.gapIdeaId) : true;
     const hasGap = forceGap || (!hasSolvedGap && job.matchScore < 80);
@@ -38,21 +62,25 @@ export async function POST(req: Request) {
     ];
 
     if (hasGap) {
-      return NextResponse.json({
-        status: 'gap',
-        auditLogs,
-        gapIdeaId: job.gapIdeaId,
-        gapReason: job.gapReason,
-        matchScore: job.matchScore,
-      });
+      return NextResponse.json(
+        {
+          status: 'gap',
+          auditLogs,
+          gapIdeaId: job.gapIdeaId,
+          gapReason: job.gapReason,
+          matchScore: job.matchScore,
+        },
+        {
+          headers: {
+            'X-RateLimit-Limit': String(rl.limit),
+            'X-RateLimit-Remaining': String(rl.remaining),
+          },
+        }
+      );
     }
 
-    // Step 2: If live Gemini key is present, generate bespoke CV with LLM
-    if (apiKey) {
-      try {
-        const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-        const promptText = `You are an expert Technical Recruiter & ATS Optimization Engine for software engineers.
+    // 3. Multi-Provider AI Mesh Generation
+    const promptText = `You are an expert Technical Recruiter & ATS Optimization Engine for software engineers.
 Generate a high-converting, ATS-compliant Markdown Resume (CV) and a tailored Cover Letter for this candidate applying to ${job.company} for the role "${job.title}".
 
 Candidate Information:
@@ -71,45 +99,55 @@ ${userSubmissions
   )
   .join('\n')}
 
-Format your output strictly as JSON with two string fields:
+Format your output strictly as a JSON object with two string fields:
 {
   "cvMarkdown": "...markdown text...",
   "coverLetter": "...cover letter text..."
 }`;
 
-        const geminiRes = await fetch(geminiEndpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: promptText }] }],
-            generationConfig: {
-              temperature: 0.3,
-              responseMimeType: 'application/json',
-            },
-          }),
-        });
+    const systemInstruction =
+      'You are an automated ATS CV tailoring engine. You must output valid JSON with keys cvMarkdown and coverLetter.';
 
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          const candidateText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+    const meshResult = await runAIMesh({
+      prompt: promptText,
+      systemInstruction,
+      jsonMode: true,
+      userApiKey: userKey,
+      temperature: 0.3,
+      maxTokens: 1600,
+    });
 
-          if (candidateText) {
-            const parsed = JSON.parse(candidateText);
-            return NextResponse.json({
+    if (meshResult.text) {
+      try {
+        // Strip markdown backticks if returned inside code block
+        const cleaned = meshResult.text.replace(/```json\s*|\s*```/g, '').trim();
+        const parsed = JSON.parse(cleaned);
+
+        if (parsed.cvMarkdown && parsed.coverLetter) {
+          return NextResponse.json(
+            {
               status: 'ready',
               auditLogs,
               cvMarkdown: parsed.cvMarkdown,
               coverLetter: parsed.coverLetter,
-              source: 'gemini-2.5-flash',
-            });
-          }
+              source: meshResult.model,
+              provider: meshResult.provider,
+              attempts: meshResult.attempts,
+            },
+            {
+              headers: {
+                'X-RateLimit-Limit': String(rl.limit),
+                'X-RateLimit-Remaining': String(rl.remaining),
+              },
+            }
+          );
         }
-      } catch (err) {
-        console.warn('[ScrutinyRoute] Gemini generation failed, falling back to heuristic engine:', err);
+      } catch (parseErr) {
+        console.warn('[ScrutinyRoute] JSON parse failed on LLM output, falling back to heuristic engine:', parseErr);
       }
     }
 
-    // Heuristic Engine Fallback
+    // 4. Heuristic Fallback Engine
     const cvMarkdown = `# ${user.name}
 ${user.headline}
 Email: ${user.email || `${user.username}@devledgr.me`} | Portfolio: https://${user.username}.devledgr.io
@@ -162,13 +200,23 @@ Sincerely,
 ${user.name}
 ${user.githubUrl}`;
 
-    return NextResponse.json({
-      status: 'ready',
-      auditLogs,
-      cvMarkdown,
-      coverLetter,
-      source: 'heuristic-engine',
-    });
+    return NextResponse.json(
+      {
+        status: 'ready',
+        auditLogs,
+        cvMarkdown,
+        coverLetter,
+        source: 'heuristic-engine',
+        provider: 'heuristic',
+        attempts: meshResult.attempts,
+      },
+      {
+        headers: {
+          'X-RateLimit-Limit': String(rl.limit),
+          'X-RateLimit-Remaining': String(rl.remaining),
+        },
+      }
+    );
   } catch {
     return NextResponse.json(
       { status: 'gap', error: 'Internal server error processing scrutiny audit.' },

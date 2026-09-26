@@ -5,6 +5,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { checkRateLimit } from '@/lib/rate-limiter';
 
 interface GitHubRepoResponse {
   name: string;
@@ -28,6 +29,29 @@ interface GitHubCommitResponse {
 }
 
 export async function POST(req: Request) {
+  // Sliding Window Rate Limiting (30 requests per minute per IP)
+  const rl = checkRateLimit(req, 'github-inspect', { limit: 30, windowMs: 60_000 });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      {
+        valid: false,
+        error: `Rate limit exceeded. Please wait ${rl.resetInSeconds} seconds before re-inspecting repositories.`,
+        limit: rl.limit,
+        remaining: 0,
+        resetInSeconds: rl.resetInSeconds,
+      },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(rl.resetInSeconds),
+          'X-RateLimit-Limit': String(rl.limit),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': String(rl.resetInSeconds),
+        },
+      }
+    );
+  }
+
   try {
     const body = await req.json();
     const repoUrl = body.repoUrl?.trim();

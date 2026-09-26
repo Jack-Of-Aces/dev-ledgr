@@ -32,18 +32,25 @@ export const envConfig = {
   /**
    * Supabase Cloud Project URL
    */
-  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  supabaseUrl:
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.SUPABASE_URL ||
+    '',
 
   /**
    * Supabase Cloud Anonymous API Key
    */
-  supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+  supabaseAnonKey:
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_KEY ||
+    '',
 
   /**
    * Flag indicating whether real Supabase backend is configured and active.
    */
   hasSupabase: Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL) &&
+    (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_KEY)
   ),
 
   /**

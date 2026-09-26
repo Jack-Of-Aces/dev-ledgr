@@ -44,6 +44,8 @@ export class AIService implements IAIService {
           gapReason: data.gapReason,
           gapIdeaId: data.gapIdeaId,
         };
+      } else if (res.status === 429 && onLog) {
+        onLog('⚡ Rate limit active on live AI mesh. Activating local deterministic engine...');
       }
     } catch (err) {
       console.warn('[AIService] /api/ai/scrutiny network call failed, falling back to local reasoning:', err);
@@ -92,6 +94,10 @@ export class AIService implements IAIService {
         if (data.advice) {
           return data.advice;
         }
+      } else if (res.status === 429) {
+        const data = await res.json().catch(() => null);
+        const resetSec = data?.resetInSeconds || 60;
+        return `> ⚠️ **Rate Limit Notice**: DevLedgr AI rate limit is active (sliding window protection). Please wait ${resetSec}s before sending another coaching inquiry.\n\n### Architectural Guidance for ${params.milestoneTitle}\n\n1. **Concurrency Control**: Use distributed locks with atomic SET NX PX and sliding TTLs.\n2. **Telemetry Stamping**: Ensure latency percentiles (p95/p99) are captured under high throughput simulations.`;
       }
     } catch (err) {
       console.warn('[AIService] /api/ai/coach call failed, using local guidance:', err);

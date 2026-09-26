@@ -1,10 +1,13 @@
 /**
  * @file route.ts
  * @description Next.js Route Handler for live Socratic AI coaching.
- * Connects to Google Gemini 2.5 Flash via REST with BYOK support and graceful fallback.
+ * Features rate limiting and multi-provider AI Mesh (Gemini 2.5/2.0/1.5, Groq Llama 3.3/3.1, Gemma 2)
+ * with graceful failover to high-fidelity deterministic heuristics.
  */
 
 import { NextResponse } from 'next/server';
+import { checkRateLimit } from '@/lib/rate-limiter';
+import { runAIMesh } from '@/lib/ai-mesh';
 
 interface CoachRequestBody {
   itineraryTitle: string;
@@ -14,16 +17,34 @@ interface CoachRequestBody {
 }
 
 export async function POST(req: Request) {
+  // 1. Sliding Window Rate Limiting (20 requests per minute per IP)
+  const rl = checkRateLimit(req, 'ai-coach', { limit: 20, windowMs: 60_000 });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Rate limit exceeded. Please wait ${rl.resetInSeconds} seconds before requesting AI coaching.`,
+        limit: rl.limit,
+        remaining: 0,
+        resetInSeconds: rl.resetInSeconds,
+      },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(rl.resetInSeconds),
+          'X-RateLimit-Limit': String(rl.limit),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': String(rl.resetInSeconds),
+        },
+      }
+    );
+  }
+
   try {
     const body: CoachRequestBody = await req.json();
     const { itineraryTitle, milestoneTitle, prompt, apiKey: userKey } = body;
 
-    const apiKey = userKey?.trim() || process.env.GEMINI_API_KEY || '';
-
-    // If Gemini API Key is available, call live Gemini 2.5 Flash
-    if (apiKey) {
-      try {
-        const systemInstruction = `You are a Principal Distributed Systems & Infrastructure Architect serving as a technical mentor on DevLedgr.
+    const systemInstruction = `You are a Principal Distributed Systems & Infrastructure Architect serving as a technical mentor on DevLedgr.
 Your goal is to guide software engineers building production-grade solutions for: "${itineraryTitle}" (Milestone: "${milestoneTitle}").
 Adopt a Socratic, deeply technical mindset:
 1. Explain the underlying system mechanisms (concurrency locks, cache stampedes, B-Tree fragmentation, network partitions, TCP resets, tail latency).
@@ -31,49 +52,35 @@ Adopt a Socratic, deeply technical mindset:
 3. Provide crisp, production-grade Go/Python code snippets when helpful.
 4. Keep answers focused, dense with technical insights, and formatted with markdown headers and code blocks.`;
 
-        const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    // 2. Cascade across AI Mesh (Gemini -> Groq -> Heuristics)
+    const meshResult = await runAIMesh({
+      prompt,
+      systemInstruction,
+      userApiKey: userKey,
+      temperature: 0.4,
+      maxTokens: 1400,
+    });
 
-        const geminiRes = await fetch(geminiEndpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: 'user',
-                parts: [
-                  {
-                    text: `${systemInstruction}\n\nCandidate Question: "${prompt}"`,
-                  },
-                ],
-              },
-            ],
-            generationConfig: {
-              temperature: 0.4,
-              maxOutputTokens: 1200,
-            },
-          }),
-        });
-
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          const candidateText =
-            geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-
-          if (candidateText) {
-            return NextResponse.json({
-              success: true,
-              source: 'gemini-2.5-flash',
-              advice: candidateText,
-            });
-          }
+    if (meshResult.text) {
+      return NextResponse.json(
+        {
+          success: true,
+          source: meshResult.model,
+          provider: meshResult.provider,
+          advice: meshResult.text,
+          attempts: meshResult.attempts,
+        },
+        {
+          headers: {
+            'X-RateLimit-Limit': String(rl.limit),
+            'X-RateLimit-Remaining': String(rl.remaining),
+          },
         }
-      } catch (geminiError) {
-        console.warn('[CoachRoute] Live Gemini call failed, using heuristic guidance:', geminiError);
-      }
+      );
     }
 
-    // High-Fidelity Heuristic Fallback Engine
-    const p = prompt.toLowerCase();
+    // 3. High-Fidelity Heuristic Fallback Engine
+    const p = (prompt || '').toLowerCase();
     let advice = '';
 
     if (p.includes('504') || p.includes('idempotenc') || p.includes('timeout')) {
@@ -147,11 +154,21 @@ To satisfy high-concurrency benchmarks for this milestone:
 3. **Resilience Pattern**: Wrap third-party network egress in an exponential jitter backoff with an open-circuit breaker after 5 consecutive timeouts.`;
     }
 
-    return NextResponse.json({
-      success: true,
-      source: 'heuristic-engine',
-      advice,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        source: 'heuristic-engine',
+        provider: 'heuristic',
+        advice,
+        attempts: meshResult.attempts,
+      },
+      {
+        headers: {
+          'X-RateLimit-Limit': String(rl.limit),
+          'X-RateLimit-Remaining': String(rl.remaining),
+        },
+      }
+    );
   } catch {
     return NextResponse.json(
       { success: false, error: 'Internal server error processing coaching guidance.' },
