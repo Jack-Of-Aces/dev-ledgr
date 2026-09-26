@@ -45,7 +45,7 @@ export async function GET(request: Request) {
       const meta = user.user_metadata || {};
       const username = meta.user_name || meta.preferred_username || user.email?.split('@')[0] || 'developer';
       const fullName = meta.full_name || meta.name || username;
-      const avatarUrl = meta.avatar_url || '';
+      const avatarUrl = meta.avatar_url || meta.picture || '';
 
       // Upsert profile in Supabase profiles table
       try {

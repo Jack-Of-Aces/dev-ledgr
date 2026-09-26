@@ -1,7 +1,7 @@
 /**
  * @file mockAuthService.ts
  * @description High-fidelity sandbox authentication service.
- * Manages simulated GitHub logins, email magic links, and dev role switching.
+ * Manages simulated GitHub and Google OAuth logins and dev role switching.
  */
 
 import { IAuthService } from './IAuthService';
@@ -27,11 +27,20 @@ export class MockAuthService implements IAuthService {
     };
   }
 
-  async loginWithEmail(email: string): Promise<{ success: boolean; message: string }> {
-    // Simulate magic link dispatch
+  async loginWithGoogle(email = 'alex.okafor@gmail.com', name = 'Alex Okafor'): Promise<UserSession> {
+    const username = email.split('@')[0];
+    const role: UserRole = 'user';
+    const token = `mock_google_token_${Date.now()}_${username}`;
+
+    setAuthCookies(token, role);
+
     return {
-      success: true,
-      message: `Verification link dispatched to ${email}. In sandbox mode, click GitHub Auth to proceed immediately.`,
+      token,
+      username,
+      name,
+      role,
+      avatarUrl: DEFAULT_USER.avatarUrl,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     };
   }
 

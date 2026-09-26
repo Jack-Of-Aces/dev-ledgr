@@ -1,7 +1,7 @@
 /**
  * @file authService.ts
  * @description Unified authentication service provider.
- * Connects directly to Supabase Auth (GitHub OAuth & Magic Links) with graceful fallback to sandbox.
+ * Connects directly to Supabase OAuth (GitHub and Google) with graceful fallback to sandbox.
  */
 
 import { IAuthService } from './IAuthService';
@@ -33,7 +33,6 @@ export class AuthService implements IAuthService {
       if (error) {
         console.warn('[AuthService] Supabase GitHub OAuth error, trying fallback:', error);
       } else if (data.url) {
-        // Supabase will navigate to GitHub
         return {
           token: 'pending_oauth_redirect',
           username: username || 'authenticating',
@@ -45,7 +44,7 @@ export class AuthService implements IAuthService {
       }
     }
 
-    // 2. Direct GitHub OAuth (if custom client ID without Supabase)
+    // 2. Direct GitHub OAuth fallback (if custom client ID configured without Supabase)
     if (envConfig.githubClientId && typeof window !== 'undefined') {
       const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/callback/github`);
       window.location.href = `https://github.com/login/oauth/authorize?client_id=${envConfig.githubClientId}&scope=read:user,public_repo&redirect_uri=${redirectUri}`;
@@ -56,35 +55,39 @@ export class AuthService implements IAuthService {
     return this.mock.loginWithGitHub(username, name);
   }
 
-  async loginWithEmail(email: string): Promise<{ success: boolean; message: string }> {
+  async loginWithGoogle(email?: string, name?: string): Promise<UserSession> {
     const supabase = getSupabase();
 
-    // 1. Live Supabase Email Magic Link
+    // 1. Live Supabase Google OAuth Flow
     if (supabase && envConfig.hasSupabase && typeof window !== 'undefined') {
       const redirectUri = `${window.location.origin}/auth/callback?next=/dashboard`;
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
         options: {
-          emailRedirectTo: redirectUri,
+          redirectTo: redirectUri,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
       if (error) {
-        console.warn('[AuthService] Supabase OTP error:', error);
+        console.warn('[AuthService] Supabase Google OAuth error:', error);
+      } else if (data.url) {
         return {
-          success: false,
-          message: error.message || 'Failed to dispatch magic link. Please check email address.',
+          token: 'pending_oauth_redirect',
+          username: email?.split('@')[0] || 'authenticating',
+          name: name || 'Developer',
+          role: 'user',
+          avatarUrl: DEFAULT_USER.avatarUrl,
+          expiresAt: new Date(Date.now() + 3600000).toISOString(),
         };
       }
-
-      return {
-        success: true,
-        message: `Magic verification link sent to ${email}. Check your inbox to sign in!`,
-      };
     }
 
-    // 2. Fallback to Sandbox
-    return this.mock.loginWithEmail(email);
+    // 2. Fallback to Sandbox Provider
+    return this.mock.loginWithGoogle(email, name);
   }
 
   async logout(): Promise<void> {
@@ -112,7 +115,7 @@ export class AuthService implements IAuthService {
           const meta = u.user_metadata || {};
           const username = meta.user_name || meta.preferred_username || u.email?.split('@')[0] || 'developer';
           const name = meta.full_name || meta.name || username;
-          const avatarUrl = meta.avatar_url || DEFAULT_USER.avatarUrl;
+          const avatarUrl = meta.avatar_url || meta.picture || DEFAULT_USER.avatarUrl;
           const role: UserRole = meta.role === 'admin' ? 'admin' : 'user';
 
           setAuthCookies(session.access_token, role);

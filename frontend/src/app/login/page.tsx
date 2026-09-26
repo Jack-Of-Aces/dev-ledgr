@@ -6,8 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { BrandMark } from '@/components/brand/BrandMark';
 import { useAuth } from '@/hooks/useAuth';
 import { envConfig } from '@/lib/config';
-import { EmailSignInSchema } from '@/lib/schemas/auth';
-import { ArrowLeft, ArrowRight, Mail, Sparkles, Check, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Sparkles, AlertCircle } from 'lucide-react';
 
 const GithubIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -19,12 +18,33 @@ const GithubIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   </svg>
 );
 
+const GoogleIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+    <path
+      fill="#4285F4"
+      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+    />
+  </svg>
+);
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
   const authError = searchParams.get('error');
-  const { isLoggedIn, loginWithGitHub, loginWithEmail, switchRole } = useAuth();
+  const { isLoggedIn, loginWithGitHub, loginWithGoogle, switchRole } = useAuth();
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -32,48 +52,35 @@ function LoginForm() {
     }
   }, [isLoggedIn, callbackUrl, router]);
 
-  const [email, setEmail] = useState('');
-  const [emailError, setEmailError] = useState<string | null>(null);
-  const [emailSent, setEmailSent] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loadingProvider, setLoadingProvider] = useState<'github' | 'google' | null>(null);
   const [showSandbox, setShowSandbox] = useState(false);
 
   const handleGitHubAuth = async () => {
-    setLoading(true);
+    setLoadingProvider('github');
     try {
       await loginWithGitHub();
-      // If running live Supabase OAuth, the browser will redirect to GitHub.
-      // If running local sandbox without Supabase, route immediately:
       if (!envConfig.hasSupabase) {
         router.push(callbackUrl);
       }
     } catch {
-      setLoading(false);
+      setLoadingProvider(null);
     }
   };
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setEmailError(null);
-
-    const validation = EmailSignInSchema.safeParse({ email });
-    if (!validation.success) {
-      setEmailError(validation.error.issues[0]?.message || 'Invalid email address');
-      return;
+  const handleGoogleAuth = async () => {
+    setLoadingProvider('google');
+    try {
+      await loginWithGoogle();
+      if (!envConfig.hasSupabase) {
+        router.push(callbackUrl);
+      }
+    } catch {
+      setLoadingProvider(null);
     }
-
-    setLoading(true);
-    const res = await loginWithEmail(email);
-    if (!res.success) {
-      setEmailError(res.message);
-    } else {
-      setEmailSent(true);
-    }
-    setLoading(false);
   };
 
   const handleQuickPersona = async (role: 'user' | 'admin') => {
-    setLoading(true);
+    setLoadingProvider('github');
     await switchRole(role);
     router.push(role === 'admin' ? '/admin' : callbackUrl);
   };
@@ -94,7 +101,7 @@ function LoginForm() {
           </p>
         </div>
 
-        {/* Error notice if redirected back from failed OAuth */}
+        {/* Error Notice */}
         {authError && (
           <div className="p-3 rounded border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2 font-mono">
             <AlertCircle className="w-4 h-4 shrink-0" />
@@ -102,76 +109,41 @@ function LoginForm() {
           </div>
         )}
 
-        {/* Primary Action: GitHub OAuth */}
-        <div className="space-y-2">
+        {/* OAuth Providers: GitHub & Google Only */}
+        <div className="space-y-3">
+          {/* GitHub OAuth Button */}
           <button
             onClick={handleGitHubAuth}
-            disabled={loading}
-            className="w-full btn-brass text-xs py-2.5 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            disabled={loadingProvider !== null}
+            className="w-full btn-brass text-xs py-2.5 flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
           >
             <GithubIcon className="w-4 h-4" />
-            <span>{loading ? 'Redirecting to GitHub...' : 'Continue with GitHub'}</span>
+            <span>
+              {loadingProvider === 'github' ? 'Redirecting to GitHub...' : 'Continue with GitHub'}
+            </span>
           </button>
 
-          <div className="flex items-center justify-between text-xs text-text-1 font-mono px-1">
+          {/* Google OAuth Button */}
+          <button
+            onClick={handleGoogleAuth}
+            disabled={loadingProvider !== null}
+            className="w-full px-4 py-2.5 rounded-radius border border-line bg-card hover:bg-ink-1 text-text-0 text-xs font-medium flex items-center justify-center gap-2.5 transition-colors cursor-pointer disabled:opacity-50"
+          >
+            <GoogleIcon className="w-4 h-4" />
+            <span>
+              {loadingProvider === 'google' ? 'Redirecting to Google...' : 'Continue with Google'}
+            </span>
+          </button>
+
+          <div className="flex items-center justify-between text-xs text-text-1 font-mono px-1 pt-1">
             <span>Identity Provider:</span>
             <span className="text-text-0 font-medium">
               {envConfig.hasSupabase
-                ? 'Supabase GitHub OAuth'
-                : envConfig.githubClientId
-                ? 'Live GitHub OAuth App'
-                : 'Sandbox Provider'}
+                ? 'Supabase OAuth (GitHub & Google)'
+                : 'Local Developer Sandbox'}
             </span>
           </div>
         </div>
-
-        <div className="relative flex items-center justify-center">
-          <div className="border-t border-line w-full" />
-          <span className="bg-card px-3 text-xs uppercase tracking-wider text-text-1 font-mono">
-            Or Work Email
-          </span>
-        </div>
-
-        {/* Secondary: Email Magic Link */}
-        <form onSubmit={handleEmailSubmit} className="space-y-3">
-          <div>
-            <label htmlFor="login-email" className="block text-xs uppercase tracking-wider text-text-1 font-semibold mb-1">
-              Email Address
-            </label>
-            <div className="relative">
-              <input
-                id="login-email"
-                type="email"
-                placeholder="alex@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 pl-9 rounded-radius border border-line bg-ink-0 text-xs text-text-0 outline-none focus:border-text-0 font-mono"
-              />
-              <Mail className="w-4 h-4 text-text-1 absolute left-2.5 top-2.5 pointer-events-none" />
-            </div>
-            {emailError && (
-              <p className="text-xs text-rose-700 dark:text-rose-400 mt-1">{emailError}</p>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading || emailSent}
-            className="w-full btn-outline text-xs py-2 flex items-center justify-center gap-2 cursor-pointer font-sans disabled:opacity-50"
-          >
-            {emailSent ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-text-0" />
-                <span>Magic Link Dispatched</span>
-              </>
-            ) : (
-              <>
-                <span>Send Magic Link</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </>
-            )}
-          </button>
-        </form>
 
         {/* Optional Sandbox Evaluation Accordion */}
         <div className="pt-3 border-t border-line space-y-2 text-xs">
@@ -190,7 +162,7 @@ function LoginForm() {
           {showSandbox && (
             <div className="space-y-2 animate-in fade-in duration-150 pt-1 font-mono">
               <p className="text-xs text-text-1 leading-relaxed">
-                Skip GitHub connection during local testing to evaluate candidate or auditor roles:
+                Skip OAuth connection during local evaluation to test candidate or auditor modes:
               </p>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <button
@@ -199,7 +171,7 @@ function LoginForm() {
                   className="p-2 rounded border border-line hover:bg-ink-1 text-left transition-colors cursor-pointer"
                 >
                   <div className="font-semibold text-text-0">@junior_dev</div>
-                  <div className="text-xs text-text-1">Candidate</div>
+                  <div className="text-xs text-text-1">Candidate (User)</div>
                 </button>
 
                 <button
@@ -208,7 +180,7 @@ function LoginForm() {
                   className="p-2 rounded border border-line hover:bg-ink-1 text-left transition-colors cursor-pointer"
                 >
                   <div className="font-semibold text-text-0">@lead_auditor</div>
-                  <div className="text-xs text-text-1 font-medium">Auditor (Admin)</div>
+                  <div className="text-xs text-text-1 font-medium">Platform Auditor (Admin)</div>
                 </button>
               </div>
             </div>

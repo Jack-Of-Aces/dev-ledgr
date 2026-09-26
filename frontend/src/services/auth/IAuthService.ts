@@ -1,7 +1,7 @@
 /**
  * @file IAuthService.ts
  * @description Contract for authentication, session handling, and role elevation.
- * Implementations: HttpAuthService (production), MockAuthService (offline/dev sandbox).
+ * Standardizes OAuth authentication via GitHub and Google.
  */
 
 import { UserRole, UserSession } from '@/types/auth';
@@ -10,14 +10,15 @@ import { UserProfile } from '@/types';
 export interface IAuthService {
   /**
    * Initiates GitHub OAuth authentication.
-   * If live OAuth is configured, redirects to GitHub; otherwise initiates sandbox session.
+   * If live Supabase OAuth is configured, redirects to GitHub; otherwise initiates sandbox session.
    */
   loginWithGitHub(username?: string, name?: string): Promise<UserSession>;
 
   /**
-   * Initiates passwordless email sign-in / magic link.
+   * Initiates Google OAuth authentication.
+   * If live Supabase OAuth is configured, redirects to Google; otherwise initiates sandbox session.
    */
-  loginWithEmail(email: string): Promise<{ success: boolean; message: string }>;
+  loginWithGoogle(email?: string, name?: string): Promise<UserSession>;
 
   /**
    * Logs out the active user and invalidates session cookies.
