@@ -21,7 +21,7 @@ export class AuthService implements IAuthService {
 
     // 1. Live Supabase GitHub OAuth Flow
     if (supabase && envConfig.hasSupabase && typeof window !== 'undefined') {
-      const redirectUri = `${window.location.origin}/auth/callback?next=/dashboard`;
+      const redirectUri = `${window.location.origin}/auth/callback`;
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
@@ -60,7 +60,7 @@ export class AuthService implements IAuthService {
 
     // 1. Live Supabase Google OAuth Flow
     if (supabase && envConfig.hasSupabase && typeof window !== 'undefined') {
-      const redirectUri = `${window.location.origin}/auth/callback?next=/dashboard`;
+      const redirectUri = `${window.location.origin}/auth/callback`;
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
