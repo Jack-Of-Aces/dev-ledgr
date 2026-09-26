@@ -74,7 +74,7 @@ export class AIService implements IAIService {
     return {
       status: hasGap ? 'gap' : 'ready',
       scanLogs: steps,
-      cvMarkdown: `# ${user.name}\n${user.headline}\nEmail: ${user.email || `${user.username}@devledgr.me`} | Portfolio: https://${user.username}.devledgr.io\n\n## Verified Proof\nAll entries cryptographically signed on DevLedgr.`,
+      cvMarkdown: `# ${user.name}\n${user.headline}\nEmail: ${user.email || `${user.username}@devledgr.me`} | Portfolio: https://${user.username}.devledgr.xyz\n\n## Verified Proof\nAll entries cryptographically signed on DevLedgr.`,
       coverLetter: `Dear Hiring Team at ${job.company},\n\nI am applying for ${job.title} with verified proof of work recorded on DevLedgr.`,
       gapReason: job.gapReason,
       gapIdeaId: job.gapIdeaId,
