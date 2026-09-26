@@ -24,11 +24,21 @@ export const BrandHeader: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [prevPathname, setPrevPathname] = useState(pathname);
 
-  // Close mobile menu on route change without needing a useEffect
   if (pathname !== prevPathname) {
     setPrevPathname(pathname);
     setMobileMenuOpen(false);
   }
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mobileMenuOpen]);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('devledgr_storage_v1');
@@ -94,18 +104,18 @@ export const BrandHeader: React.FC = () => {
           <button
             onClick={toggleTheme}
             aria-label={mounted && theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-            className="flex items-center gap-1.5 text-xs md:text-sm px-2.5 py-1.5 rounded-radius border border-line bg-card text-text-0 hover:border-text-1 transition-colors cursor-pointer font-mono"
+            className="flex items-center justify-center min-h-[44px] min-w-[44px] px-2.5 py-1.5 rounded-radius border border-line bg-card text-text-0 hover:border-text-1 transition-colors cursor-pointer font-mono"
             title="Toggle ledger theme"
           >
             {mounted && theme === 'dark' ? (
               <>
-                <Sun className="w-3.5 h-3.5 text-green-700 dark:text-green-400" aria-hidden="true" />
-                <span className="hidden sm:inline">light</span>
+                <Sun className="w-3.5 h-3.5 text-emerald-text" aria-hidden="true" />
+                <span className="hidden sm:inline sm:ml-1.5">light</span>
               </>
             ) : (
               <>
                 <Moon className="w-3.5 h-3.5 text-text-1" aria-hidden="true" />
-                <span className="hidden sm:inline">dark</span>
+                <span className="hidden sm:inline sm:ml-1.5">dark</span>
               </>
             )}
           </button>
@@ -120,7 +130,7 @@ export const BrandHeader: React.FC = () => {
             <div className="flex items-center gap-2">
               <Link
                 href="/dashboard"
-                className="hidden sm:inline-flex text-xs px-2.5 py-1.5 rounded-radius text-text-1 hover:text-text-0 transition-colors font-medium font-sans"
+                className="hidden sm:inline-flex items-center min-h-[44px] text-xs px-2.5 py-1.5 rounded-radius text-text-1 hover:text-text-0 transition-colors font-medium font-sans"
               >
                 Dashboard
               </Link>
@@ -130,23 +140,23 @@ export const BrandHeader: React.FC = () => {
             <div className="flex items-center gap-2">
               <Link
                 href="/login"
-                className="hidden sm:inline-flex text-xs px-2.5 py-1.5 rounded-radius text-text-1 hover:text-text-0 transition-colors font-medium font-sans"
+                className="hidden sm:inline-flex items-center min-h-[44px] text-xs px-2.5 py-1.5 rounded-radius text-text-1 hover:text-text-0 transition-colors font-medium font-sans"
               >
                 Sign In
               </Link>
               <Link
                 href="/login"
-                className="btn-brass text-xs py-1.5 px-3 cursor-pointer inline-flex items-center gap-1.5 font-sans"
+                className="btn-brass min-h-[44px] text-xs px-3.5 cursor-pointer inline-flex items-center gap-1.5 font-sans"
               >
                 <span>Get Started</span>
               </Link>
             </div>
           )}
 
-          {/* Mobile Menu Toggle Button */}
+          {/* Mobile Menu Toggle Button (44px touch target) */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-radius border border-line bg-card text-text-0 hover:border-brass transition-colors cursor-pointer"
+            className="md:hidden min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-radius border border-line bg-card text-text-0 hover:border-brass transition-colors cursor-pointer"
             aria-label="Toggle navigation menu"
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-nav-drawer"
@@ -164,6 +174,9 @@ export const BrandHeader: React.FC = () => {
       {mobileMenuOpen && (
         <div
           id="mobile-nav-drawer"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Mobile Navigation"
           className="md:hidden border-b border-line bg-ink-0 p-4 space-y-3 font-mono text-xs md:text-sm animate-in slide-in-from-top-2 duration-200"
         >
           <div className="space-y-1">

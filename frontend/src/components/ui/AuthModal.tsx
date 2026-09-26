@@ -163,8 +163,29 @@ export const AuthModal: React.FC = () => {
               <span>Authorize with GitHub</span>
             </button>
 
-            <div className="text-xs md:text-sm text-text-1">
-              No write access to private repositories is requested.
+            <div className="text-xs text-text-1 space-y-1">
+              <div>No write access to private repositories is requested.</div>
+              <div>
+                By authorizing, you agree to our{' '}
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-text-0 underline hover:text-emerald-text"
+                >
+                  Terms
+                </a>{' '}
+                and{' '}
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-text-0 underline hover:text-emerald-text"
+                >
+                  Privacy Policy
+                </a>
+                .
+              </div>
             </div>
           </div>
         ) : (

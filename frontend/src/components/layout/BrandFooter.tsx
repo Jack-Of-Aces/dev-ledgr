@@ -81,6 +81,16 @@ export const BrandFooter: React.FC = () => {
                   Gated Review Panel
                 </Link>
               </li>
+              <li>
+                <Link href="/terms" className="hover:text-text-0 transition-colors">
+                  Terms of Service
+                </Link>
+              </li>
+              <li>
+                <Link href="/privacy" className="hover:text-text-0 transition-colors">
+                  Privacy Policy
+                </Link>
+              </li>
             </ul>
           </div>
         </div>
@@ -88,6 +98,14 @@ export const BrandFooter: React.FC = () => {
         <div className="pt-8 ledger-border-t flex flex-col sm:flex-row items-center justify-between gap-4 text-xs md:text-sm text-text-1 text-center sm:text-left">
           <div>DevLedgr v0.2. Built for software engineers.</div>
           <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3 sm:gap-4">
+            <Link href="/terms" className="hover:text-text-0 transition-colors">
+              Terms of Service
+            </Link>
+            <span>·</span>
+            <Link href="/privacy" className="hover:text-text-0 transition-colors">
+              Privacy Policy
+            </Link>
+            <span>·</span>
             <a
               href="https://github.com/Jack-Of-Aces/dev-ledgr"
               target="_blank"
