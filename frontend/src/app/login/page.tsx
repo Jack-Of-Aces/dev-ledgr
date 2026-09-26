@@ -48,6 +48,10 @@ function LoginForm() {
   const authError = searchParams.get('error');
   const { isLoggedIn, loginWithGitHub, loginWithGoogle, switchRole } = useAuth();
 
+  const [loadingProvider, setLoadingProvider] = useState<'github' | 'google' | null>(null);
+  const [showSandbox, setShowSandbox] = useState(false);
+  const [isProcessingHash, setIsProcessingHash] = useState(false);
+
   // Handle Supabase implicit flow: when the server-side PKCE route receives
   // no ?code= param, it redirects here and the browser preserves the
   // #access_token hash fragment. Parse it client-side and establish the session.
@@ -56,18 +60,26 @@ function LoginForm() {
     const hash = window.location.hash;
     if (!hash.includes('access_token=')) return;
 
+    setIsProcessingHash(true);
     const params = new URLSearchParams(hash.slice(1)); // strip leading '#'
     const accessToken = params.get('access_token');
     const refreshToken = params.get('refresh_token');
-    if (!accessToken || !refreshToken) return;
+    if (!accessToken || !refreshToken) {
+      setIsProcessingHash(false);
+      return;
+    }
 
     const supabase = getSupabase();
-    if (!supabase) return;
+    if (!supabase) {
+      setIsProcessingHash(false);
+      return;
+    }
 
     supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
       .then(({ data, error }) => {
         if (error || !data.session) {
           console.error('[Login] setSession from hash failed:', error?.message);
+          setIsProcessingHash(false);
           return;
         }
         // Set DevLedgr cookies so server-side guards recognise the session
@@ -75,6 +87,9 @@ function LoginForm() {
         // Clear the hash from the URL and navigate to dashboard
         window.history.replaceState(null, '', window.location.pathname + window.location.search);
         router.replace('/dashboard');
+      })
+      .catch(() => {
+        setIsProcessingHash(false);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -84,9 +99,6 @@ function LoginForm() {
       router.replace(callbackUrl);
     }
   }, [isLoggedIn, callbackUrl, router]);
-
-  const [loadingProvider, setLoadingProvider] = useState<'github' | 'google' | null>(null);
-  const [showSandbox, setShowSandbox] = useState(false);
 
   const handleGitHubAuth = async () => {
     setLoadingProvider('github');
@@ -134,12 +146,19 @@ function LoginForm() {
           </p>
         </div>
 
-        {/* Error Notice */}
-        {authError && (
-          <div className="p-3 rounded border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs md:text-sm flex items-center gap-2 font-mono">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>Authentication was interrupted or canceled. Please try again.</span>
+        {/* Notice: Processing or Error */}
+        {isProcessingHash ? (
+          <div className="p-3 rounded border border-emerald-border bg-emerald-tint text-emerald-text text-xs md:text-sm flex items-center gap-2 font-mono">
+            <div className="w-4 h-4 border-2 border-emerald-text border-t-transparent rounded-full animate-spin shrink-0" />
+            <span>Verifying session and redirecting to dashboard...</span>
           </div>
+        ) : (
+          authError && (
+            <div className="p-3 rounded border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs md:text-sm flex items-center gap-2 font-mono">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>Authentication was interrupted or canceled. Please try again.</span>
+            </div>
+          )
         )}
 
         {/* OAuth Providers: GitHub & Google Only */}
