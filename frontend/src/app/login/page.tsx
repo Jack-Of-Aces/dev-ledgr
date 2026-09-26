@@ -96,14 +96,14 @@ function LoginForm() {
           <h1 className="text-2xl font-semibold tracking-tight text-text-0">
             Sign In to DevLedgr
           </h1>
-          <p className="text-xs text-text-1 max-w-xs mx-auto leading-relaxed">
+          <p className="text-xs md:text-sm text-text-1 max-w-xs mx-auto leading-relaxed">
             Anchor your verified problem-solving proof directly to your developer identity.
           </p>
         </div>
 
         {/* Error Notice */}
         {authError && (
-          <div className="p-3 rounded border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2 font-mono">
+          <div className="p-3 rounded border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs md:text-sm flex items-center gap-2 font-mono">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>Authentication was interrupted or canceled. Please try again.</span>
           </div>
@@ -115,7 +115,7 @@ function LoginForm() {
           <button
             onClick={handleGitHubAuth}
             disabled={loadingProvider !== null}
-            className="w-full btn-brass text-xs py-2.5 flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
+            className="w-full btn-brass text-xs md:text-sm py-2.5 flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
           >
             <GithubIcon className="w-4 h-4" />
             <span>
@@ -127,7 +127,7 @@ function LoginForm() {
           <button
             onClick={handleGoogleAuth}
             disabled={loadingProvider !== null}
-            className="w-full px-4 py-2.5 rounded-radius border border-line bg-card hover:bg-ink-1 text-text-0 text-xs font-medium flex items-center justify-center gap-2.5 transition-colors cursor-pointer disabled:opacity-50"
+            className="w-full px-4 py-2.5 rounded-radius border border-line bg-card hover:bg-ink-1 text-text-0 text-xs md:text-sm font-medium flex items-center justify-center gap-2.5 transition-colors cursor-pointer disabled:opacity-50"
           >
             <GoogleIcon className="w-4 h-4" />
             <span>
@@ -135,7 +135,7 @@ function LoginForm() {
             </span>
           </button>
 
-          <div className="flex items-center justify-between text-xs text-text-1 font-mono px-1 pt-1">
+          <div className="flex items-center justify-between text-xs md:text-sm text-text-1 font-mono px-1 pt-1">
             <span>Identity Provider:</span>
             <span className="text-text-0 font-medium">
               {envConfig.hasSupabase
@@ -146,11 +146,11 @@ function LoginForm() {
         </div>
 
         {/* Optional Sandbox Evaluation Accordion */}
-        <div className="pt-3 border-t border-line space-y-2 text-xs">
+        <div className="pt-3 border-t border-line space-y-2 text-xs md:text-sm">
           <button
             type="button"
             onClick={() => setShowSandbox(!showSandbox)}
-            className="w-full flex items-center justify-between text-text-1 hover:text-text-0 font-mono text-xs py-1 cursor-pointer"
+            className="w-full flex items-center justify-between text-text-1 hover:text-text-0 font-mono text-xs md:text-sm py-1 cursor-pointer"
           >
             <span className="flex items-center gap-1.5">
               <Sparkles className="w-3 h-3 text-brass" />
@@ -161,17 +161,17 @@ function LoginForm() {
 
           {showSandbox && (
             <div className="space-y-2 animate-in fade-in duration-150 pt-1 font-mono">
-              <p className="text-xs text-text-1 leading-relaxed">
+              <p className="text-xs md:text-sm text-text-1 leading-relaxed">
                 Skip OAuth connection during local evaluation to test candidate or auditor modes:
               </p>
-              <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="grid grid-cols-2 gap-2 text-xs md:text-sm">
                 <button
                   type="button"
                   onClick={() => handleQuickPersona('user')}
                   className="p-2 rounded border border-line hover:bg-ink-1 text-left transition-colors cursor-pointer"
                 >
                   <div className="font-semibold text-text-0">@junior_dev</div>
-                  <div className="text-xs text-text-1">Candidate (User)</div>
+                  <div className="text-xs md:text-sm text-text-1">Candidate (User)</div>
                 </button>
 
                 <button
@@ -180,7 +180,7 @@ function LoginForm() {
                   className="p-2 rounded border border-line hover:bg-ink-1 text-left transition-colors cursor-pointer"
                 >
                   <div className="font-semibold text-text-0">@lead_auditor</div>
-                  <div className="text-xs text-text-1 font-medium">Platform Auditor (Admin)</div>
+                  <div className="text-xs md:text-sm text-text-1 font-medium">Platform Auditor (Admin)</div>
                 </button>
               </div>
             </div>
@@ -188,7 +188,7 @@ function LoginForm() {
         </div>
 
         {/* Footer */}
-        <div className="pt-2 text-center text-xs font-mono text-text-1">
+        <div className="pt-2 text-center text-xs md:text-sm font-mono text-text-1">
           <Link href="/" className="inline-flex items-center gap-1 hover:text-text-0">
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to Explorer</span>

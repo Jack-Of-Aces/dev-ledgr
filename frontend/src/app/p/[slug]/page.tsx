@@ -120,17 +120,17 @@ ${userSubmissions
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-12">
       {/* 1-Year Guarantee Banner (Standalone Proof Badge) */}
-      <div className="rounded-radius border border-green-500/20 bg-green-500/5 p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs font-mono">
+      <div className="rounded-radius border border-green-500/20 bg-green-500/5 p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs md:text-sm font-mono">
         <div className="flex items-start sm:items-center gap-3">
           <ShieldCheck className="w-6 h-6 text-green-700 dark:text-green-400 shrink-0 mt-0.5 sm:mt-0" />
           <div className="space-y-1">
-            <div className="font-semibold text-text-0 text-sm flex flex-wrap items-center gap-2 font-sans">
+            <div className="font-semibold text-text-0 text-sm lg:text-base flex flex-wrap items-center gap-2 font-sans">
               <span>Public Developer Ledger</span>
-              <span className="text-xs text-green-700 dark:text-green-400 bg-green-500/10 px-2.5 py-0.5 rounded-full border border-green-500/20 font-mono font-medium">
+              <span className="text-xs md:text-sm text-green-700 dark:text-green-400 bg-green-500/10 px-2.5 py-0.5 rounded-full border border-green-500/20 font-mono font-medium">
                 cryptographically signed
               </span>
             </div>
-            <div className="text-xs text-text-1 font-mono break-words leading-relaxed">
+            <div className="text-xs md:text-sm text-text-1 font-mono break-words leading-relaxed">
               <span>Permanent URL: </span>
               <code className="text-green-700 dark:text-green-400 font-semibold break-all">
                 {slug}.devledgr.io
@@ -144,7 +144,7 @@ ${userSubmissions
           {isLoggedIn && slug.toLowerCase() === user.username.toLowerCase() && (
             <Link
               href="/settings"
-              className="btn-brass text-xs py-1.5 px-3 flex items-center justify-center gap-1.5 font-mono flex-1 sm:flex-initial"
+              className="btn-brass text-xs md:text-sm py-1.5 px-3 flex items-center justify-center gap-1.5 font-mono flex-1 sm:flex-initial"
               title="Edit your public ledger identity"
             >
               <Edit3 className="w-3.5 h-3.5" />
@@ -154,7 +154,7 @@ ${userSubmissions
 
           <button
             onClick={handleShare}
-            className="btn-outline text-xs py-1.5 px-3 flex items-center justify-center gap-1.5 font-mono flex-1 sm:flex-initial cursor-pointer"
+            className="btn-outline text-xs md:text-sm py-1.5 px-3 flex items-center justify-center gap-1.5 font-mono flex-1 sm:flex-initial cursor-pointer"
           >
             {copiedUrl ? (
               <>
@@ -171,7 +171,7 @@ ${userSubmissions
 
           <button
             onClick={() => setShowExportModal(true)}
-            className="btn-brass text-xs py-1.5 px-3.5 flex items-center justify-center gap-1.5 font-mono w-full sm:w-auto cursor-pointer"
+            className="btn-brass text-xs md:text-sm py-1.5 px-3.5 flex items-center justify-center gap-1.5 font-mono w-full sm:w-auto cursor-pointer"
           >
             <FileText className="w-3.5 h-3.5" />
             <span>Export Recruiter Docket</span>
@@ -186,7 +186,7 @@ ${userSubmissions
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-text-0">
               {displayUser.name}
             </h1>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs md:text-sm sm:text-sm lg:text-base">
               <span className="font-mono font-semibold text-green-700 dark:text-green-400">
                 @{displayUser.username}
               </span>
@@ -202,7 +202,7 @@ ${userSubmissions
               href={displayUser.githubUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-3 py-1.5 rounded-radius border border-line bg-card hover:border-zinc-500 transition-colors text-xs font-mono text-text-0"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-radius border border-line bg-card hover:border-zinc-500 transition-colors text-xs md:text-sm font-mono text-text-0"
             >
               <GithubIcon className="w-4 h-4" />
               <span>GitHub Profile</span>
@@ -211,19 +211,19 @@ ${userSubmissions
           </div>
         </div>
 
-        <p className="text-xs sm:text-sm text-text-1 max-w-xl leading-relaxed">
+        <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 max-w-xl leading-relaxed">
           {displayUser.bio}
         </p>
 
         {/* Skills pill row */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-2 text-xs">
-          <span className="text-xs text-text-1 mr-1 font-mono">
+        <div className="flex flex-wrap items-center gap-1.5 pt-2 text-xs md:text-sm">
+          <span className="text-xs md:text-sm text-text-1 mr-1 font-mono">
             Verified Stack:
           </span>
           {displayUser.statedSkills.map((skill) => (
             <span
               key={skill}
-              className="px-2.5 py-1 rounded border border-line bg-card text-text-0 text-xs font-mono"
+              className="px-2.5 py-1 rounded border border-line bg-card text-text-0 text-xs md:text-sm font-mono"
             >
               {skill}
             </span>
@@ -237,7 +237,7 @@ ${userSubmissions
           <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
             Verified Entries <span className="text-text-1 font-normal text-base font-mono">({userSubmissions.length})</span>
           </h2>
-          <span className="text-xs text-text-1">
+          <span className="text-xs md:text-sm text-text-1">
             Accepted solutions with full test telemetry
           </span>
         </div>
@@ -249,12 +249,12 @@ ${userSubmissions
             return (
               <div
                 key={sub.hash}
-                className="border border-line bg-card/40 p-5 sm:p-6 space-y-5 rounded-radius text-xs"
+                className="border border-line bg-card/40 p-5 sm:p-6 space-y-5 rounded-radius text-xs md:text-sm"
               >
                 {/* Header */}
                 <div className="space-y-2 pb-3 border-b border-line">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
+                    <div className="flex flex-wrap items-center gap-2 font-mono text-xs md:text-sm">
                       <span className="commit-hash font-bold text-text-0">
                         #{sub.hash}
                       </span>
@@ -270,7 +270,7 @@ ${userSubmissions
                       )}
                     </div>
 
-                    <span className="verified-chip text-xs shrink-0">
+                    <span className="verified-chip text-xs md:text-sm shrink-0">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-600 dark:bg-green-500" />
                       verified proof
                     </span>
@@ -286,10 +286,10 @@ ${userSubmissions
 
                 {/* Architecture write-up */}
                 <div className="space-y-1.5">
-                  <div className="text-xs text-green-700 dark:text-green-400 font-semibold font-mono">
+                  <div className="text-xs md:text-sm text-green-700 dark:text-green-400 font-semibold font-mono">
                     Engineering Decisions &amp; Trade-offs:
                   </div>
-                  <p className="text-text-0 leading-relaxed text-xs sm:text-sm max-w-xl">
+                  <p className="text-text-0 leading-relaxed text-xs md:text-sm sm:text-sm lg:text-base max-w-xl">
                     {sub.architectureNotes}
                   </p>
                 </div>
@@ -297,34 +297,34 @@ ${userSubmissions
                 {/* Telemetry & CI Verification */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-3.5 border-t border-b border-line">
                   <div>
-                    <div className="text-xs text-text-1 uppercase font-mono">
+                    <div className="text-xs md:text-sm text-text-1 uppercase font-mono">
                       P99 Latency
                     </div>
-                    <div className="font-bold text-text-0 text-sm font-mono mt-0.5">
+                    <div className="font-bold text-text-0 text-sm lg:text-base font-mono mt-0.5">
                       {sub.metrics?.latencyP99 || "32ms"}
                     </div>
                   </div>
                   <div>
-                    <div className="text-xs text-text-1 uppercase font-mono">
+                    <div className="text-xs md:text-sm text-text-1 uppercase font-mono">
                       Throughput
                     </div>
-                    <div className="font-bold text-text-0 text-sm font-mono mt-0.5">
+                    <div className="font-bold text-text-0 text-sm lg:text-base font-mono mt-0.5">
                       {sub.metrics?.throughput || "180 req/s"}
                     </div>
                   </div>
                   <div>
-                    <div className="text-xs text-text-1 uppercase font-mono">
+                    <div className="text-xs md:text-sm text-text-1 uppercase font-mono">
                       Code Coverage
                     </div>
-                    <div className="font-bold text-text-0 text-sm font-mono mt-0.5">
+                    <div className="font-bold text-text-0 text-sm lg:text-base font-mono mt-0.5">
                       {sub.metrics?.coverage || "95.0%"}
                     </div>
                   </div>
                   <div>
-                    <div className="text-xs text-text-1 uppercase font-mono">
+                    <div className="text-xs md:text-sm text-text-1 uppercase font-mono">
                       CI Test Suite
                     </div>
-                    <div className="font-bold text-green-700 dark:text-green-400 text-sm font-mono mt-0.5">
+                    <div className="font-bold text-green-700 dark:text-green-400 text-sm lg:text-base font-mono mt-0.5">
                       {sub.testResults.passed}/{sub.testResults.total} passed
                     </div>
                   </div>
@@ -333,7 +333,7 @@ ${userSubmissions
                 {/* Interactive Code Diff Drawer */}
                 {isDiffOpen && (
                   <div className="rounded-radius border border-line bg-ink-0 p-4 space-y-2 animate-in fade-in duration-200">
-                    <div className="flex items-center justify-between text-xs text-text-1 pb-2 border-b border-line">
+                    <div className="flex items-center justify-between text-xs md:text-sm text-text-1 pb-2 border-b border-line">
                       <span className="flex items-center gap-1.5 text-brass font-semibold">
                         <Terminal className="w-3.5 h-3.5" />
                         <span>Git Diff Inspection · commit #{sub.hash}</span>
@@ -343,7 +343,7 @@ ${userSubmissions
                       </span>
                     </div>
 
-                    <pre className="text-xs leading-relaxed overflow-x-auto font-mono rounded bg-card/40 p-2.5 border border-line">
+                    <pre className="text-xs md:text-sm leading-relaxed overflow-x-auto font-mono rounded bg-card/40 p-2.5 border border-line">
                       <code>
                         <span className="text-zinc-500 block pb-0.5">@@ -14,8 +14,24 @@ func (e *Engine) DispatchOrder(ctx context.Context, ord Order) (*Route, error) &#123;</span>
                         <span className="text-rose-700 dark:text-rose-400 bg-rose-500/10 px-2 py-1 rounded block my-0.5">-  // Unconstrained naive route</span>
@@ -368,10 +368,10 @@ ${userSubmissions
                 )}
 
                 {/* Links & Diff Trigger */}
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs md:text-sm">
                   <button
                     onClick={() => toggleDiff(sub.hash)}
-                    className="text-text-1 hover:text-text-0 cursor-pointer inline-flex items-center gap-1 text-xs"
+                    className="text-text-1 hover:text-text-0 cursor-pointer inline-flex items-center gap-1 text-xs md:text-sm"
                   >
                     <Code2 className="w-3.5 h-3.5 text-brass" />
                     <span>
@@ -441,13 +441,13 @@ ${userSubmissions
               <button
                 onClick={() => setShowExportModal(false)}
                 aria-label="Close export dialog"
-                className="text-xs text-text-1 hover:text-text-0 p-1 cursor-pointer"
+                className="text-xs md:text-sm text-text-1 hover:text-text-0 p-1 cursor-pointer"
               >
                 ✕ Close
               </button>
             </div>
 
-            <p className="text-xs text-text-1 leading-relaxed">
+            <p className="text-xs md:text-sm text-text-1 leading-relaxed">
               Formatted markdown summary referencing cryptographic ledger commit
               hashes. Direct drop-in for CVs, LinkedIn, or recruiter emails.
             </p>
@@ -461,14 +461,14 @@ ${userSubmissions
                 readOnly
                 rows={8}
                 value={exportMarkdown}
-                className="w-full p-3 rounded-radius border border-line bg-card text-xs text-text-0 font-mono leading-relaxed"
+                className="w-full p-3 rounded-radius border border-line bg-card text-xs md:text-sm text-text-0 font-mono leading-relaxed"
               />
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={handleDownloadMarkdown}
-                className="btn-outline text-xs py-1.5 px-3 flex items-center gap-1.5"
+                className="btn-outline text-xs md:text-sm py-1.5 px-3 flex items-center gap-1.5"
               >
                 <Download className="w-3 h-3" aria-hidden="true" />
                 <span>Download .md</span>
@@ -478,7 +478,7 @@ ${userSubmissions
                   navigator.clipboard.writeText(exportMarkdown);
                   setShowExportModal(false);
                 }}
-                className="btn-brass text-xs py-1.5 px-4"
+                className="btn-brass text-xs md:text-sm py-1.5 px-4"
               >
                 Copy Markdown
               </button>

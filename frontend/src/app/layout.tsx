@@ -158,7 +158,7 @@ export default function RootLayout({
         {/* WCAG Accessible Skip Link */}
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-text focus:border focus:border-green-500 focus:rounded-radius focus:outline-none focus:ring-2 focus:ring-green-400 font-mono text-xs"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-text focus:border focus:border-green-500 focus:rounded-radius focus:outline-none focus:ring-2 focus:ring-green-400 font-mono text-xs md:text-sm"
         >
           Skip to main content
         </a>

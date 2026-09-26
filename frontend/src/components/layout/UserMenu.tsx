@@ -49,11 +49,11 @@ export const UserMenu: React.FC = () => {
   }, [open]);
 
   return (
-    <div className="relative font-mono text-xs" ref={menuRef}>
+    <div className="relative font-mono text-xs md:text-sm" ref={menuRef}>
       {/* Trigger Button */}
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-2.5 py-1.5 rounded-radius border border-line bg-card hover:border-zinc-500 transition-colors text-xs text-text-0 cursor-pointer"
+        className="flex items-center gap-2 px-2.5 py-1.5 rounded-radius border border-line bg-card hover:border-zinc-500 transition-colors text-xs md:text-sm text-text-0 cursor-pointer"
         aria-expanded={open}
         aria-haspopup="true"
         aria-label="User navigation menu"
@@ -75,7 +75,7 @@ export const UserMenu: React.FC = () => {
 
         <span className="font-semibold max-w-20 sm:max-w-none truncate">@{user.username}</span>
 
-        <span className="hidden sm:inline text-xs text-text-1 bg-card px-2 py-0.5 rounded border border-line font-medium">
+        <span className="hidden sm:inline text-xs md:text-sm text-text-1 bg-card px-2 py-0.5 rounded border border-line font-medium">
           {userSubmissions.length} proofs
         </span>
 
@@ -86,14 +86,14 @@ export const UserMenu: React.FC = () => {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-radius border border-line bg-card p-2 shadow-md z-50 space-y-1 font-mono text-xs animate-in fade-in slide-in-from-top-1 duration-150"
+          className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-radius border border-line bg-card p-2 shadow-md z-50 space-y-1 font-mono text-xs md:text-sm animate-in fade-in slide-in-from-top-1 duration-150"
         >
           {/* User Identity Header */}
           <div className="px-3 py-2.5 border-b border-line space-y-1">
             <div className="flex items-center justify-between">
               <span className="font-bold text-text-0 truncate">{user.name}</span>
               <span
-                className={`text-xs uppercase px-2 py-0.5 rounded font-medium border border-line ${
+                className={`text-xs md:text-sm uppercase px-2 py-0.5 rounded font-medium border border-line ${
                   isAdmin
                     ? 'text-text-0'
                     : 'text-text-1'
@@ -102,7 +102,7 @@ export const UserMenu: React.FC = () => {
                 {isAdmin ? 'Admin / Auditor' : 'Developer'}
               </span>
             </div>
-            <div className="text-xs text-text-1 truncate">@{user.username}</div>
+            <div className="text-xs md:text-sm text-text-1 truncate">@{user.username}</div>
           </div>
 
           {/* Navigation Links */}

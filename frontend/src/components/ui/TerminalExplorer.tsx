@@ -53,22 +53,22 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
   };
 
   return (
-    <div className="rounded-radius border border-line bg-ink-0 overflow-hidden font-mono text-xs">
+    <div className="rounded-radius border border-line bg-ink-0 overflow-hidden font-mono text-xs md:text-sm">
       {/* Terminal Title Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-2.5 border-b border-line">
         <div className="flex items-center gap-2">
           <Terminal className="w-4 h-4 text-brass shrink-0" />
-          <span className="font-semibold text-text-0 text-xs tracking-tight">
+          <span className="font-semibold text-text-0 text-xs md:text-sm tracking-tight">
             Mock Infrastructure & Test Harness
           </span>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
-          <span className="text-xs text-text-1 hidden sm:inline">
+          <span className="text-xs md:text-sm text-text-1 hidden sm:inline">
             base: <code className="text-text-0">{mockInfra.baseUrl}</code>
           </span>
           <button
             onClick={handleCopyCurl}
-            className="flex items-center gap-1.5 px-2 py-1 text-xs text-text-1 hover:text-text-0 transition-colors cursor-pointer shrink-0"
+            className="flex items-center gap-1.5 px-2 py-1 text-xs md:text-sm text-text-1 hover:text-text-0 transition-colors cursor-pointer shrink-0"
           >
             {copiedCurl ? (
               <>
@@ -102,13 +102,13 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
                 setResponseLog(null);
                 setLatency(null);
               }}
-              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-mono cursor-pointer whitespace-nowrap transition-colors border-b-2 -mb-px ${
+              className={`flex items-center gap-2 px-3 py-1.5 text-xs md:text-sm font-mono cursor-pointer whitespace-nowrap transition-colors border-b-2 -mb-px ${
                 isSelected
                   ? 'border-text-0 text-text-0 font-medium'
                   : 'border-transparent text-text-1 hover:text-text-0'
               }`}
             >
-              <span className={`text-xs font-mono ${getMethodBadgeClass(ep.method)}`}>
+              <span className={`text-xs md:text-sm font-mono ${getMethodBadgeClass(ep.method)}`}>
                 {ep.method}
               </span>
               <span>{ep.path}</span>
@@ -124,12 +124,12 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
         aria-labelledby={`endpoint-tab-${selectedEndpointIndex}`}
         className="p-4 space-y-3"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs md:text-sm">
           <p style={{ maxWidth: '65ch' }} className="text-text-1 leading-relaxed">{currentEndpoint.description}</p>
           <button
             onClick={handleSimulate}
             disabled={simulating}
-            className="btn-brass text-xs py-1.5 px-3 self-start sm:self-auto cursor-pointer shrink-0"
+            className="btn-brass text-xs md:text-sm py-1.5 px-3 self-start sm:self-auto cursor-pointer shrink-0"
           >
             <Play className={`w-3 h-3 ${simulating ? 'animate-spin' : ''}`} aria-hidden="true" />
             <span>{simulating ? 'Calling mock endpoint...' : 'Ping Mock API'}</span>
@@ -141,7 +141,7 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
           aria-live="polite"
           className="relative p-3 border-t border-line -mx-4"
         >
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-line text-xs text-text-1">
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-line text-xs md:text-sm text-text-1">
             <span className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-diff-green" />
               <span>HTTP/1.1 200 OK</span>
@@ -153,7 +153,7 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
             )}
           </div>
 
-          <pre className="overflow-x-auto text-xs leading-relaxed text-text-0">
+          <pre className="overflow-x-auto text-xs md:text-sm leading-relaxed text-text-0">
             <code>
               {responseLog || JSON.stringify(currentEndpoint.responseSample, null, 2)}
             </code>
@@ -163,10 +163,10 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
         {/* Test Criteria */}
         {mockInfra.testCriteria && mockInfra.testCriteria.length > 0 && (
           <div className="pt-2">
-            <div className="text-xs font-semibold text-text-1 mb-1.5">
+            <div className="text-xs md:text-sm font-semibold text-text-1 mb-1.5">
               Verification Test Criteria (CI Gates):
             </div>
-            <ul className="space-y-1 text-xs text-text-0 max-w-2xl">
+            <ul className="space-y-1 text-xs md:text-sm text-text-0 max-w-2xl">
               {mockInfra.testCriteria.map((crit, i) => (
                 <li key={i} className="flex items-center gap-2">
                   <span className="text-diff-green" aria-hidden="true">✓</span>

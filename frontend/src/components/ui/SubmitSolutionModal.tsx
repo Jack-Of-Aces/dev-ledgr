@@ -268,7 +268,7 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="submit-solution-modal-title"
-        className="relative w-full max-w-xl max-h-[calc(100dvh-2rem)] flex flex-col rounded-radius border border-line bg-ink-0 shadow-2xl overflow-hidden font-mono text-xs"
+        className="relative w-full max-w-xl max-h-[calc(100dvh-2rem)] flex flex-col rounded-radius border border-line bg-ink-0 shadow-2xl overflow-hidden font-mono text-xs md:text-sm"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 bg-card border-b border-line shrink-0">
@@ -299,7 +299,7 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
                 <h3 className="font-sans text-xl font-bold tracking-tight text-text-0">
                   Proof Cryptographically Stamped
                 </h3>
-                <p className="text-xs text-text-1 mt-1 font-mono">
+                <p className="text-xs md:text-sm text-text-1 mt-1 font-mono">
                   Verified commit <code className="text-text-0 font-bold bg-card px-1.5 py-0.5 rounded border border-line">#{completedEntry.hash}</code> is now sealed into your public ledger.
                 </p>
               </div>
@@ -307,7 +307,7 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
               {/* Cryptographic SHA-256 Digest Card */}
               {completedEntry.proofSignature && (
                 <div className="p-3.5 rounded-radius border border-green-500/30 bg-green-500/5 text-left space-y-1.5 font-mono">
-                  <div className="flex items-center justify-between text-xs text-green-700 dark:text-green-400 font-semibold">
+                  <div className="flex items-center justify-between text-xs md:text-sm text-green-700 dark:text-green-400 font-semibold">
                     <span>SHA-256 Proof Fingerprint:</span>
                     <button
                       type="button"
@@ -327,13 +327,13 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
                       )}
                     </button>
                   </div>
-                  <div className="text-xs text-text-0 break-all bg-ink-0 p-2 rounded border border-line leading-relaxed font-mono">
+                  <div className="text-xs md:text-sm text-text-0 break-all bg-ink-0 p-2 rounded border border-line leading-relaxed font-mono">
                     {completedEntry.proofSignature}
                   </div>
                 </div>
               )}
 
-              <div className="p-4 rounded-radius border border-line bg-card/50 text-left text-xs space-y-2">
+              <div className="p-4 rounded-radius border border-line bg-card/50 text-left text-xs md:text-sm space-y-2">
                 <div className="flex justify-between">
                   <span className="text-text-1">Problem:</span>
                   <span className="font-semibold text-text-0">{idea.title}</span>
@@ -355,14 +355,14 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
               <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                 <a
                   href={`/p/${user.username}`}
-                  className="btn-brass text-xs py-2 px-4 inline-flex items-center gap-1.5"
+                  className="btn-brass text-xs md:text-sm py-2 px-4 inline-flex items-center gap-1.5"
                 >
                   <span>View in Public Portfolio</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
                 <button
                   onClick={handleReset}
-                  className="btn-outline text-xs py-2 px-4 cursor-pointer"
+                  className="btn-outline text-xs md:text-sm py-2 px-4 cursor-pointer"
                 >
                   Close
                 </button>
@@ -372,10 +372,10 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
             <div className="space-y-6 py-6 text-center">
               <Loader2 className="w-8 h-8 text-green-700 dark:text-green-400 animate-spin mx-auto" aria-hidden="true" />
               <div className="space-y-2">
-                <div className="text-sm font-semibold text-text-0 font-sans">
+                <div className="text-sm lg:text-base font-semibold text-text-0 font-sans">
                   Running Verification Harness...
                 </div>
-                <div aria-live="polite" className="text-xs text-green-700 dark:text-green-400 font-mono">
+                <div aria-live="polite" className="text-xs md:text-sm text-green-700 dark:text-green-400 font-mono">
                   {steps[verifyingStep]}
                 </div>
               </div>
@@ -395,14 +395,14 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+            <form onSubmit={handleSubmit} className="space-y-4 text-xs md:text-sm">
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label htmlFor="solution-repo-url" className="block text-xs uppercase tracking-wider text-text-1 font-semibold">
+                  <label htmlFor="solution-repo-url" className="block text-xs md:text-sm uppercase tracking-wider text-text-1 font-semibold">
                     GitHub Solution Repository *
                   </label>
                   {isInspecting && (
-                    <span className="inline-flex items-center gap-1 text-xs text-green-700 dark:text-green-400">
+                    <span className="inline-flex items-center gap-1 text-xs md:text-sm text-green-700 dark:text-green-400">
                       <Loader2 className="w-3 h-3 animate-spin" />
                       <span>Inspecting GitHub...</span>
                     </span>
@@ -421,7 +421,7 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
 
                 {/* Live GitHub Inspection Result Card */}
                 {inspectionData && (
-                  <div className="mt-2.5 p-3 rounded-radius border border-green-500/30 bg-green-500/5 space-y-2 text-xs">
+                  <div className="mt-2.5 p-3 rounded-radius border border-green-500/30 bg-green-500/5 space-y-2 text-xs md:text-sm">
                     <div className="flex items-center justify-between text-green-700 dark:text-green-400 font-semibold">
                       <div className="flex items-center gap-1.5">
                         <CheckCircle2 className="w-3.5 h-3.5" />
@@ -438,7 +438,7 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
                       </a>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3 text-text-1 font-mono text-xs">
+                    <div className="flex flex-wrap items-center gap-3 text-text-1 font-mono text-xs md:text-sm">
                       {inspectionData.stars !== undefined && (
                         <span className="inline-flex items-center gap-1">
                           <Star className="w-3 h-3 text-amber-500" />
@@ -457,7 +457,7 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
                     </div>
 
                     {inspectionData.latestCommit && (
-                      <div className="text-xs text-text-0 pt-1 border-t border-line/60 flex flex-wrap items-center gap-2">
+                      <div className="text-xs md:text-sm text-text-0 pt-1 border-t border-line/60 flex flex-wrap items-center gap-2">
                         <span className="font-semibold text-green-700 dark:text-green-400">HEAD commit:</span>
                         <span className="bg-card px-1.5 py-0.5 rounded border border-line font-mono font-bold">
                           #{inspectionData.latestCommit.shortSha}
@@ -479,7 +479,7 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
               </div>
 
               <div>
-                <label htmlFor="solution-demo-url" className="block text-xs uppercase tracking-wider text-text-1 mb-1 font-semibold">
+                <label htmlFor="solution-demo-url" className="block text-xs md:text-sm uppercase tracking-wider text-text-1 mb-1 font-semibold">
                   Deployed Demo / Live Endpoint (Optional)
                 </label>
                 <input
@@ -493,7 +493,7 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
               </div>
 
               <div>
-                <label htmlFor="solution-arch-notes" className="block text-xs uppercase tracking-wider text-text-1 mb-1 font-semibold">
+                <label htmlFor="solution-arch-notes" className="block text-xs md:text-sm uppercase tracking-wider text-text-1 mb-1 font-semibold">
                   Architecture Notes &amp; Trade-offs
                 </label>
                 <textarea
@@ -510,14 +510,14 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="btn-outline text-xs py-1.5 px-3 cursor-pointer"
+                  className="btn-outline text-xs md:text-sm py-1.5 px-3 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isInspecting}
-                  className="btn-brass text-xs py-1.5 px-4 cursor-pointer inline-flex items-center gap-1.5"
+                  className="btn-brass text-xs md:text-sm py-1.5 px-4 cursor-pointer inline-flex items-center gap-1.5"
                 >
                   <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
                   <span>Submit for Verification</span>

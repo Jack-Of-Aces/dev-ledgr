@@ -11,7 +11,6 @@ import {
   Moon,
   Menu,
   X,
-  LogIn,
 } from 'lucide-react';
 
 const emptySubscribe = () => () => {};
@@ -70,7 +69,7 @@ export const BrandHeader: React.FC = () => {
         </div>
 
         {/* Center Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-1 text-xs font-sans">
+        <nav className="hidden md:flex items-center gap-1 text-xs md:text-sm font-sans">
           {navItems.map((item) => {
             const isActive = pathname.startsWith(item.href);
             return (
@@ -90,12 +89,12 @@ export const BrandHeader: React.FC = () => {
         </nav>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-2 sm:gap-3 text-xs">
+        <div className="flex items-center gap-2 sm:gap-3 text-xs md:text-sm">
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
             aria-label={mounted && theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-radius border border-line bg-card text-text-0 hover:border-text-1 transition-colors cursor-pointer font-mono"
+            className="flex items-center gap-1.5 text-xs md:text-sm px-2.5 py-1.5 rounded-radius border border-line bg-card text-text-0 hover:border-text-1 transition-colors cursor-pointer font-mono"
             title="Toggle ledger theme"
           >
             {mounted && theme === 'dark' ? (
@@ -120,13 +119,20 @@ export const BrandHeader: React.FC = () => {
           {isLoggedIn ? (
             <UserMenu />
           ) : (
-            <Link
-              href="/login"
-              className="btn-brass text-xs py-1.5 px-3 cursor-pointer inline-flex items-center gap-1.5 font-sans"
-            >
-              <LogIn className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>Connect</span>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/login"
+                className="hidden sm:inline-flex text-xs px-2.5 py-1.5 rounded-radius text-text-1 hover:text-text-0 transition-colors font-medium font-sans"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/login"
+                className="btn-brass text-xs py-1.5 px-3 cursor-pointer inline-flex items-center gap-1.5 font-sans"
+              >
+                <span>Get Started</span>
+              </Link>
+            </div>
           )}
 
           {/* Mobile Menu Toggle Button */}
@@ -150,7 +156,7 @@ export const BrandHeader: React.FC = () => {
       {mobileMenuOpen && (
         <div
           id="mobile-nav-drawer"
-          className="md:hidden border-b border-line bg-ink-0 p-4 space-y-3 font-mono text-xs animate-in slide-in-from-top-2 duration-200"
+          className="md:hidden border-b border-line bg-ink-0 p-4 space-y-3 font-mono text-xs md:text-sm animate-in slide-in-from-top-2 duration-200"
         >
           <div className="space-y-1">
             {navItems.map((item) => {
@@ -172,7 +178,7 @@ export const BrandHeader: React.FC = () => {
           </div>
 
           {/* Mobile bottom row: profile quick links if signed in, auth CTA if not */}
-          <div className="pt-2 border-t border-line flex items-center justify-between text-xs">
+          <div className="pt-2 border-t border-line flex items-center justify-between text-xs md:text-sm">
             {isLoggedIn ? (
               <>
                 <Link href={`/p/${user.username}`} className="text-brass font-semibold hover:underline">
@@ -183,12 +189,17 @@ export const BrandHeader: React.FC = () => {
                 </Link>
               </>
             ) : (
-              <Link
-                href="/login"
-                className="text-brass font-semibold hover:underline"
-              >
-                Sign In / Connect →
-              </Link>
+              <div className="w-full flex items-center justify-between text-xs">
+                <Link href="/login" className="text-text-1 hover:text-text-0 font-medium">
+                  Sign In
+                </Link>
+                <Link
+                  href="/login"
+                  className="text-brass font-semibold hover:underline"
+                >
+                  Get Started →
+                </Link>
+              </div>
             )}
           </div>
         </div>

@@ -16,12 +16,12 @@ export const RoleSwitcher: React.FC = () => {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="fixed bottom-3 right-3 z-50 font-mono text-xs max-w-[calc(100vw-1.5rem)]">
+    <div className="fixed bottom-3 right-3 z-50 font-mono text-xs md:text-sm max-w-[calc(100vw-1.5rem)]">
       <div className="rounded-radius border border-line bg-card shadow-md overflow-hidden">
         {/* Toggle Bar */}
         <button
           onClick={() => setOpen(!open)}
-          className="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-ink-1 text-text-0 text-xs"
+          className="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-ink-1 text-text-0 text-xs md:text-sm"
           aria-expanded={open}
           aria-label="Toggle Developer Sandbox Persona Bar"
         >
@@ -36,7 +36,7 @@ export const RoleSwitcher: React.FC = () => {
         {/* Dropdown Options */}
         {open && (
           <div className="p-3 border-t border-line space-y-2.5 w-64 max-w-full">
-            <div className="flex items-center justify-between text-xs text-text-1 uppercase tracking-wider font-semibold">
+            <div className="flex items-center justify-between text-xs md:text-sm text-text-1 uppercase tracking-wider font-semibold">
               <span>Switch Persona</span>
               <span className="text-text-0">
                 {envConfig.useMocks ? 'Mock Engine' : 'Live Gateway'}
@@ -58,8 +58,8 @@ export const RoleSwitcher: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <User className="w-3.5 h-3.5 text-text-1" />
                   <div>
-                    <div className="font-medium text-xs text-text-0">@junior_dev</div>
-                    <div className="text-xs text-text-1">Developer (User)</div>
+                    <div className="font-medium text-xs md:text-sm text-text-0">@junior_dev</div>
+                    <div className="text-xs md:text-sm text-text-1">Developer (User)</div>
                   </div>
                 </div>
                 {role === 'user' && <Check className="w-3.5 h-3.5 text-text-0" />}
@@ -79,15 +79,15 @@ export const RoleSwitcher: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <Shield className="w-3.5 h-3.5 text-text-0" />
                   <div>
-                    <div className="font-medium text-xs text-text-0">@lead_auditor</div>
-                    <div className="text-xs text-text-1 font-normal">Platform Auditor (Admin)</div>
+                    <div className="font-medium text-xs md:text-sm text-text-0">@lead_auditor</div>
+                    <div className="text-xs md:text-sm text-text-1 font-normal">Platform Auditor (Admin)</div>
                   </div>
                 </div>
                 {role === 'admin' && <Check className="w-3.5 h-3.5 text-text-0" />}
               </button>
             </div>
 
-            <div className="pt-2 border-t border-line text-xs text-text-1 flex items-center justify-between">
+            <div className="pt-2 border-t border-line text-xs md:text-sm text-text-1 flex items-center justify-between">
               <span>Status: {isLoggedIn ? 'Session Active' : 'Guest'}</span>
               <a href="/login" className="hover:underline text-text-0">
                 Login Page →

@@ -1,11 +1,10 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { BrandMark } from '@/components/brand/BrandMark';
-import { LedgerEntryRow } from '@/components/ui/LedgerEntryRow';
-import { useAppStore } from '@/lib/store';
-import { ArrowRight, ExternalLink } from 'lucide-react';
+import Link from "next/link";
+import { BrandMark } from "@/components/brand/BrandMark";
+import { LedgerEntryRow } from "@/components/ui/LedgerEntryRow";
+import { useAppStore } from "@/lib/store";
+import { ArrowRight, ExternalLink } from "lucide-react";
 
 export default function HomePage() {
   const { submissions } = useAppStore();
@@ -20,25 +19,24 @@ export default function HomePage() {
         </h1>
 
         <p className="text-base sm:text-lg text-text-1 max-w-2xl leading-relaxed">
-          DevLedgr is a ledger, not a resume. Every solved engineering problem earns a verified commit hash, real CI test telemetry, and a guaranteed 1-year public portfolio URL.
+          DevLedgr is a ledger, not a resume. Every solved engineering problem
+          earns a verified commit hash, real CI test telemetry, and a guaranteed
+          1-year public portfolio URL.
         </p>
 
         <div className="pt-2 flex flex-wrap items-center gap-3">
-          <Link href="/ideas" className="btn-brass">
-            <span>Explore Problems</span>
+          <Link href="/login" className="btn-brass">
+            <span>Get Started</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
-          <Link href="/dashboard" className="btn-outline">
-            <span>Open Dashboard</span>
-          </Link>
-          <Link
-            href="/login"
-            className="text-xs font-mono text-green-700 dark:text-green-400 hover:underline px-3 py-2 cursor-pointer flex items-center gap-1.5 transition-colors"
-          >
-            <span>Connect GitHub</span>
-            <span>→</span>
+          <Link href="/ideas" className="btn-outline">
+            <span>Explore Problems</span>
           </Link>
         </div>
+
+        <p className="text-xs text-text-1 font-mono pt-1">
+          Free 1-year cryptographic ledger certificate · No credit card required
+        </p>
       </section>
 
       <hr className="rule" />
@@ -49,9 +47,10 @@ export default function HomePage() {
           <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
             Live Verified Ledger Entries
           </h2>
-          <p className="text-xs sm:text-sm text-text-1 max-w-sm">
-            Every submission earns a commit-style hash and <br className="hidden sm:inline" />
-            a permanent portfolio URL, guaranteed for one year.
+          <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 max-w-sm">
+            Every submission earns a commit-style hash and{" "}
+            <br className="hidden sm:inline" />a permanent portfolio URL,
+            guaranteed for one year.
           </p>
         </div>
 
@@ -61,11 +60,15 @@ export default function HomePage() {
           ))}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 text-xs pt-1">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs md:text-sm pt-1">
           <span className="text-text-1">
-            All entries signed with SHA-256 and verified through automated CI test harnesses.
+            All entries signed with SHA-256 and verified through automated CI
+            test harnesses.
           </span>
-          <Link href="/p/junior_dev" className="text-green-700 dark:text-green-400 hover:underline font-medium flex items-center gap-1 font-mono">
+          <Link
+            href="/p/junior_dev"
+            className="text-green-700 dark:text-green-400 hover:underline font-medium flex items-center gap-1 font-mono"
+          >
             <span>Inspect sample 1-year public portfolio</span>
             <ExternalLink className="w-3 h-3" />
           </Link>
@@ -80,8 +83,12 @@ export default function HomePage() {
           <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text-0">
             The problem with the portfolio project
           </h2>
-          <p className="text-sm sm:text-base text-text-1 max-w-2xl leading-relaxed">
-            Junior developers learn the fundamentals, then build indistinguishable Netflix or Spotify clones following video guides. Recruiters discard them because copy-pasted apps prove neither architectural intuition nor the ability to handle production failure modes.
+          <p className="text-sm lg:text-base sm:text-base text-text-1 max-w-2xl leading-relaxed">
+            Junior developers learn the fundamentals, then build
+            indistinguishable Netflix or Spotify clones following video guides.
+            Recruiters discard them because copy-pasted apps prove neither
+            architectural intuition nor the ability to handle production failure
+            modes.
           </p>
         </div>
 
@@ -90,8 +97,10 @@ export default function HomePage() {
             <h3 className="text-base font-semibold text-text-0">
               Operational Realism
             </h3>
-            <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
-              Every challenge on DevLedgr originates from real production teams: webhook deduplication under concurrency, offline-first sync with packet loss, and zero-downtime database migrations.
+            <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 leading-relaxed">
+              Every challenge on DevLedgr originates from real production teams:
+              webhook deduplication under concurrency, offline-first sync with
+              packet loss, and zero-downtime database migrations.
             </p>
           </div>
 
@@ -99,8 +108,10 @@ export default function HomePage() {
             <h3 className="text-base font-semibold text-text-0">
               Deterministic Verification
             </h3>
-            <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
-              Solutions run against automated synthetic traffic harnesses measuring p99 latency, memory allocations, and edge failure recovery. Passing yields an immutable ledger entry.
+            <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 leading-relaxed">
+              Solutions run against automated synthetic traffic harnesses
+              measuring p99 latency, memory allocations, and edge failure
+              recovery. Passing yields an immutable ledger entry.
             </p>
           </div>
         </div>
@@ -114,8 +125,9 @@ export default function HomePage() {
           <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text-0">
             The Protocol
           </h2>
-          <p className="text-xs sm:text-sm text-text-1 max-w-sm">
-            Three phases connecting engineering capability <br className="hidden sm:inline" />
+          <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 max-w-sm">
+            Three phases connecting engineering capability{" "}
+            <br className="hidden sm:inline" />
             directly to employment opportunity.
           </p>
         </div>
@@ -123,14 +135,16 @@ export default function HomePage() {
         <div className="grid grid-cols-1 md:grid-cols-3 border-y border-line md:divide-x divide-line">
           {/* Phase 1 */}
           <div className="py-6 md:px-6 first:pl-0 last:pr-0 space-y-3">
-            <h3 className="text-lg font-semibold text-text-0">
-              Idea Bank
-            </h3>
-            <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
-              Operational challenges sourced from active companies, translated into formal engineering specs with live mock servers.
+            <h3 className="text-lg font-semibold text-text-0">Idea Bank</h3>
+            <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 leading-relaxed">
+              Operational challenges sourced from active companies, translated
+              into formal engineering specs with live mock servers.
             </p>
             <div className="pt-1">
-              <Link href="/ideas" className="text-xs text-green-700 dark:text-green-400 hover:underline inline-flex items-center gap-1 font-medium font-mono">
+              <Link
+                href="/ideas"
+                className="text-xs md:text-sm text-green-700 dark:text-green-400 hover:underline inline-flex items-center gap-1 font-medium font-mono"
+              >
                 Browse Problems →
               </Link>
             </div>
@@ -141,11 +155,16 @@ export default function HomePage() {
             <h3 className="text-lg font-semibold text-text-0">
               Cryptographic Ledger
             </h3>
-            <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
-              Submit code and architecture notes. Passing automated CI test harnesses generates a permanent commit hash and a 1-year verified portfolio URL.
+            <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 leading-relaxed">
+              Submit code and architecture notes. Passing automated CI test
+              harnesses generates a permanent commit hash and a 1-year verified
+              portfolio URL.
             </p>
             <div className="pt-1">
-              <Link href="/p/junior_dev" className="text-xs text-green-700 dark:text-green-400 hover:underline inline-flex items-center gap-1 font-medium font-mono">
+              <Link
+                href="/p/junior_dev"
+                className="text-xs md:text-sm text-green-700 dark:text-green-400 hover:underline inline-flex items-center gap-1 font-medium font-mono"
+              >
                 Inspect Public Proof →
               </Link>
             </div>
@@ -156,11 +175,16 @@ export default function HomePage() {
             <h3 className="text-lg font-semibold text-text-0">
               AI Scrutiny & Matching
             </h3>
-            <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
-              Our scrutiny engine audits your verified proofs against live job requirements. If ready, it generates an ATS-safe package; if not, it identifies the exact missing problem.
+            <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 leading-relaxed">
+              Our scrutiny engine audits your verified proofs against live job
+              requirements. If ready, it generates an ATS-safe package; if not,
+              it identifies the exact missing problem.
             </p>
             <div className="pt-1">
-              <Link href="/jobs" className="text-xs text-green-700 dark:text-green-400 hover:underline inline-flex items-center gap-1 font-medium font-mono">
+              <Link
+                href="/jobs"
+                className="text-xs md:text-sm text-green-700 dark:text-green-400 hover:underline inline-flex items-center gap-1 font-medium font-mono"
+              >
                 View Matched Roles →
               </Link>
             </div>
@@ -176,46 +200,51 @@ export default function HomePage() {
           <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
             Verification Specifications
           </h2>
-          <p className="text-xs sm:text-sm text-text-1 max-w-sm">
-            How proof is generated, verified, and sealed <br className="hidden sm:inline" />
+          <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 max-w-sm">
+            How proof is generated, verified, and sealed{" "}
+            <br className="hidden sm:inline" />
             for high-signal engineering hiring.
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 pt-2">
           <div className="space-y-1.5">
-            <div className="font-semibold text-text-0 text-sm">
+            <div className="font-semibold text-text-0 text-sm lg:text-base">
               SHA-256 Commit
             </div>
-            <p className="text-text-1 text-xs leading-relaxed">
-              Every accepted solution receives an immutable commit hash signed against the DevLedgr consensus network.
+            <p className="text-text-1 text-xs md:text-sm leading-relaxed">
+              Every accepted solution receives an immutable commit hash signed
+              against the DevLedgr consensus network.
             </p>
           </div>
 
           <div className="space-y-1.5">
-            <div className="font-semibold text-text-0 text-sm">
+            <div className="font-semibold text-text-0 text-sm lg:text-base">
               Synthetic Load Fleet
             </div>
-            <p className="text-text-1 text-xs leading-relaxed">
-              Tested against synthetic high-load endpoints simulating real-world packet loss, concurrency, and rate limits.
+            <p className="text-text-1 text-xs md:text-sm leading-relaxed">
+              Tested against synthetic high-load endpoints simulating real-world
+              packet loss, concurrency, and rate limits.
             </p>
           </div>
 
           <div className="space-y-1.5">
-            <div className="font-semibold text-text-0 text-sm">
+            <div className="font-semibold text-text-0 text-sm lg:text-base">
               Deterministic SLA
             </div>
-            <p className="text-text-1 text-xs leading-relaxed">
-              Measures p99 latency, memory allocations, and error rates across 500 test batches to verify production readiness.
+            <p className="text-text-1 text-xs md:text-sm leading-relaxed">
+              Measures p99 latency, memory allocations, and error rates across
+              500 test batches to verify production readiness.
             </p>
           </div>
 
           <div className="space-y-1.5">
-            <div className="font-semibold text-text-0 text-sm">
+            <div className="font-semibold text-text-0 text-sm lg:text-base">
               1-Year Guarantee
             </div>
-            <p className="text-text-1 text-xs leading-relaxed">
-              Your public portfolio URL is cryptographically guaranteed for 365 days, proving your skills stay active.
+            <p className="text-text-1 text-xs md:text-sm leading-relaxed">
+              Your public portfolio URL is cryptographically guaranteed for 365
+              days, proving your skills stay active.
             </p>
           </div>
         </div>
@@ -228,15 +257,23 @@ export default function HomePage() {
           <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text-0">
             Build proof.
           </h2>
-          <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
-            Pick a real-world problem from the Idea Bank, build against the provided mock infrastructure, and earn your verified 1-year portfolio URL today.
+          <p className="text-xs md:text-sm sm:text-sm lg:text-base text-text-1 leading-relaxed">
+            Pick a real-world problem from the Idea Bank, build against the
+            provided mock infrastructure, and earn your verified 1-year
+            portfolio URL today.
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <Link href="/ideas" className="btn-brass text-xs py-2 px-5">
+          <Link
+            href="/ideas"
+            className="btn-brass text-xs md:text-sm py-2 px-5"
+          >
             Pick a Problem to Solve
           </Link>
-          <Link href="/about" className="btn-outline text-xs py-2 px-5">
+          <Link
+            href="/about"
+            className="btn-outline text-xs md:text-sm py-2 px-5"
+          >
             Read the Manifesto
           </Link>
         </div>

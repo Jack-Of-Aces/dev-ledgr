@@ -29,7 +29,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
 
   if (!isLoggedIn) {
     return (
-      <div className="max-w-md mx-auto my-12 p-6 rounded-radius border border-line bg-card text-center space-y-4 font-mono text-xs">
+      <div className="max-w-md mx-auto my-12 p-6 rounded-radius border border-line bg-card text-center space-y-4 font-mono text-xs md:text-sm">
         <LogIn className="w-8 h-8 text-brass mx-auto" />
         <h3 className="text-base font-semibold text-text-0 font-sans">
           Authentication Required
@@ -39,7 +39,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
         </p>
         <Link
           href="/login"
-          className="btn-brass text-xs py-2 px-4 inline-flex items-center gap-1.5"
+          className="btn-brass text-xs md:text-sm py-2 px-4 inline-flex items-center gap-1.5"
         >
           <span>Sign In to Continue</span>
           <ArrowRight className="w-3.5 h-3.5" />
@@ -62,7 +62,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
     const switchTargetRole = allowedRoles ? allowedRoles[0] : requireRole;
 
     return (
-      <div className="max-w-md mx-auto my-12 p-6 rounded-radius border border-rose-500/30 bg-card text-center space-y-4 font-mono text-xs">
+      <div className="max-w-md mx-auto my-12 p-6 rounded-radius border border-rose-500/30 bg-card text-center space-y-4 font-mono text-xs md:text-sm">
         <ShieldAlert className="w-8 h-8 text-rose-700 dark:text-rose-400 mx-auto" />
         <h3 className="text-base font-semibold text-text-0 font-sans">
           Role Clearance Required
@@ -73,7 +73,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
         {switchTargetRole && (
           <button
             onClick={() => switchRole(switchTargetRole)}
-            className="btn-brass text-xs py-2 px-4 cursor-pointer"
+            className="btn-brass text-xs md:text-sm py-2 px-4 cursor-pointer"
           >
             Switch to {switchTargetRole.toUpperCase()} Persona (Sandbox)
           </button>

@@ -81,20 +81,20 @@ export default function SettingsPage() {
 
   return (
     <AuthGuard fallbackMessage="Please sign in to access your ledger identity and compute settings.">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-10 text-sm font-sans">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-10 text-sm lg:text-base font-sans">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-line">
           <div className="space-y-1">
             <h1 className="text-3xl font-semibold tracking-tight text-text-0">
               Account & Ledger Settings
             </h1>
-            <p className="text-text-1 text-xs sm:text-sm">
+            <p className="text-text-1 text-xs md:text-sm sm:text-sm lg:text-base">
               Manage your verified developer profile, AI compute model (Full-Service vs BYOK), and API keys.
             </p>
           </div>
 
           <Link
             href={`/p/${user.username}`}
-            className="btn-outline text-xs py-1.5 px-3 font-mono flex items-center gap-1.5 self-start sm:self-auto"
+            className="btn-outline text-xs md:text-sm py-1.5 px-3 font-mono flex items-center gap-1.5 self-start sm:self-auto"
           >
             <span>View Public Ledger</span>
             <ExternalLink className="w-3.5 h-3.5" />
@@ -111,7 +111,7 @@ export default function SettingsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="settings-full-name" className="block text-xs font-mono text-text-1 mb-1 font-medium">
+                <label htmlFor="settings-full-name" className="block text-xs md:text-sm font-mono text-text-1 mb-1 font-medium">
                   Full Name *
                 </label>
                 <input
@@ -120,15 +120,15 @@ export default function SettingsPage() {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald-500 outline-none text-xs"
+                  className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald-500 outline-none text-xs md:text-sm"
                 />
                 {errors.name && (
-                  <p className="text-xs text-rose-700 dark:text-rose-400 mt-1">{errors.name}</p>
+                  <p className="text-xs md:text-sm text-rose-700 dark:text-rose-400 mt-1">{errors.name}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="settings-handle" className="block text-xs uppercase tracking-wider text-text-1 mb-1 font-semibold">
+                <label htmlFor="settings-handle" className="block text-xs md:text-sm uppercase tracking-wider text-text-1 mb-1 font-semibold">
                   Handle (Immutable URL)
                 </label>
                 <input
@@ -136,12 +136,12 @@ export default function SettingsPage() {
                   type="text"
                   disabled
                   value={`@${user.username}`}
-                  className="w-full px-3 py-2 rounded-radius border border-line bg-card text-text-1 cursor-not-allowed font-mono text-xs"
+                  className="w-full px-3 py-2 rounded-radius border border-line bg-card text-text-1 cursor-not-allowed font-mono text-xs md:text-sm"
                 />
               </div>
 
               <div>
-                <label htmlFor="settings-headline" className="block text-xs uppercase tracking-wider text-text-1 mb-1 font-semibold">
+                <label htmlFor="settings-headline" className="block text-xs md:text-sm uppercase tracking-wider text-text-1 mb-1 font-semibold">
                   Headline *
                 </label>
                 <input
@@ -150,15 +150,15 @@ export default function SettingsPage() {
                   required
                   value={headline}
                   onChange={(e) => setHeadline(e.target.value)}
-                  className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-brass outline-none text-xs"
+                  className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-brass outline-none text-xs md:text-sm"
                 />
                 {errors.headline && (
-                  <p className="text-xs text-rose-700 dark:text-rose-400 mt-1">{errors.headline}</p>
+                  <p className="text-xs md:text-sm text-rose-700 dark:text-rose-400 mt-1">{errors.headline}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="settings-bio" className="block text-xs uppercase tracking-wider text-text-1 mb-1 font-semibold">
+                <label htmlFor="settings-bio" className="block text-xs md:text-sm uppercase tracking-wider text-text-1 mb-1 font-semibold">
                   Biography & Target Systems
                 </label>
                 <textarea
@@ -166,17 +166,17 @@ export default function SettingsPage() {
                   rows={3}
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-brass outline-none text-xs leading-relaxed"
+                  className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-brass outline-none text-xs md:text-sm leading-relaxed"
                 />
                 {errors.bio && (
-                  <p className="text-xs text-rose-700 dark:text-rose-400 mt-1">{errors.bio}</p>
+                  <p className="text-xs md:text-sm text-rose-700 dark:text-rose-400 mt-1">{errors.bio}</p>
                 )}
               </div>
 
               {/* Avatar & Social Links */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                 <div>
-                  <label htmlFor="settings-avatar-url" className="text-xs font-mono text-text-1 mb-1 font-medium flex items-center gap-1.5">
+                  <label htmlFor="settings-avatar-url" className="text-xs md:text-sm font-mono text-text-1 mb-1 font-medium flex items-center gap-1.5">
                     <ImageIcon className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                     <span>Avatar Image URL</span>
                   </label>
@@ -187,7 +187,7 @@ export default function SettingsPage() {
                       placeholder="https://..."
                       value={avatarUrl}
                       onChange={(e) => setAvatarUrl(e.target.value)}
-                      className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald-500 outline-none text-xs font-mono"
+                      className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald-500 outline-none text-xs md:text-sm font-mono"
                     />
                     {avatarUrl ? (
                       <div className="relative w-8 h-8 rounded-full border border-line shrink-0 overflow-hidden">
@@ -206,12 +206,12 @@ export default function SettingsPage() {
                     ) : null}
                   </div>
                   {errors.avatarUrl && (
-                    <p className="text-xs text-rose-700 dark:text-rose-400 mt-1">{errors.avatarUrl}</p>
+                    <p className="text-xs md:text-sm text-rose-700 dark:text-rose-400 mt-1">{errors.avatarUrl}</p>
                   )}
                 </div>
 
                 <div>
-                  <label htmlFor="settings-github-url" className="text-xs font-mono text-text-1 mb-1 font-medium flex items-center gap-1.5">
+                  <label htmlFor="settings-github-url" className="text-xs md:text-sm font-mono text-text-1 mb-1 font-medium flex items-center gap-1.5">
                     <Code2 className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                     <span>GitHub Profile URL</span>
                   </label>
@@ -221,15 +221,15 @@ export default function SettingsPage() {
                     placeholder="https://github.com/..."
                     value={githubUrl}
                     onChange={(e) => setGithubUrl(e.target.value)}
-                    className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald-500 outline-none text-xs font-mono"
+                    className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald-500 outline-none text-xs md:text-sm font-mono"
                   />
                   {errors.githubUrl && (
-                    <p className="text-xs text-rose-700 dark:text-rose-400 mt-1">{errors.githubUrl}</p>
+                    <p className="text-xs md:text-sm text-rose-700 dark:text-rose-400 mt-1">{errors.githubUrl}</p>
                   )}
                 </div>
 
                 <div>
-                  <label htmlFor="settings-email" className="text-xs font-mono text-text-1 mb-1 font-medium flex items-center gap-1.5">
+                  <label htmlFor="settings-email" className="text-xs md:text-sm font-mono text-text-1 mb-1 font-medium flex items-center gap-1.5">
                     <Mail className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                     <span>Contact Email (For Recruiter Verification)</span>
                   </label>
@@ -239,10 +239,10 @@ export default function SettingsPage() {
                     placeholder="dev@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald-500 outline-none text-xs font-mono"
+                    className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald-500 outline-none text-xs md:text-sm font-mono"
                   />
                   {errors.email && (
-                    <p className="text-xs text-rose-700 dark:text-rose-400 mt-1">{errors.email}</p>
+                    <p className="text-xs md:text-sm text-rose-700 dark:text-rose-400 mt-1">{errors.email}</p>
                   )}
                 </div>
               </div>
@@ -256,7 +256,7 @@ export default function SettingsPage() {
               <span>Verified Technical Stack</span>
             </div>
 
-            <p className="text-xs text-text-1">
+            <p className="text-xs md:text-sm text-text-1">
               Select the active stacks and technologies you solve problems with. These directly index your match score against job opportunities.
             </p>
 
@@ -268,7 +268,7 @@ export default function SettingsPage() {
                     type="button"
                     key={skill}
                     onClick={() => handleToggleSkill(skill)}
-                    className={`px-3 py-1 rounded-radius border text-xs cursor-pointer transition-colors font-mono ${
+                    className={`px-3 py-1 rounded-radius border text-xs md:text-sm cursor-pointer transition-colors font-mono ${
                       active
                         ? 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold'
                         : 'border-line bg-card text-text-1 hover:text-text-0'
@@ -281,7 +281,7 @@ export default function SettingsPage() {
               })}
             </div>
             {errors.statedSkills && (
-              <p className="text-xs text-rose-700 dark:text-rose-400 mt-1">{errors.statedSkills}</p>
+              <p className="text-xs md:text-sm text-rose-700 dark:text-rose-400 mt-1">{errors.statedSkills}</p>
             )}
           </section>
 
@@ -311,12 +311,12 @@ export default function SettingsPage() {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-text-0 text-sm">BYOK Plan</span>
-                  <span className="text-xs text-emerald-700 dark:text-emerald-400 uppercase font-mono font-semibold">
+                  <span className="font-bold text-text-0 text-sm lg:text-base">BYOK Plan</span>
+                  <span className="text-xs md:text-sm text-emerald-700 dark:text-emerald-400 uppercase font-mono font-semibold">
                     Free / Self-Hosted
                   </span>
                 </div>
-                <p className="text-xs text-text-1 leading-relaxed">
+                <p className="text-xs md:text-sm text-text-1 leading-relaxed">
                   Supply your own Google Gemini or OpenAI API key. Run AI Scrutiny and Coaching prompts at raw API cost.
                 </p>
               </div>
@@ -339,12 +339,12 @@ export default function SettingsPage() {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-text-0 text-sm">Full-Service</span>
-                  <span className="text-xs text-emerald-700 dark:text-emerald-400 uppercase font-mono font-semibold">
+                  <span className="font-bold text-text-0 text-sm lg:text-base">Full-Service</span>
+                  <span className="text-xs md:text-sm text-emerald-700 dark:text-emerald-400 uppercase font-mono font-semibold">
                     ~₦5,000 / mo
                   </span>
                 </div>
-                <p className="text-xs text-text-1 leading-relaxed">
+                <p className="text-xs md:text-sm text-text-1 leading-relaxed">
                   Platform provides all AI coach compute, extended portfolio validity, and automated CI test runs end-to-end.
                 </p>
               </div>
@@ -352,7 +352,7 @@ export default function SettingsPage() {
 
             {plan === 'byok' && (
               <div className="space-y-2 pt-2">
-                <label htmlFor="settings-api-key" className="block text-xs uppercase tracking-wider text-text-1 font-semibold font-mono">
+                <label htmlFor="settings-api-key" className="block text-xs md:text-sm uppercase tracking-wider text-text-1 font-semibold font-mono">
                   Your Gemini / OpenAI API Key
                 </label>
                 <input
@@ -361,9 +361,9 @@ export default function SettingsPage() {
                   placeholder="AIzaSy... or sk-proj-..."
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-brass outline-none font-mono text-xs"
+                  className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-brass outline-none font-mono text-xs md:text-sm"
                 />
-                <span className="text-xs text-text-1 block font-mono">
+                <span className="text-xs md:text-sm text-text-1 block font-mono">
                   Keys are stored in your private browser sandbox and never recorded on public ledgers.
                 </span>
               </div>
@@ -377,12 +377,12 @@ export default function SettingsPage() {
                 <CreditCard className="w-4 h-4 text-text-1" aria-hidden="true" />
                 <span>Consensus Membership & Guarantee</span>
               </div>
-              <span className="text-xs text-text-0 border border-line px-2.5 py-1 rounded font-mono font-medium">
+              <span className="text-xs md:text-sm text-text-0 border border-line px-2.5 py-1 rounded font-mono font-medium">
                 Active Certificate
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-1 font-mono">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs md:text-sm text-text-1 font-mono">
               <span>Ledger Guarantee Expiry:</span>
               <span className="text-text-0 font-semibold">
                 {new Date(user.portfolioValidUntil).toLocaleDateString(undefined, {
@@ -399,7 +399,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={isSaving}
-              className="btn-brass text-xs py-2 px-6 cursor-pointer flex items-center justify-center gap-2 font-mono w-full sm:w-auto"
+              className="btn-brass text-xs md:text-sm py-2 px-6 cursor-pointer flex items-center justify-center gap-2 font-mono w-full sm:w-auto"
             >
               {isSaving ? (
                 <>

@@ -36,11 +36,11 @@ export default function CoachingDetailPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-8 text-sm font-sans">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-8 text-sm lg:text-base font-sans">
       <div>
         <Link
           href="/coaching"
-          className="inline-flex items-center gap-1.5 text-xs text-text-1 hover:text-text-0 transition-colors font-mono"
+          className="inline-flex items-center gap-1.5 text-xs md:text-sm text-text-1 hover:text-text-0 transition-colors font-mono"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Back to Coaching Itineraries</span>
@@ -51,16 +51,16 @@ export default function CoachingDetailPage() {
         <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-text-0">
           {itinerary.title}
         </h1>
-        <div className="text-xs font-mono text-green-700 dark:text-green-400 font-medium">
+        <div className="text-xs md:text-sm font-mono text-green-700 dark:text-green-400 font-medium">
           4-Week Track · Target: {itinerary.targetRole}
         </div>
-        <p style={{ maxWidth: '54ch' }} className="text-text-1 text-xs sm:text-sm leading-relaxed pt-1">
+        <p style={{ maxWidth: '54ch' }} className="text-text-1 text-xs md:text-sm sm:text-sm lg:text-base leading-relaxed pt-1">
           {itinerary.subtitle}
         </p>
       </div>
 
       {/* Week Selector Tabs */}
-      <div role="tablist" aria-label="Curriculum milestone weeks" className="flex border-b border-line gap-2 overflow-x-auto px-1 pt-1 text-xs">
+      <div role="tablist" aria-label="Curriculum milestone weeks" className="flex border-b border-line gap-2 overflow-x-auto px-1 pt-1 text-xs md:text-sm">
         {itinerary.milestones.map((m) => (
           <button
             key={m.week}
@@ -95,13 +95,13 @@ export default function CoachingDetailPage() {
             <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
               {selectedMilestone.title}
             </h2>
-            <p className="text-text-0 pt-1 leading-relaxed text-xs sm:text-sm">
+            <p className="text-text-0 pt-1 leading-relaxed text-xs md:text-sm sm:text-sm lg:text-base">
               {selectedMilestone.deliverable}
             </p>
           </div>
 
           {selectedMilestone.ideaIdRef && (
-            <div className="pl-3 border-l-2 border-green-500/40 flex flex-wrap items-center justify-between gap-2 text-xs py-1">
+            <div className="pl-3 border-l-2 border-green-500/40 flex flex-wrap items-center justify-between gap-2 text-xs md:text-sm py-1">
               <span className="text-text-1">Paired Challenge Spec:</span>
               <Link
                 href={`/ideas/${selectedMilestone.ideaIdRef}`}
@@ -114,7 +114,7 @@ export default function CoachingDetailPage() {
 
           {/* Socratic Prompts */}
           <div style={{ maxWidth: '65ch' }} className="space-y-3 pt-3">
-            <h3 className="text-xs font-semibold text-text-0">
+            <h3 className="text-xs md:text-sm font-semibold text-text-0">
               Interactive Guided Prompts
             </h3>
             <div className="space-y-2">
@@ -122,7 +122,7 @@ export default function CoachingDetailPage() {
                 <button
                   key={idx}
                   onClick={() => handleRunPrompt(p)}
-                  className="w-full text-left p-3 rounded-radius border border-line bg-card hover:border-green-500/50 text-text-0 text-xs transition-colors flex items-center justify-between group cursor-pointer"
+                  className="w-full text-left p-3 rounded-radius border border-line bg-card hover:border-green-500/50 text-text-0 text-xs md:text-sm transition-colors flex items-center justify-between group cursor-pointer"
                 >
                   <span>&ldquo;{p}&rdquo;</span>
                   <Sparkles className="w-3.5 h-3.5 text-green-700 dark:text-green-400 opacity-60 group-hover:opacity-100 shrink-0 ml-2" />
@@ -132,7 +132,7 @@ export default function CoachingDetailPage() {
           </div>
 
           {isLoadingCoach && (
-            <div className="p-4 rounded-radius border border-line bg-ink-0 flex items-center gap-2 text-xs text-text-1">
+            <div className="p-4 rounded-radius border border-line bg-ink-0 flex items-center gap-2 text-xs md:text-sm text-text-1">
               <Loader2 className="w-4 h-4 animate-spin text-text-0" />
               <span>Generating guidance...</span>
             </div>
@@ -140,11 +140,11 @@ export default function CoachingDetailPage() {
 
           {promptOutput && (
             <div className="p-4 rounded-radius border border-green-500/20 bg-ink-0 space-y-2">
-              <div className="flex items-center gap-2 text-green-700 dark:text-green-400 text-xs font-semibold font-mono">
+              <div className="flex items-center gap-2 text-green-700 dark:text-green-400 text-xs md:text-sm font-semibold font-mono">
                 <Terminal className="w-3.5 h-3.5" />
                 <span>Coach Guidance</span>
               </div>
-              <pre className="text-xs font-mono leading-relaxed text-text-0 whitespace-pre-wrap">
+              <pre className="text-xs md:text-sm font-mono leading-relaxed text-text-0 whitespace-pre-wrap">
                 {promptOutput}
               </pre>
             </div>
@@ -156,14 +156,14 @@ export default function CoachingDetailPage() {
           <h3 className="text-base font-semibold text-text-0">
             Track Progress
           </h3>
-          <div className="space-y-3 text-xs">
+          <div className="space-y-3 text-xs md:text-sm">
             {itinerary.milestones.map((m) => (
               <div
                 key={m.week}
                 className="flex items-center gap-2.5 text-text-1"
               >
                 <span
-                  className={`w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold ${
+                  className={`w-4 h-4 rounded-full flex items-center justify-center text-xs md:text-sm font-bold ${
                     m.week < activeWeek
                       ? 'bg-green-600 dark:bg-green-500 text-white dark:text-black'
                       : m.week === activeWeek
@@ -182,7 +182,7 @@ export default function CoachingDetailPage() {
 
           <div
             style={{ maxWidth: '40ch' }}
-            className="pt-4 border-t border-line text-xs text-text-1 leading-relaxed"
+            className="pt-4 border-t border-line text-xs md:text-sm text-text-1 leading-relaxed"
           >
             Completing this itinerary provides 4 verified commits, unlocking automatic 90%+ match scoring on junior platform roles.
           </div>
