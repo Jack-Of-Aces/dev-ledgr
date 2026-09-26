@@ -82,7 +82,7 @@ export const UserMenu: React.FC = () => {
       {/* Sleek, Non-Bloated Trigger Button with 44px mobile touch target */}
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center min-h-[44px] gap-1.5 p-1 sm:pl-1.5 sm:pr-2.5 sm:py-1 rounded-full border border-line bg-card hover:border-text-1 transition-colors text-xs text-text-0 cursor-pointer"
+        className="flex items-center min-h-11 gap-1.5 p-1 sm:pl-1.5 sm:pr-2.5 sm:py-1 rounded-full border border-line bg-card hover:border-text-1 transition-colors text-xs text-text-0 cursor-pointer"
         aria-expanded={open}
         aria-haspopup="true"
         aria-label="User navigation menu"
@@ -105,7 +105,7 @@ export const UserMenu: React.FC = () => {
         )}
 
         {/* Username shown only on desktop, safely clamped so it never stretches the navbar */}
-        <span className="hidden sm:inline font-semibold max-w-[95px] md:max-w-[115px] truncate">
+        <span className="hidden sm:inline font-semibold max-w-23.75 md:max-w-28.75 truncate">
           @{user.username}
         </span>
 
