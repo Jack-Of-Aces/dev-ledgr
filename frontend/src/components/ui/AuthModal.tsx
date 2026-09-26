@@ -17,11 +17,11 @@ const GithubIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
 
 import { useAuth } from '@/hooks/useAuth';
 import { setAuthCookies } from '@/lib/cookies';
+import { envConfig } from '@/lib/config';
 
 export const AuthModal: React.FC = () => {
   const { isAuthModalOpen, closeAuthModal, completeOnboarding, user } = useAppStore();
-  // useAuth used for cookie sync on completion - login flow is handled by onboarding step
-  useAuth();
+  const { loginWithGitHub } = useAuth();
 
   const [step, setStep] = useState<'oauth' | 'onboarding'>('oauth');
   const [username, setUsername] = useState(user.username || 'junior_dev');
@@ -83,8 +83,13 @@ export const AuthModal: React.FC = () => {
     }
   };
 
-  const handleOAuthConnect = () => {
-    setStep('onboarding');
+  const handleOAuthConnect = async () => {
+    if (envConfig.hasSupabase) {
+      closeAuthModal();
+      await loginWithGitHub();
+    } else {
+      setStep('onboarding');
+    }
   };
 
   const handleFinishOnboarding = (e: React.FormEvent) => {

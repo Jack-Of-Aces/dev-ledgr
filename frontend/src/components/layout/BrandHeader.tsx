@@ -20,7 +20,7 @@ const useMounted = () => useSyncExternalStore(emptySubscribe, () => true, () => 
 export const BrandHeader: React.FC = () => {
   const pathname = usePathname();
   // UserMenu handles all user-specific rendering; BrandHeader only needs minimal auth state.
-  const { theme, toggleTheme, user, isLoggedIn, openAuthModal } = useAppStore();
+  const { theme, toggleTheme, user, isLoggedIn } = useAppStore();
   const mounted = useMounted();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [prevPathname, setPrevPathname] = useState(pathname);
@@ -120,13 +120,13 @@ export const BrandHeader: React.FC = () => {
           {isLoggedIn ? (
             <UserMenu />
           ) : (
-            <button
-              onClick={openAuthModal}
+            <Link
+              href="/login"
               className="btn-brass text-xs py-1.5 px-3 cursor-pointer inline-flex items-center gap-1.5 font-sans"
             >
               <LogIn className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Connect</span>
-            </button>
+            </Link>
           )}
 
           {/* Mobile Menu Toggle Button */}
@@ -183,12 +183,12 @@ export const BrandHeader: React.FC = () => {
                 </Link>
               </>
             ) : (
-              <button
-                onClick={openAuthModal}
-                className="text-brass font-semibold hover:underline cursor-pointer"
+              <Link
+                href="/login"
+                className="text-brass font-semibold hover:underline"
               >
                 Sign In / Connect →
-              </button>
+              </Link>
             )}
           </div>
         </div>

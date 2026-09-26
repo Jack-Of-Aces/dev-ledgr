@@ -20,9 +20,15 @@ export function useAuth() {
 
 
   const loginWithGitHub = useCallback(
-    async (username = 'junior_dev', name = 'Alex Okafor') => {
+    async (username?: string, name?: string) => {
       const session = await authService.loginWithGitHub(username, name);
-      const profile = session.role === 'admin' ? ADMIN_USER : { ...DEFAULT_USER, username, name };
+      if (session.token === 'pending_oauth_redirect') {
+        return session;
+      }
+
+      const uname = username || session.username || 'junior_dev';
+      const rname = name || session.name || 'Alex Okafor';
+      const profile = session.role === 'admin' ? ADMIN_USER : { ...DEFAULT_USER, username: uname, name: rname };
 
       useAppStore.setState({
         isLoggedIn: true,

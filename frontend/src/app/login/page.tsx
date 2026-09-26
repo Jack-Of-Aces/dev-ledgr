@@ -7,8 +7,7 @@ import { BrandMark } from '@/components/brand/BrandMark';
 import { useAuth } from '@/hooks/useAuth';
 import { envConfig } from '@/lib/config';
 import { EmailSignInSchema } from '@/lib/schemas/auth';
-import { ArrowLeft, ArrowRight, Mail, Sparkles, Check } from 'lucide-react';
-
+import { ArrowLeft, ArrowRight, Mail, Sparkles, Check, AlertCircle } from 'lucide-react';
 
 const GithubIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -24,6 +23,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+  const authError = searchParams.get('error');
   const { isLoggedIn, loginWithGitHub, loginWithEmail, switchRole } = useAuth();
 
   useEffect(() => {
@@ -36,11 +36,20 @@ function LoginForm() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showSandbox, setShowSandbox] = useState(false);
 
   const handleGitHubAuth = async () => {
     setLoading(true);
-    await loginWithGitHub('junior_dev', 'Alex Okafor');
-    router.push(callbackUrl);
+    try {
+      await loginWithGitHub();
+      // If running live Supabase OAuth, the browser will redirect to GitHub.
+      // If running local sandbox without Supabase, route immediately:
+      if (!envConfig.hasSupabase) {
+        router.push(callbackUrl);
+      }
+    } catch {
+      setLoading(false);
+    }
   };
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
@@ -54,8 +63,12 @@ function LoginForm() {
     }
 
     setLoading(true);
-    await loginWithEmail(email);
-    setEmailSent(true);
+    const res = await loginWithEmail(email);
+    if (!res.success) {
+      setEmailError(res.message);
+    } else {
+      setEmailSent(true);
+    }
     setLoading(false);
   };
 
@@ -81,21 +94,33 @@ function LoginForm() {
           </p>
         </div>
 
+        {/* Error notice if redirected back from failed OAuth */}
+        {authError && (
+          <div className="p-3 rounded border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2 font-mono">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>Authentication was interrupted or canceled. Please try again.</span>
+          </div>
+        )}
+
         {/* Primary Action: GitHub OAuth */}
         <div className="space-y-2">
           <button
             onClick={handleGitHubAuth}
             disabled={loading}
-            className="w-full btn-brass text-xs py-2.5 flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full btn-brass text-xs py-2.5 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <GithubIcon className="w-4 h-4" />
-            <span>Continue with GitHub</span>
+            <span>{loading ? 'Redirecting to GitHub...' : 'Continue with GitHub'}</span>
           </button>
 
           <div className="flex items-center justify-between text-xs text-text-1 font-mono px-1">
             <span>Identity Provider:</span>
             <span className="text-text-0 font-medium">
-              {envConfig.githubClientId ? 'Live GitHub OAuth App' : 'Instant Sandbox Provider'}
+              {envConfig.hasSupabase
+                ? 'Supabase GitHub OAuth'
+                : envConfig.githubClientId
+                ? 'Live GitHub OAuth App'
+                : 'Sandbox Provider'}
             </span>
           </div>
         </div>
@@ -131,13 +156,13 @@ function LoginForm() {
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full btn-outline text-xs py-2 flex items-center justify-center gap-2 cursor-pointer font-sans"
+            disabled={loading || emailSent}
+            className="w-full btn-outline text-xs py-2 flex items-center justify-center gap-2 cursor-pointer font-sans disabled:opacity-50"
           >
             {emailSent ? (
               <>
                 <Check className="w-3.5 h-3.5 text-text-0" />
-                <span>Link Dispatched</span>
+                <span>Magic Link Dispatched</span>
               </>
             ) : (
               <>
@@ -148,35 +173,46 @@ function LoginForm() {
           </button>
         </form>
 
-        {/* Sandbox Quick Personas for Evaluation */}
-        <div className="pt-4 border-t border-line space-y-3 text-xs">
-          <div className="flex items-center gap-1.5 text-text-0 font-semibold font-mono text-xs">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Developer Evaluation Personas</span>
-          </div>
-          <p className="text-xs text-text-1 leading-relaxed">
-            Test platform capabilities immediately with preset accounts:
-          </p>
+        {/* Optional Sandbox Evaluation Accordion */}
+        <div className="pt-3 border-t border-line space-y-2 text-xs">
+          <button
+            type="button"
+            onClick={() => setShowSandbox(!showSandbox)}
+            className="w-full flex items-center justify-between text-text-1 hover:text-text-0 font-mono text-xs py-1 cursor-pointer"
+          >
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="w-3 h-3 text-brass" />
+              <span>Sandbox Evaluation Personas</span>
+            </span>
+            <span>{showSandbox ? '▲ Hide' : '▼ View demo accounts'}</span>
+          </button>
 
-          <div className="grid grid-cols-2 gap-2 font-mono text-xs">
-            <button
-              type="button"
-              onClick={() => handleQuickPersona('user')}
-              className="p-2.5 rounded border border-line hover:bg-ink-1 text-left transition-colors cursor-pointer"
-            >
-              <div className="font-semibold text-text-0">@junior_dev</div>
-              <div className="text-xs text-text-1">Candidate (User)</div>
-            </button>
+          {showSandbox && (
+            <div className="space-y-2 animate-in fade-in duration-150 pt-1 font-mono">
+              <p className="text-xs text-text-1 leading-relaxed">
+                Skip GitHub connection during local testing to evaluate candidate or auditor roles:
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => handleQuickPersona('user')}
+                  className="p-2 rounded border border-line hover:bg-ink-1 text-left transition-colors cursor-pointer"
+                >
+                  <div className="font-semibold text-text-0">@junior_dev</div>
+                  <div className="text-xs text-text-1">Candidate</div>
+                </button>
 
-            <button
-              type="button"
-              onClick={() => handleQuickPersona('admin')}
-              className="p-2.5 rounded border border-line hover:bg-ink-1 text-left transition-colors cursor-pointer"
-            >
-              <div className="font-semibold text-text-0">@lead_auditor</div>
-              <div className="text-xs text-text-1 font-medium">Admin / Verifier</div>
-            </button>
-          </div>
+                <button
+                  type="button"
+                  onClick={() => handleQuickPersona('admin')}
+                  className="p-2 rounded border border-line hover:bg-ink-1 text-left transition-colors cursor-pointer"
+                >
+                  <div className="font-semibold text-text-0">@lead_auditor</div>
+                  <div className="text-xs text-text-1 font-medium">Auditor (Admin)</div>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

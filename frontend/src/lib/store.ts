@@ -101,7 +101,7 @@ export const useAppStore = create<AppState>()(
 
       user: DEFAULT_USER,
       setUser: (updates) => set((state) => ({ user: { ...state.user, ...updates } })),
-      isLoggedIn: true,
+      isLoggedIn: false,
 
       loginAsGitHub: (username = 'junior_dev', name = 'Alex Okafor') => {
         set({
