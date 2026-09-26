@@ -191,45 +191,13 @@ export default function DashboardPage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 md:py-12 space-y-8 font-sans">
         
         {/* ========================================================= */}
-        {/* 1. EXECUTIVE COMMAND HEADER & IDENTITY                    */}
+        {/* 1. UNIFIED COMMAND HEADER & PROOF GUARANTEE              */}
         {/* ========================================================= */}
-        <section className="space-y-5 pb-6 border-b border-line">
-          {/* System status ribbon */}
-          <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono text-text-1">
-            <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald" />
-              </span>
-              <span className="font-semibold text-text-0 uppercase tracking-wider">
-                DevLedgr CI Attestation Node v2.4
-              </span>
-              <span className="text-line">/</span>
-              <span className="text-emerald-text">State Stamped & Synced</span>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <span>
-                Domain:{' '}
-                <span className="text-text-0 font-medium">
-                  {user.username}.devledgr.xyz
-                </span>
-              </span>
-              <span className="hidden sm:inline text-line">/</span>
-              <span className="hidden sm:inline">
-                Tier:{' '}
-                <span className="text-text-0 font-medium capitalize">
-                  {user.plan || 'Free / BYOK'}
-                </span>
-              </span>
-            </div>
-          </div>
-
-          {/* Identity & Actions Bar */}
+        <section className="p-5 md:p-6 rounded-radius border border-line bg-card/60 backdrop-blur-xs space-y-5">
+          {/* Identity & Quick Actions Bar */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-start gap-4">
               <div className="relative shrink-0">
-                {/* Avatar with status border */}
                 <div className="w-14 h-14 md:w-16 md:h-16 rounded-radius border-2 border-line bg-card overflow-hidden flex items-center justify-center font-mono text-lg font-bold text-text-0 shadow-xs">
                   {user.avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -243,8 +211,10 @@ export default function DashboardPage() {
                   )}
                 </div>
                 <span
-                  title="Cryptographically Verified Identity"
-                  className="absolute -bottom-1 -right-1 bg-emerald text-white p-1 rounded-full border-2 border-ink-0"
+                  title={userSubmissions.length > 0 ? 'Cryptographically Verified Identity' : 'DevLedgr Member'}
+                  className={`absolute -bottom-1 -right-1 p-1 rounded-full border-2 border-card ${
+                    userSubmissions.length > 0 ? 'bg-emerald text-white' : 'bg-line text-text-1'
+                  }`}
                 >
                   <ShieldCheck className="w-3 h-3" />
                 </span>
@@ -258,10 +228,17 @@ export default function DashboardPage() {
                   <span className="text-xs font-mono px-2 py-0.5 rounded-radius bg-card border border-line text-text-1 font-medium">
                     @{user.username}
                   </span>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-tint border border-emerald-border text-emerald-text text-xs font-mono font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald" />
-                    Verified Proof Holder
-                  </span>
+                  {userSubmissions.length > 0 ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-tint border border-emerald-border text-emerald-text text-xs font-mono font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald" />
+                      {userSubmissions.length} Verified {userSubmissions.length === 1 ? 'Proof' : 'Proofs'}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-card border border-line text-text-1 text-xs font-mono font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                      Awaiting 1st Proof
+                    </span>
+                  )}
                 </div>
 
                 <p className="text-xs sm:text-sm text-text-1 leading-relaxed max-w-2xl">
@@ -404,29 +381,32 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Guarantee summary bar */}
-          <div className="p-3.5 rounded-radius border border-line bg-card/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2.5">
-              <ShieldCheck className="w-4 h-4 text-emerald-text shrink-0" />
-              <div>
-                <span className="font-medium text-text-0">
-                  1-Year Proof Guarantee Active:
-                </span>{' '}
-                <span className="text-text-1">
-                  Signed commit hashes are cryptographically sealed and publicly verifiable through{' '}
-                  <span className="font-medium text-text-0 font-mono">
-                    September 2027
-                  </span>{' '}
-                  (364 days remaining).
-                </span>
-              </div>
+          {/* Integrated Status & Cryptographic Guarantee Sub-bar */}
+          <div className="pt-4 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono text-text-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald" />
+              </span>
+              <span className="font-semibold text-text-0 uppercase tracking-wider">
+                CI Node v2.4
+              </span>
+              <span className="text-line">/</span>
+              <span className="text-emerald-text inline-flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                1-Year Guarantee Active (Sep 2027)
+              </span>
+              <span className="hidden sm:inline text-line">/</span>
+              <span className="hidden sm:inline">
+                Domain: <span className="text-text-0">{user.username}.devledgr.xyz</span>
+              </span>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-3 shrink-0">
               <button
                 onClick={handleCopyPublicUrl}
-                className="text-emerald-text hover:underline font-mono inline-flex items-center gap-1 cursor-pointer"
-                title="Copy public link"
+                className="text-emerald-text hover:underline inline-flex items-center gap-1 cursor-pointer"
+                title="Copy public portfolio link"
               >
                 {copiedUrl ? (
                   <>
@@ -445,105 +425,168 @@ export default function DashboardPage() {
         </section>
 
         {/* ========================================================= */}
-        {/* 2. EXECUTIVE KPI TILES (SCANNABLE METRICS)                 */}
+        {/* 2. DYNAMIC KPI TILES (SCANNABLE REAL-TIME METRICS)        */}
         {/* ========================================================= */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Card 1: Verified Proofs */}
-          <button
-            onClick={() => setActiveTab('ledger')}
-            className={`p-4 rounded-radius border text-left transition-all cursor-pointer ${
-              activeTab === 'ledger'
-                ? 'border-emerald bg-card shadow-xs ring-1 ring-emerald/30'
-                : 'border-line bg-card/60 hover:border-text-1/60 hover:bg-card'
-            }`}
-          >
-            <div className="flex items-center justify-between text-xs text-text-1 font-mono">
-              <span>Verified Proofs</span>
-              <ShieldCheck className="w-4 h-4 text-emerald-text" />
-            </div>
-            <div className="mt-2 text-2xl font-bold font-mono text-text-0">
-              {userSubmissions.length}
-            </div>
-            <div className="mt-1 flex items-center justify-between text-xs">
-              <span className="text-emerald-text font-medium font-mono">
-                100% CI pass rate
-              </span>
-              <span className="text-text-1">View ledger →</span>
-            </div>
-          </button>
+        {(() => {
+          // Dynamic calculation of stats
+          const hasProofs = userSubmissions.length > 0;
+          
+          // CI Pass Rate
+          const totalTests = userSubmissions.reduce((acc, s) => acc + (s.testResults?.total || 0), 0);
+          const passedTests = userSubmissions.reduce((acc, s) => acc + (s.testResults?.passed || 0), 0);
+          const ciPassRate = totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 100;
 
-          {/* Card 2: Matched Roles */}
-          <button
-            onClick={() => setActiveTab('opportunities')}
-            className={`p-4 rounded-radius border text-left transition-all cursor-pointer ${
-              activeTab === 'opportunities'
-                ? 'border-emerald bg-card shadow-xs ring-1 ring-emerald/30'
-                : 'border-line bg-card/60 hover:border-text-1/60 hover:bg-card'
-            }`}
-          >
-            <div className="flex items-center justify-between text-xs text-text-1 font-mono">
-              <span>Matched Roles</span>
-              <Briefcase className="w-4 h-4 text-emerald-text" />
-            </div>
-            <div className="mt-2 text-2xl font-bold font-mono text-text-0">
-              {jobs.length} Active
-            </div>
-            <div className="mt-1 flex items-center justify-between text-xs">
-              <span className="text-emerald-text font-medium font-mono">
-                Top: Moniepoint 94%
-              </span>
-              <span className="text-text-1">Inspect matches →</span>
-            </div>
-          </button>
+          // Latency Calculation
+          const latencies = userSubmissions
+            .map((s) => parseInt(s.metrics?.latencyP99?.replace(/[^0-9]/g, '') || '', 10))
+            .filter((l) => !isNaN(l));
+          const avgLatency = latencies.length > 0
+            ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) + 'ms'
+            : '--';
 
-          {/* Card 3: Telemetry Benchmark */}
-          <div className="p-4 rounded-radius border border-line bg-card/60 text-left">
-            <div className="flex items-center justify-between text-xs text-text-1 font-mono">
-              <span>Average Latency</span>
-              <Activity className="w-4 h-4 text-emerald-text" />
-            </div>
-            <div className="mt-2 text-2xl font-bold font-mono text-text-0">
-              28ms
-            </div>
-            <div className="mt-1 flex items-center justify-between text-xs">
-              <span className="text-text-1 font-mono">
-                p99 latency (4.8k req/s)
-              </span>
-              <span className="text-emerald-text font-mono font-medium">
-                Deterministic
-              </span>
-            </div>
-          </div>
+          // Coaching Track Completion
+          const solvedMilestones = activeCoaching.milestones.filter(
+            (m) => m.ideaIdRef && userSolvedIdeaIds.has(m.ideaIdRef)
+          ).length;
+          const totalMilestones = activeCoaching.milestones.length;
+          const coachingPercent = Math.round((solvedMilestones / totalMilestones) * 100);
 
-          {/* Card 4: Career Track Progress */}
-          <button
-            onClick={() => setActiveTab('coaching')}
-            className={`p-4 rounded-radius border text-left transition-all cursor-pointer ${
-              activeTab === 'coaching'
-                ? 'border-emerald bg-card shadow-xs ring-1 ring-emerald/30'
-                : 'border-line bg-card/60 hover:border-text-1/60 hover:bg-card'
-            }`}
-          >
-            <div className="flex items-center justify-between text-xs text-text-1 font-mono">
-              <span>Coaching Track</span>
-              <GraduationCap className="w-4 h-4 text-emerald-text" />
-            </div>
-            <div className="mt-2 text-2xl font-bold font-mono text-text-0">
-              50% Complete
-            </div>
-            <div className="mt-1 flex items-center justify-between text-xs">
-              <span className="text-text-1">2 of 4 milestones</span>
-              <span className="text-emerald-text font-mono font-medium">
-                Week 3 Active →
-              </span>
-            </div>
-          </button>
-        </section>
+          // Top Matched Role
+          const jobMatches = jobs.map((j) => ({ job: j, details: getJobMatchDetails(j) }));
+          const topMatch = jobMatches.sort((a, b) => b.details.score - a.details.score)[0];
+
+          return (
+            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Card 1: Verified Proofs */}
+              <button
+                onClick={() => setActiveTab('ledger')}
+                className={`p-4 rounded-radius border text-left transition-all cursor-pointer ${
+                  activeTab === 'ledger'
+                    ? 'border-emerald bg-card shadow-xs ring-1 ring-emerald/30'
+                    : 'border-line bg-card/60 hover:border-text-1/60 hover:bg-card'
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs text-text-1 font-mono">
+                  <span>Verified Proofs</span>
+                  <ShieldCheck className="w-4 h-4 text-emerald-text" />
+                </div>
+                <div className="mt-2 text-2xl font-bold font-mono text-text-0">
+                  {userSubmissions.length}
+                </div>
+                <div className="mt-1 flex items-center justify-between text-xs">
+                  <span className={`font-medium font-mono ${hasProofs ? 'text-emerald-text' : 'text-text-1'}`}>
+                    {hasProofs ? `${ciPassRate}% CI pass rate` : 'Awaiting 1st proof'}
+                  </span>
+                  <span className="text-text-1">View ledger →</span>
+                </div>
+              </button>
+
+              {/* Card 2: Matched Roles */}
+              <button
+                onClick={() => setActiveTab('opportunities')}
+                className={`p-4 rounded-radius border text-left transition-all cursor-pointer ${
+                  activeTab === 'opportunities'
+                    ? 'border-emerald bg-card shadow-xs ring-1 ring-emerald/30'
+                    : 'border-line bg-card/60 hover:border-text-1/60 hover:bg-card'
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs text-text-1 font-mono">
+                  <span>Matched Roles</span>
+                  <Briefcase className="w-4 h-4 text-emerald-text" />
+                </div>
+                <div className="mt-2 text-2xl font-bold font-mono text-text-0">
+                  {jobs.length} Active
+                </div>
+                <div className="mt-1 flex items-center justify-between text-xs">
+                  <span className="text-emerald-text font-medium font-mono">
+                    Top: {topMatch?.job.company} {topMatch?.details.score}%
+                  </span>
+                  <span className="text-text-1">Inspect matches →</span>
+                </div>
+              </button>
+
+              {/* Card 3: Telemetry Benchmark */}
+              <div className="p-4 rounded-radius border border-line bg-card/60 text-left">
+                <div className="flex items-center justify-between text-xs text-text-1 font-mono">
+                  <span>Average Latency</span>
+                  <Activity className="w-4 h-4 text-emerald-text" />
+                </div>
+                <div className="mt-2 text-2xl font-bold font-mono text-text-0">
+                  {avgLatency}
+                </div>
+                <div className="mt-1 flex items-center justify-between text-xs">
+                  <span className="text-text-1 font-mono">
+                    {hasProofs ? 'p99 latency (CI attested)' : 'Awaiting CI telemetry'}
+                  </span>
+                  <span className={`font-mono font-medium ${hasProofs ? 'text-emerald-text' : 'text-text-1'}`}>
+                    {hasProofs ? 'Deterministic' : 'No runs'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Card 4: Career Track Progress */}
+              <button
+                onClick={() => setActiveTab('coaching')}
+                className={`p-4 rounded-radius border text-left transition-all cursor-pointer ${
+                  activeTab === 'coaching'
+                    ? 'border-emerald bg-card shadow-xs ring-1 ring-emerald/30'
+                    : 'border-line bg-card/60 hover:border-text-1/60 hover:bg-card'
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs text-text-1 font-mono">
+                  <span>Coaching Track</span>
+                  <GraduationCap className="w-4 h-4 text-emerald-text" />
+                </div>
+                <div className="mt-2 text-2xl font-bold font-mono text-text-0">
+                  {coachingPercent}% Complete
+                </div>
+                <div className="mt-1 flex items-center justify-between text-xs">
+                  <span className="text-text-1">{solvedMilestones} of {totalMilestones} milestones</span>
+                  <span className="text-emerald-text font-mono font-medium">
+                    {solvedMilestones === 0 ? 'Start Week 1 →' : `Week ${Math.min(solvedMilestones + 1, totalMilestones)} Active →`}
+                  </span>
+                </div>
+              </button>
+            </section>
+          );
+        })()}
 
         {/* ========================================================= */}
         {/* 3. STRATEGIC CAREER ACCELERATOR BANNER                    */}
         {/* ========================================================= */}
-        {primaryJobWithGap && (
+        {userSubmissions.length === 0 ? (
+          <section className="p-4.5 rounded-radius border border-emerald-border bg-emerald-tint/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded bg-emerald/15 text-emerald-text shrink-0 mt-0.5">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono uppercase tracking-wider font-semibold text-emerald-text">
+                    Recommended First Proof
+                  </span>
+                  <span className="text-xs px-2 py-0.2 rounded-full bg-emerald text-white font-mono font-bold">
+                    High Hiring Signal
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-text-0 font-medium">
+                  Stamp your first proof with <span className="font-bold underline">Idempotent Webhook Replayer & Deduplicator</span> to immediately unlock Moniepoint and Kobo360 backend roles.
+                </p>
+                <p className="text-xs text-text-1">
+                  Includes pre-configured mock infrastructure, payload burst generator, and automated test harness.
+                </p>
+              </div>
+            </div>
+
+            <Link
+              href="/ideas/webhook-deduplicator"
+              className="btn-brass text-xs py-2 px-3.5 self-start md:self-center shrink-0 inline-flex items-center gap-1.5"
+            >
+              <span>Inspect Starter Spec</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </section>
+        ) : primaryJobWithGap ? (
           <section className="p-4 rounded-radius border border-emerald-border bg-emerald-tint flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
               <div className="p-2 rounded bg-emerald/10 text-emerald-text shrink-0 mt-0.5">
@@ -576,7 +619,7 @@ export default function DashboardPage() {
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </section>
-        )}
+        ) : null}
 
         {/* ========================================================= */}
         {/* 4. IA TAB NAVIGATION                                      */}
@@ -727,245 +770,304 @@ export default function DashboardPage() {
               aria-labelledby="tab-ledger"
               className="space-y-4"
             >
-              {/* Search & Domain Filter Toolbar */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                <div className="relative flex-1 max-w-sm">
-                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-1" />
-                  <input
-                    type="text"
-                    value={proofSearch}
-                    onChange={(e) => setProofSearch(e.target.value)}
-                    placeholder="Search proofs by title, hash, notes..."
-                    className="w-full pl-9 pr-3 py-1.5 rounded-radius border border-line bg-card text-text-0 placeholder:text-text-1 focus:border-emerald focus:outline-none font-mono"
-                  />
-                  {proofSearch && (
-                    <button
-                      onClick={() => setProofSearch('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-1 hover:text-text-0"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
+              {/* When user has submissions: Render Search & Domain Filter Toolbar */}
+              {userSubmissions.length > 0 ? (
+                <>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    <div className="relative flex-1 max-w-sm">
+                      <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-1" />
+                      <input
+                        type="text"
+                        value={proofSearch}
+                        onChange={(e) => setProofSearch(e.target.value)}
+                        placeholder="Search proofs by title, hash, notes..."
+                        className="w-full pl-9 pr-3 py-1.5 rounded-radius border border-line bg-card text-text-0 placeholder:text-text-1 focus:border-emerald focus:outline-none font-mono"
+                      />
+                      {proofSearch && (
+                        <button
+                          onClick={() => setProofSearch('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-1 hover:text-text-0"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-text-1 font-mono mr-1">Domain:</span>
-                    {['all', 'logistics', 'fintech', 'systems', 'devtools'].map((domain) => (
-                      <button
-                        key={domain}
-                        onClick={() => setSelectedDomain(domain)}
-                        className={`px-2.5 py-1 rounded-radius text-xs capitalize transition-colors font-mono cursor-pointer ${
-                          selectedDomain === domain
-                            ? 'bg-text-0 text-ink-0 font-medium'
-                            : 'bg-card border border-line text-text-1 hover:text-text-0 hover:border-text-1'
-                        }`}
-                      >
-                        {domain}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center gap-1.5 pl-2 border-l border-line/60">
-                    <span className="text-text-1 font-mono">Sort:</span>
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as 'recent' | 'latency' | 'throughput')}
-                      aria-label="Sort verified proofs"
-                      className="px-2 py-1 rounded-radius bg-card border border-line text-text-0 font-mono text-xs focus:border-emerald outline-none cursor-pointer"
-                    >
-                      <option value="recent">Most Recent</option>
-                      <option value="latency">Lowest Latency (p99)</option>
-                      <option value="throughput">Highest Throughput</option>
-                    </select>
-                  </div>
-
-                  {(proofSearch || selectedDomain !== 'all' || sortBy !== 'recent') && (
-                    <button
-                      onClick={() => {
-                        setProofSearch('');
-                        setSelectedDomain('all');
-                        setSortBy('recent');
-                      }}
-                      className="text-text-1 hover:text-text-0 p-1 ml-1"
-                      title="Reset filters and sorting"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Submissions List Container */}
-              {sortedSubmissions.length > 0 ? (
-                <div className="rounded-radius border border-line bg-card/30 divide-y divide-line overflow-hidden">
-                  {sortedSubmissions.map((entry) => {
-                    const idea = ideas.find((i) => i.id === entry.ideaId);
-                    const domainStyle = idea
-                      ? getDomainStyle(idea.domain)
-                      : getDomainStyle('fintech');
-                    const isCopied = copiedHash === entry.hash;
-
-                    return (
-                      <div
-                        key={entry.hash}
-                        className="p-4 sm:p-5 hover:bg-card/70 transition-colors space-y-3"
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            {/* Commit Hash button */}
-                            <button
-                              onClick={(e) => handleCopyHash(entry.hash, e)}
-                              className="font-mono text-xs px-2 py-0.5 rounded border border-line bg-ink-0 text-text-0 hover:border-emerald transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-                              title="Click to copy commit hash"
-                            >
-                              <span>#{entry.hash}</span>
-                              {isCopied ? (
-                                <Check className="w-3 h-3 text-emerald" />
-                              ) : (
-                                <Copy className="w-2.5 h-2.5 opacity-50" />
-                              )}
-                            </button>
-
-                            {/* Title */}
-                            <Link
-                              href={`/ideas/${entry.ideaId}`}
-                              className="font-semibold text-sm sm:text-base text-text-0 hover:text-emerald-text hover:underline transition-colors"
-                            >
-                              {entry.ideaTitle}
-                            </Link>
-
-                            {/* Domain Badge */}
-                            {idea && (
-                              <span
-                                className={`text-xs px-2 py-0.5 rounded border font-mono font-medium ${domainStyle.badge}`}
-                              >
-                                {domainStyle.name}
-                              </span>
-                            )}
-
-                            {/* Verified Status */}
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-tint border border-emerald-border text-emerald-text text-xs font-mono font-medium">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald" />
-                              CI Verified
-                            </span>
-                          </div>
-
-                          <div className="text-xs font-mono text-text-1">
-                            {new Date(entry.timestamp).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Architecture Notes */}
-                        <p className="text-xs sm:text-sm text-text-1 leading-relaxed max-w-3xl">
-                          {entry.architectureNotes}
-                        </p>
-
-                        {/* Telemetry and Links Row */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-t border-line/40 text-xs font-mono">
-                          {/* Metrics chips */}
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-text-1">
-                            {entry.metrics?.latencyP99 && (
-                              <span>
-                                Latency p99:{' '}
-                                <strong className="text-text-0 font-semibold">
-                                  {entry.metrics.latencyP99}
-                                </strong>
-                              </span>
-                            )}
-                            {entry.metrics?.throughput && (
-                              <span>
-                                Throughput:{' '}
-                                <strong className="text-text-0 font-semibold">
-                                  {entry.metrics.throughput}
-                                </strong>
-                              </span>
-                            )}
-                            {entry.metrics?.coverage && (
-                              <span>
-                                Coverage:{' '}
-                                <strong className="text-text-0 font-semibold">
-                                  {entry.metrics.coverage}
-                                </strong>
-                              </span>
-                            )}
-                            <span className="text-emerald-text font-medium">
-                              ✓ {entry.testResults.passed}/{entry.testResults.total} tests passed
-                            </span>
-                          </div>
-
-                          {/* Action Links */}
-                          <div className="flex items-center gap-3 shrink-0">
-                            {entry.repoUrl && (
-                              <a
-                                href={entry.repoUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-text-1 hover:text-text-0 hover:underline inline-flex items-center gap-1"
-                              >
-                                <span>Code Repo</span>
-                                <ExternalLink className="w-3 h-3 opacity-60" />
-                              </a>
-                            )}
-                            {entry.demoUrl && (
-                              <a
-                                href={entry.demoUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-emerald-text hover:underline inline-flex items-center gap-1"
-                              >
-                                <span>Live Demo</span>
-                                <ExternalLink className="w-3 h-3 opacity-60" />
-                              </a>
-                            )}
-                            <Link
-                              href={`/ideas/${entry.ideaId}`}
-                              className="text-text-0 hover:text-emerald-text hover:underline font-medium inline-flex items-center gap-1"
-                            >
-                              <span>View Spec</span>
-                              <ChevronRight className="w-3.5 h-3.5" />
-                            </Link>
-                          </div>
-                        </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-text-1 font-mono mr-1">Domain:</span>
+                        {['all', 'logistics', 'fintech', 'systems', 'devtools'].map((domain) => (
+                          <button
+                            key={domain}
+                            onClick={() => setSelectedDomain(domain)}
+                            className={`px-2.5 py-1 rounded-radius text-xs capitalize transition-colors font-mono cursor-pointer ${
+                              selectedDomain === domain
+                                ? 'bg-text-0 text-ink-0 font-medium'
+                                : 'bg-card border border-line text-text-1 hover:text-text-0 hover:border-text-1'
+                            }`}
+                          >
+                            {domain}
+                          </button>
+                        ))}
                       </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                /* Empty state */
-                <div className="p-10 rounded-radius border border-dashed border-line bg-card/20 text-center space-y-3">
-                  <div className="w-10 h-10 rounded-full bg-card border border-line flex items-center justify-center mx-auto text-text-1">
-                    <Search className="w-4 h-4" />
+
+                      <div className="flex items-center gap-1.5 pl-2 border-l border-line/60">
+                        <span className="text-text-1 font-mono">Sort:</span>
+                        <select
+                          value={sortBy}
+                          onChange={(e) => setSortBy(e.target.value as 'recent' | 'latency' | 'throughput')}
+                          aria-label="Sort verified proofs"
+                          className="px-2 py-1 rounded-radius bg-card border border-line text-text-0 font-mono text-xs focus:border-emerald outline-none cursor-pointer"
+                        >
+                          <option value="recent">Most Recent</option>
+                          <option value="latency">Lowest Latency (p99)</option>
+                          <option value="throughput">Highest Throughput</option>
+                        </select>
+                      </div>
+
+                      {(proofSearch || selectedDomain !== 'all' || sortBy !== 'recent') && (
+                        <button
+                          onClick={() => {
+                            setProofSearch('');
+                            setSelectedDomain('all');
+                            setSortBy('recent');
+                          }}
+                          className="text-text-1 hover:text-text-0 p-1 ml-1"
+                          title="Reset filters and sorting"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-semibold text-text-0">
-                      No proofs match your criteria
+
+                  {/* Submissions List Container */}
+                  {sortedSubmissions.length > 0 ? (
+                    <div className="rounded-radius border border-line bg-card/30 divide-y divide-line overflow-hidden">
+                      {sortedSubmissions.map((entry) => {
+                        const idea = ideas.find((i) => i.id === entry.ideaId);
+                        const domainStyle = idea
+                          ? getDomainStyle(idea.domain)
+                          : getDomainStyle('fintech');
+                        const isCopied = copiedHash === entry.hash;
+
+                        return (
+                          <div
+                            key={entry.hash}
+                            className="p-4 sm:p-5 hover:bg-card/70 transition-colors space-y-3"
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                {/* Commit Hash button */}
+                                <button
+                                  onClick={(e) => handleCopyHash(entry.hash, e)}
+                                  className="font-mono text-xs px-2 py-0.5 rounded border border-line bg-ink-0 text-text-0 hover:border-emerald transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+                                  title="Click to copy commit hash"
+                                >
+                                  <span>#{entry.hash}</span>
+                                  {isCopied ? (
+                                    <Check className="w-3 h-3 text-emerald" />
+                                  ) : (
+                                    <Copy className="w-2.5 h-2.5 opacity-50" />
+                                  )}
+                                </button>
+
+                                {/* Title */}
+                                <Link
+                                  href={`/ideas/${entry.ideaId}`}
+                                  className="font-semibold text-sm sm:text-base text-text-0 hover:text-emerald-text hover:underline transition-colors"
+                                >
+                                  {entry.ideaTitle}
+                                </Link>
+
+                                {/* Domain Badge */}
+                                {idea && (
+                                  <span
+                                    className={`text-xs px-2 py-0.5 rounded border font-mono font-medium ${domainStyle.badge}`}
+                                  >
+                                    {domainStyle.name}
+                                  </span>
+                                )}
+
+                                {/* Verified Status */}
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-tint border border-emerald-border text-emerald-text text-xs font-mono font-medium">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald" />
+                                  CI Verified
+                                </span>
+                              </div>
+
+                              <div className="text-xs font-mono text-text-1">
+                                {new Date(entry.timestamp).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Architecture Notes */}
+                            <p className="text-xs sm:text-sm text-text-1 leading-relaxed max-w-3xl">
+                              {entry.architectureNotes}
+                            </p>
+
+                            {/* Telemetry and Links Row */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-t border-line/40 text-xs font-mono">
+                              {/* Metrics chips */}
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-text-1">
+                                {entry.metrics?.latencyP99 && (
+                                  <span>
+                                    Latency p99:{' '}
+                                    <strong className="text-text-0 font-semibold">
+                                      {entry.metrics.latencyP99}
+                                    </strong>
+                                  </span>
+                                )}
+                                {entry.metrics?.throughput && (
+                                  <span>
+                                    Throughput:{' '}
+                                    <strong className="text-text-0 font-semibold">
+                                      {entry.metrics.throughput}
+                                    </strong>
+                                  </span>
+                                )}
+                                {entry.metrics?.coverage && (
+                                  <span>
+                                    Coverage:{' '}
+                                    <strong className="text-text-0 font-semibold">
+                                      {entry.metrics.coverage}
+                                    </strong>
+                                  </span>
+                                )}
+                                <span className="text-emerald-text font-medium">
+                                  ✓ {entry.testResults.passed}/{entry.testResults.total} tests passed
+                                </span>
+                              </div>
+
+                              {/* Action Links */}
+                              <div className="flex items-center gap-3 shrink-0">
+                                {entry.repoUrl && (
+                                  <a
+                                    href={entry.repoUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-text-1 hover:text-text-0 hover:underline inline-flex items-center gap-1"
+                                  >
+                                    <span>Code Repo</span>
+                                    <ExternalLink className="w-3 h-3 opacity-60" />
+                                  </a>
+                                )}
+                                {entry.demoUrl && (
+                                  <a
+                                    href={entry.demoUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-emerald-text hover:underline inline-flex items-center gap-1"
+                                  >
+                                    <span>Live Demo</span>
+                                    <ExternalLink className="w-3 h-3 opacity-60" />
+                                  </a>
+                                )}
+                                <Link
+                                  href={`/ideas/${entry.ideaId}`}
+                                  className="text-text-0 hover:text-emerald-text hover:underline font-medium inline-flex items-center gap-1"
+                                >
+                                  <span>View Spec</span>
+                                  <ChevronRight className="w-3.5 h-3.5" />
+                                </Link>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    /* Empty search filter state */
+                    <div className="p-8 rounded-radius border border-line bg-card/20 text-center space-y-3">
+                      <p className="text-xs text-text-1 font-mono">
+                        No stamped proofs match &ldquo;{proofSearch}&rdquo; in domain &ldquo;{selectedDomain}&rdquo;.
+                      </p>
+                      <button
+                        onClick={() => {
+                          setProofSearch('');
+                          setSelectedDomain('all');
+                        }}
+                        className="btn-outline text-xs py-1.5 px-3"
+                      >
+                        Reset filters
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* High-Value "First Proof Onboarding Deck" for 0-proof profiles */
+                <div className="p-6 md:p-8 rounded-radius border border-line bg-card/40 space-y-6">
+                  <div className="max-w-2xl space-y-2">
+                    <div className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold uppercase tracking-wider text-emerald-text">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Ledger Setup · Step 1 of 1</span>
+                    </div>
+                    <h3 className="text-lg md:text-xl font-semibold tracking-tight text-text-0">
+                      Stamp Your First Verified Engineering Proof
                     </h3>
-                    <p className="text-xs text-text-1 max-w-sm mx-auto">
-                      {proofSearch || selectedDomain !== 'all'
-                        ? 'Try clearing the keyword search or selecting a different technical domain.'
-                        : 'You haven’t stamped any solutions on your ledger yet. Choose a problem from the Idea Bank to start.'}
+                    <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
+                      DevLedgr replaces resume claims with automated CI attestation. Choose a production-grade failure mode specification below, build a lightweight service with the provided mock harness, and stamp your commit hash to activate your 1-Year Guarantee.
                     </p>
                   </div>
-                  {proofSearch || selectedDomain !== 'all' ? (
-                    <button
-                      onClick={() => {
-                        setProofSearch('');
-                        setSelectedDomain('all');
-                      }}
-                      className="btn-outline text-xs py-1.5 px-3"
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {ideas.slice(0, 3).map((idea) => {
+                      const domainStyle = getDomainStyle(idea.domain);
+                      return (
+                        <div
+                          key={idea.id}
+                          className="p-4.5 rounded-radius border border-line bg-card hover:border-emerald/50 hover:shadow-xs transition-all flex flex-col justify-between space-y-4"
+                        >
+                          <div className="space-y-2.5">
+                            <div className="flex items-center justify-between text-xs font-mono">
+                              <span className={`px-2 py-0.5 rounded border font-medium ${domainStyle.badge}`}>
+                                {domainStyle.name}
+                              </span>
+                              <span className="text-text-1 font-medium">~{idea.estimatedHours}h</span>
+                            </div>
+
+                            <h4 className="font-semibold text-sm text-text-0 leading-snug">
+                              {idea.title}
+                            </h4>
+
+                            <p className="text-xs text-text-1 leading-relaxed line-clamp-3">
+                              {idea.tagline}
+                            </p>
+                          </div>
+
+                          <div className="pt-3 border-t border-line/50 flex items-center justify-between text-xs font-mono">
+                            <span className="text-text-1">
+                              {idea.submissionCount} stamped
+                            </span>
+                            <Link
+                              href={`/ideas/${idea.id}`}
+                              className="text-emerald-text font-medium hover:underline inline-flex items-center gap-1"
+                            >
+                              <span>Solve Spec</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </Link>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono text-text-1 border-t border-line/40">
+                    <span>
+                      Each spec provides pre-configured mock infrastructure, payload burst generators, and automated test contracts.
+                    </span>
+                    <Link
+                      href="/ideas"
+                      className="text-emerald-text hover:underline inline-flex items-center gap-1 shrink-0 font-medium"
                     >
-                      Reset filters
-                    </button>
-                  ) : (
-                    <Link href="/ideas" className="btn-brass text-xs py-1.5 px-3">
-                      Browse Idea Bank
+                      <span>Explore all 4 problem specs</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </Link>
-                  )}
+                  </div>
                 </div>
               )}
             </div>
@@ -1131,20 +1233,30 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Progress bar */}
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center text-xs font-mono">
-                    <span className="text-text-1">Curriculum Completion</span>
-                    <span className="text-emerald-text font-semibold">
-                      2 of 4 Milestones Stamped (50%)
-                    </span>
-                  </div>
-                  <div className="w-full h-2 rounded-full bg-line overflow-hidden">
-                    <div
-                      className="h-full bg-emerald transition-all duration-300"
-                      style={{ width: '50%' }}
-                    />
-                  </div>
-                </div>
+                {(() => {
+                  const solvedCount = activeCoaching.milestones.filter(
+                    (m) => m.ideaIdRef && userSolvedIdeaIds.has(m.ideaIdRef)
+                  ).length;
+                  const totalCount = activeCoaching.milestones.length;
+                  const pct = Math.round((solvedCount / totalCount) * 100);
+
+                  return (
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center text-xs font-mono">
+                        <span className="text-text-1">Curriculum Completion</span>
+                        <span className="text-emerald-text font-semibold">
+                          {solvedCount} of {totalCount} Milestones Stamped ({pct}%)
+                        </span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-line overflow-hidden">
+                        <div
+                          className="h-full bg-emerald transition-all duration-300"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Milestones timeline */}
@@ -1153,40 +1265,47 @@ export default function DashboardPage() {
                   Milestone Sequence
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {activeCoaching.milestones.map((m) => {
-                    const isSolved = m.ideaIdRef ? userSolvedIdeaIds.has(m.ideaIdRef) : false;
-                    const isCurrent = m.week === 3;
+                {(() => {
+                  // Find first unsolved milestone as current active target
+                  const firstUnsolvedWeek = activeCoaching.milestones.find(
+                    (m) => !m.ideaIdRef || !userSolvedIdeaIds.has(m.ideaIdRef)
+                  )?.week || 1;
 
-                    return (
-                      <div
-                        key={m.week}
-                        className={`p-4 rounded-radius border transition-all space-y-3 ${
-                          isSolved
-                            ? 'border-emerald-border bg-emerald-tint/40'
-                            : isCurrent
-                            ? 'border-emerald bg-card ring-1 ring-emerald/30'
-                            : 'border-line bg-card/40 opacity-75'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between text-xs font-mono">
-                          <span className="font-semibold text-text-1">
-                            WEEK 0{m.week}
-                          </span>
-                          {isSolved ? (
-                            <span className="inline-flex items-center gap-1 text-emerald-text font-medium">
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>Verified in Ledger</span>
-                            </span>
-                          ) : isCurrent ? (
-                            <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400 font-medium">
-                              <Zap className="w-3.5 h-3.5" />
-                              <span>Active Target</span>
-                            </span>
-                          ) : (
-                            <span className="text-text-1">Upcoming</span>
-                          )}
-                        </div>
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {activeCoaching.milestones.map((m) => {
+                        const isSolved = m.ideaIdRef ? userSolvedIdeaIds.has(m.ideaIdRef) : false;
+                        const isCurrent = !isSolved && m.week === firstUnsolvedWeek;
+
+                        return (
+                          <div
+                            key={m.week}
+                            className={`p-4 rounded-radius border transition-all space-y-3 ${
+                              isSolved
+                                ? 'border-emerald-border bg-emerald-tint/40'
+                                : isCurrent
+                                ? 'border-emerald bg-card ring-1 ring-emerald/30'
+                                : 'border-line bg-card/40 opacity-75'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between text-xs font-mono">
+                              <span className="font-semibold text-text-1">
+                                WEEK 0{m.week}
+                              </span>
+                              {isSolved ? (
+                                <span className="inline-flex items-center gap-1 text-emerald-text font-medium">
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>Verified in Ledger</span>
+                                </span>
+                              ) : isCurrent ? (
+                                <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400 font-medium">
+                                  <Zap className="w-3.5 h-3.5" />
+                                  <span>Active Target</span>
+                                </span>
+                              ) : (
+                                <span className="text-text-1">Upcoming</span>
+                              )}
+                            </div>
 
                         <div>
                           <div className="font-semibold text-sm text-text-0">
@@ -1221,9 +1340,11 @@ export default function DashboardPage() {
                     );
                   })}
                 </div>
-              </div>
-            </div>
-          )}
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
           {/* ========================================================= */}
           {/* TAB 4: AUDIT TRAIL & NOTIFICATIONS                        */}
