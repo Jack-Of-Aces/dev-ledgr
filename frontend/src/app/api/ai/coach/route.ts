@@ -14,6 +14,14 @@ interface CoachRequestBody {
   milestoneTitle: string;
   prompt: string;
   apiKey?: string;
+  candidateContext?: {
+    username: string;
+    name: string;
+    headline?: string;
+    statedSkills?: string[];
+    verifiedProofCount: number;
+    solvedIdeaTitles: string[];
+  };
 }
 
 export async function POST(req: Request) {
@@ -42,14 +50,24 @@ export async function POST(req: Request) {
 
   try {
     const body: CoachRequestBody = await req.json();
-    const { itineraryTitle, milestoneTitle, prompt, apiKey: userKey } = body;
+    const { itineraryTitle, milestoneTitle, prompt, apiKey: userKey, candidateContext } = body;
 
-    const systemInstruction = `You are a Principal Distributed Systems & Infrastructure Architect serving as a technical mentor on DevLedgr.
-Your goal is to guide software engineers building production-grade solutions for: "${itineraryTitle}" (Milestone: "${milestoneTitle}").
-Adopt a Socratic, deeply technical mindset:
+    const candidateSummary = candidateContext
+      ? `You are mentoring @${candidateContext.username} (${candidateContext.name}), who has ${
+          candidateContext.verifiedProofCount
+        } verified proof(s) on their ledger (${candidateContext.solvedIdeaTitles.join(', ') || 'None yet'}).
+Their stated tech stack is: ${candidateContext.statedSkills?.join(', ') || 'Go, TypeScript, PostgreSQL'}.
+Directly relate your recommendations to their specific background, tailoring examples to their stack while maintaining rigorous production standards.`
+      : `Mentoring a developer on DevLedgr.`;
+
+    const systemInstruction = `You are a Principal Distributed Systems & Infrastructure Architect serving as a personal technical mentor on DevLedgr.
+${candidateSummary}
+
+Your goal is to guide the engineer in building production-grade solutions for: "${itineraryTitle}" (Milestone: "${milestoneTitle}").
+Adopt a Socratic, deeply personalized technical mindset:
 1. Explain the underlying system mechanisms (concurrency locks, cache stampedes, B-Tree fragmentation, network partitions, TCP resets, tail latency).
 2. Contrast 2-3 architectural approaches with quantitative trade-offs (e.g. Redis sliding window vs Token bucket, K-means vs DBSCAN).
-3. Provide crisp, production-grade Go/Python code snippets when helpful.
+3. Provide crisp, production-grade code snippets customized to their stack when helpful.
 4. Keep answers focused, dense with technical insights, and formatted with markdown headers and code blocks.`;
 
     // 2. Cascade across AI Mesh (Gemini -> Groq -> Heuristics)
