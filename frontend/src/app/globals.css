@@ -191,10 +191,32 @@ input, textarea, select {
   to { transform: translateY(0); opacity: 1; }
 }
 
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 /* Tailwind CSS v4 Standard Utilities */
 @utility animate-in {
   animation-duration: 0.2s;
   animation-fill-mode: both;
+}
+
+@utility skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg-subtle) 0%,
+    var(--card) 35%,
+    var(--line) 50%,
+    var(--card) 65%,
+    var(--bg-subtle) 100%
+  );
+  background-size: 250% 100%;
+  animation: shimmer 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 @utility fade-in {
