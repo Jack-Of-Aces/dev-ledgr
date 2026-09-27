@@ -18,6 +18,7 @@ import {
   GitBranch,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { Skeleton } from '@/components/ui/skeletons';
 
 interface GitHubInspectData {
   valid: boolean;
@@ -418,6 +419,21 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
                   onChange={(e) => handleRepoUrlChange(e.target.value)}
                   className="w-full px-3 py-2 rounded-radius border border-line bg-card text-text-0 focus:border-green-500 outline-none transition-colors"
                 />
+
+                {/* Shimmering Inspection Skeleton */}
+                {isInspecting && !inspectionData && (
+                  <div className="mt-2.5 p-3 rounded-radius border border-line bg-card/60 space-y-2 text-xs md:text-sm">
+                    <div className="flex items-center justify-between">
+                      <Skeleton variant="rectangular" className="h-4 w-44" />
+                      <Skeleton variant="rectangular" className="h-3.5 w-32" />
+                    </div>
+                    <div className="flex items-center gap-3 pt-1">
+                      <Skeleton variant="pill" className="h-4 w-20" />
+                      <Skeleton variant="pill" className="h-4 w-24" />
+                      <Skeleton variant="rectangular" className="h-4 w-36" />
+                    </div>
+                  </div>
+                )}
 
                 {/* Live GitHub Inspection Result Card */}
                 {inspectionData && (

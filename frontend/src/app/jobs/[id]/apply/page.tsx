@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { aiService } from '@/services/ai/aiService';
 import { ScrutinyResult } from '@/services/ai/IAIService';
+import { JobApplySkeleton } from '@/components/ui/skeletons';
 import {
   Sparkles,
   ShieldCheck,
@@ -19,34 +20,15 @@ import {
   Download,
 } from 'lucide-react';
 
-/**
- * JobApplyPage
- *
- * BUSINESS LOGIC:
- * This page is the core value-delivery point of DevLedgr. It runs an AI-powered
- * audit of the candidate's verified ledger entries against a specific job's technical
- * requirements. There are two outcome branches:
- *
- *   1. "ready" - All proof points verified. The AI synthesizes an ATS-safe CV and
- *      tailored cover letter, both pre-populated with commit hashes and performance metrics.
- *
- *   2. "gap" - A skill gap is identified. The user is redirected to a targeted problem
- *      in the Idea Bank that closes the gap. This is the core "incentive loop" of DevLedgr.
- *
- * The audit delegates entirely to aiService.runScrutinyAudit(), which calls the AI gateway
- * if available or runs a deterministic heuristic fallback - callers never need to distinguish.
- * Mutations (generating CV content) never silently fall back to mocks; they either succeed
- * or fail loudly so users always know what they're getting.
- *
- * UI IMPLEMENTATION:
- * - Step 1: Trigger card → user initiates audit.
- * - Step 2: Live terminal log → streams audit steps in real-time via onLog callback.
- * - Step 3: Result branch (ready / gap) → renders the appropriate output.
- */
 export default function JobApplyPage() {
   const params = useParams();
   const id = params?.id as string;
   const { jobs, user, submissions, ideas } = useAppStore();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const job = jobs.find((j) => j.id === id) || jobs[0];
   const userSubmissions = submissions.filter(
@@ -128,6 +110,10 @@ export default function JobApplyPage() {
     URL.revokeObjectURL(url);
   };
 
+  if (!mounted || !job) {
+    return <JobApplySkeleton />;
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-10 font-mono text-xs md:text-sm">
       {/* Back Link */}
@@ -199,6 +185,10 @@ export default function JobApplyPage() {
                 <span>{log}</span>
               </div>
             ))}
+            <div className="flex items-center gap-2 pt-1 opacity-70">
+              <span className="text-green-700 dark:text-green-400">›</span>
+              <div className="h-3.5 w-52 bg-line rounded skeleton-shimmer" />
+            </div>
           </div>
         </div>
       )}

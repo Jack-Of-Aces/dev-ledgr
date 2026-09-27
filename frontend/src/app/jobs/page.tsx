@@ -1,12 +1,18 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { ArrowRight, Sparkles, Building2, MapPin, CheckCircle2 } from 'lucide-react';
+import { JobGridSkeleton } from '@/components/ui/skeletons';
 
 export default function JobsPage() {
   const { jobs, submissions, getJobMatchDetails } = useAppStore();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-10">
@@ -42,8 +48,11 @@ export default function JobsPage() {
       </div>
 
       {/* Jobs List */}
-      <div className="space-y-4">
-        {jobs.map((job) => {
+      {!mounted ? (
+        <JobGridSkeleton count={4} />
+      ) : (
+        <div className="space-y-4">
+          {jobs.map((job) => {
           const matchDetails = getJobMatchDetails(job);
           const isHighMatch = !matchDetails.hasGap && matchDetails.score >= 80;
 
@@ -53,23 +62,23 @@ export default function JobsPage() {
               className="rounded-radius border border-line bg-card hover:border-zinc-700/80 transition-all p-6 space-y-4 text-xs md:text-sm"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-line">
-                <div>
+                <div className="space-y-1">
                   <div className="flex items-center gap-2 text-xs md:text-sm font-mono text-green-700 dark:text-green-400 font-medium">
-                    <Building2 className="w-3.5 h-3.5" />
+                    <Building2 className="w-3.5 h-3.5 shrink-0" />
                     <span>{job.company}</span>
                     <span>·</span>
                     <span className="flex items-center gap-1 text-text-1">
-                      <MapPin className="w-3 h-3" />
+                      <MapPin className="w-3 h-3 shrink-0" />
                       {job.location}
                     </span>
                   </div>
-                  <h2 className="text-xl font-semibold tracking-tight text-text-0 mt-1 font-sans">
+                  <h2 className="text-xl font-semibold tracking-tight text-text-0 font-sans">
                     {job.title}
                   </h2>
                 </div>
 
-                <div className="flex items-center justify-between sm:justify-end gap-3 font-mono w-full sm:w-auto">
-                  <div className="text-left sm:text-right">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between sm:justify-end gap-3 font-mono w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-line/40">
+                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center">
                     <div
                       className={`text-sm lg:text-base font-bold ${
                         isHighMatch ? 'text-green-700 dark:text-green-400' : 'text-zinc-600 dark:text-zinc-400'
@@ -84,10 +93,10 @@ export default function JobsPage() {
 
                   <Link
                     href={`/jobs/${job.id}/apply`}
-                    className="btn-brass text-xs md:text-sm py-2 px-4 shrink-0"
+                    className="btn-brass text-xs md:text-sm py-2 px-4 w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-1.5 font-sans"
                   >
                     <span>Run AI Scrutiny</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                   </Link>
                 </div>
               </div>
@@ -125,7 +134,8 @@ export default function JobsPage() {
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

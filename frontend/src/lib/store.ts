@@ -10,6 +10,10 @@ interface AppState {
   setTheme: (theme: 'light' | 'dark') => void;
   toggleTheme: () => void;
 
+  isHydrated: boolean;
+  setHydrated: (isHydrated: boolean) => void;
+  refreshData: () => void;
+
   user: UserProfile;
   setUser: (user: Partial<UserProfile>) => void;
   isLoggedIn: boolean;
@@ -75,6 +79,29 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       theme: 'dark',
+      isHydrated: false,
+      setHydrated: (isHydrated) => set({ isHydrated }),
+      refreshData: () => {
+        set((state) => {
+          // Merge newly added ideas without losing custom-created ones
+          const existingIdeaIds = new Set(state.ideas.map((i) => i.id));
+          const freshIdeas = INITIAL_IDEAS.filter((i) => !existingIdeaIds.has(i.id));
+          const updatedIdeas = state.ideas.map((idea) => {
+            const canonical = INITIAL_IDEAS.find((i) => i.id === idea.id);
+            return canonical ? { ...canonical, submissionCount: Math.max(canonical.submissionCount, idea.submissionCount) } : idea;
+          });
+
+          // Merge fresh submissions
+          const existingHashes = new Set(state.submissions.map((s) => s.hash.toLowerCase()));
+          const freshSubs = INITIAL_SUBMISSIONS.filter((s) => !existingHashes.has(s.hash.toLowerCase()));
+
+          return {
+            ideas: [...updatedIdeas, ...freshIdeas],
+            submissions: [...freshSubs, ...state.submissions],
+            jobs: INITIAL_JOBS,
+          };
+        });
+      },
       setTheme: (theme) => {
         if (typeof document !== 'undefined') {
           document.documentElement.setAttribute('data-theme', theme);
@@ -267,7 +294,11 @@ export const useAppStore = create<AppState>()(
       clearToast: () => set({ activeToast: null }),
     }),
     {
-      name: 'devledgr_storage_v1',
+      name: 'devledgr_storage_v2',
+      onRehydrateStorage: () => (state) => {
+        state?.setHydrated(true);
+        state?.refreshData();
+      },
       partialize: (state) => ({
         theme: state.theme,
         user: state.user,

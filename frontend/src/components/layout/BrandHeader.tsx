@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { BrandMark } from '../brand/BrandMark';
 import { useAppStore } from '@/lib/store';
 import { UserMenu } from '@/components/layout/UserMenu';
+import { Skeleton } from '@/components/ui/skeletons';
 import {
   Sun,
   Moon,
@@ -41,7 +42,7 @@ export const BrandHeader: React.FC = () => {
   }, [mobileMenuOpen]);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('devledgr_storage_v1');
+    const savedTheme = localStorage.getItem('devledgr_storage_v2') || localStorage.getItem('devledgr_storage_v1');
     if (savedTheme) {
       try {
         const parsed = JSON.parse(savedTheme);
@@ -126,7 +127,11 @@ export const BrandHeader: React.FC = () => {
            * Unauthenticated users get the "Connect" CTA which opens the AuthModal.
            * UserMenu encapsulates all post-auth navigation - BrandHeader stays thin.
            */}
-          {isLoggedIn ? (
+          {!mounted ? (
+            <div className="flex items-center gap-2">
+              <Skeleton variant="pill" className="w-24 h-8" />
+            </div>
+          ) : isLoggedIn ? (
             <div className="flex items-center gap-2">
               <Link
                 href="/dashboard"

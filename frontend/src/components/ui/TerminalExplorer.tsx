@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { MockEndpoint, MockInfraSpec } from '@/types';
 import { Check, Copy, Play, Terminal } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeletons';
 
 interface TerminalExplorerProps {
   mockInfra: MockInfraSpec;
@@ -143,21 +144,38 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
         >
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-line text-xs md:text-sm text-text-1">
             <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-diff-green" />
-              <span>HTTP/1.1 200 OK</span>
+              <span className={`w-2 h-2 rounded-full ${simulating ? 'bg-amber-500 animate-ping' : 'bg-diff-green'}`} />
+              <span>{simulating ? 'DISPATCHING STREAM...' : 'HTTP/1.1 200 OK'}</span>
             </span>
-            {latency && (
+            {simulating ? (
+              <span className="text-text-1 animate-pulse">measuring roundtrip...</span>
+            ) : latency ? (
               <span className="text-diff-green font-semibold">
                 latency: {latency}ms (p95 within SLA)
               </span>
-            )}
+            ) : null}
           </div>
 
-          <pre className="overflow-x-auto text-xs md:text-sm leading-relaxed text-text-0">
-            <code>
-              {responseLog || JSON.stringify(currentEndpoint.responseSample, null, 2)}
-            </code>
-          </pre>
+          {simulating ? (
+            <div className="space-y-2 py-2 px-1">
+              <div className="flex items-center gap-2">
+                <Skeleton variant="rectangular" className="h-3.5 w-20" />
+                <Skeleton variant="rectangular" className="h-3.5 w-36" />
+              </div>
+              <div className="pl-4 space-y-1.5">
+                <Skeleton variant="rectangular" className="h-3 w-48" />
+                <Skeleton variant="rectangular" className="h-3 w-64" />
+                <Skeleton variant="rectangular" className="h-3 w-40" />
+              </div>
+              <Skeleton variant="rectangular" className="h-3.5 w-12" />
+            </div>
+          ) : (
+            <pre className="overflow-x-auto text-xs md:text-sm leading-relaxed text-text-0">
+              <code>
+                {responseLog || JSON.stringify(currentEndpoint.responseSample, null, 2)}
+              </code>
+            </pre>
+          )}
         </div>
 
         {/* Test Criteria */}

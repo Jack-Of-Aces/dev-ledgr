@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { INITIAL_COACHING } from '@/lib/mock-data';
 import { aiService } from '@/services/ai/aiService';
+import { CoachingSkeleton } from '@/components/ui/skeletons';
 import {
   ArrowLeft,
   Terminal,
@@ -39,11 +40,16 @@ export default function CoachingDetailPage() {
   )?.week || 1;
 
   const [activeWeek, setActiveWeek] = useState(initialWeek);
+  const [mounted, setMounted] = useState(false);
   const [consoleTab, setConsoleTab] = useState<ConsoleTab>('socratic');
   const [promptOutput, setPromptOutput] = useState<string | null>(null);
   const [activePromptLabel, setActivePromptLabel] = useState<string | null>(null);
   const [customQuestion, setCustomQuestion] = useState('');
   const [isLoadingCoach, setIsLoadingCoach] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const selectedMilestone =
     itinerary.milestones.find((m) => m.week === activeWeek) || itinerary.milestones[0];
@@ -95,24 +101,28 @@ export default function CoachingDetailPage() {
     handleRunPrompt(q);
   };
 
+  if (!mounted || !itinerary) {
+    return <CoachingSkeleton />;
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 md:py-12 space-y-8 font-sans">
       {/* ========================================================= */}
       {/* 1. BREADCRUMBS & EXECUTIVE HEADER                         */}
       {/* ========================================================= */}
       <section className="space-y-4 pb-6 border-b border-line">
-        <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono text-text-1">
-          <div className="flex items-center gap-2">
-            <Link href="/coaching" className="hover:text-text-0 transition-colors">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs font-mono text-text-1">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Link href="/coaching" className="hover:text-text-0 transition-colors shrink-0">
               Coaching
             </Link>
-            <ChevronRight className="w-3.5 h-3.5 opacity-40" />
-            <span className="text-text-0 font-medium truncate max-w-xs">{itinerary.title}</span>
-            <ChevronRight className="w-3.5 h-3.5 opacity-40" />
-            <span className="text-emerald-text">Week 0{selectedMilestone.week}</span>
+            <ChevronRight className="w-3.5 h-3.5 opacity-40 shrink-0" />
+            <span className="text-text-0 font-medium truncate max-w-[130px] sm:max-w-xs">{itinerary.title}</span>
+            <ChevronRight className="w-3.5 h-3.5 opacity-40 shrink-0" />
+            <span className="text-emerald-text shrink-0">Week 0{selectedMilestone.week}</span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0 text-xs">
             <span>Candidate: <strong className="text-text-0 font-medium">@{user.username}</strong></span>
             <span className="text-line">/</span>
             <span className="text-emerald-text font-medium">
@@ -123,8 +133,8 @@ export default function CoachingDetailPage() {
 
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-2 max-w-3xl">
-            <div className="flex items-center gap-2">
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-tint border border-emerald-border text-emerald-text font-mono font-medium">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-tint border border-emerald-border text-emerald-text font-mono font-medium shrink-0">
                 {itinerary.durationWeeks}-Week Career Track
               </span>
               <span className="text-xs font-mono text-text-1">
@@ -141,7 +151,7 @@ export default function CoachingDetailPage() {
 
           <Link
             href="/coaching"
-            className="btn-outline text-xs py-2 px-3 self-start md:self-auto shrink-0 inline-flex items-center gap-1.5 font-mono"
+            className="btn-outline text-xs py-2 px-3 self-start md:self-auto shrink-0 inline-flex items-center justify-center gap-1.5 font-mono w-full sm:w-auto"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>All Itineraries</span>
@@ -155,7 +165,7 @@ export default function CoachingDetailPage() {
       <div
         role="tablist"
         aria-label="Curriculum milestone sequence"
-        className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pb-2"
+        className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-2.5 pb-2"
       >
         {itinerary.milestones.map((m) => {
           const isDone = m.ideaIdRef ? userSolvedIdeaIds.has(m.ideaIdRef) : false;
@@ -173,7 +183,7 @@ export default function CoachingDetailPage() {
                 setPromptOutput(null);
                 setActivePromptLabel(null);
               }}
-              className={`p-3 rounded-radius border text-left transition-all cursor-pointer space-y-1.5 ${
+              className={`p-2.5 sm:p-3 rounded-radius border text-left transition-all cursor-pointer space-y-1.5 ${
                 isCurrent
                   ? 'border-emerald bg-card shadow-xs ring-1 ring-emerald/30'
                   : 'border-line bg-card/60 hover:border-text-1/60'
@@ -184,12 +194,12 @@ export default function CoachingDetailPage() {
                   WEEK 0{m.week}
                 </span>
                 {isDone ? (
-                  <span className="text-emerald-text inline-flex items-center gap-0.5 text-xs font-bold">
+                  <span className="text-emerald-text inline-flex items-center gap-0.5 text-[11px] sm:text-xs font-bold">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>Sealed</span>
                   </span>
                 ) : (
-                  <span className="text-text-1 text-xs">Target</span>
+                  <span className="text-text-1 text-[11px] sm:text-xs">Target</span>
                 )}
               </div>
               <div className="text-xs font-medium text-text-0 line-clamp-1">
@@ -254,7 +264,7 @@ export default function CoachingDetailPage() {
 
                   <Link
                     href={`/ideas/${pairedIdea.id}`}
-                    className="btn-brass text-xs py-1.5 px-3 self-start sm:self-auto shrink-0 inline-flex items-center gap-1"
+                    className="btn-brass text-xs py-1.5 px-3 w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-1 font-medium"
                   >
                     <span>{isMilestoneSolved ? 'Inspect Sealed Spec' : 'Solve Spec →'}</span>
                     <ArrowRight className="w-3 h-3" />
@@ -414,9 +424,16 @@ export default function CoachingDetailPage() {
 
             {/* Loading State */}
             {isLoadingCoach && (
-              <div className="p-4 rounded-radius border border-line bg-card flex items-center gap-3 text-xs md:text-sm text-text-1">
-                <Loader2 className="w-4 h-4 animate-spin text-emerald-text" />
-                <span>AI Mentor synthesizing architectural trade-offs for @{user.username}...</span>
+              <div className="p-4 sm:p-5 rounded-radius border border-line bg-card space-y-3 text-xs md:text-sm">
+                <div className="flex items-center gap-3 text-text-1 font-mono">
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-text shrink-0" />
+                  <span>AI Mentor synthesizing architectural trade-offs for @{user.username}...</span>
+                </div>
+                <div className="space-y-2 pt-1 pl-7">
+                  <div className="h-3.5 w-full bg-line rounded skeleton-shimmer" />
+                  <div className="h-3.5 w-4/5 bg-line rounded skeleton-shimmer" />
+                  <div className="h-3.5 w-2/3 bg-line rounded skeleton-shimmer" />
+                </div>
               </div>
             )}
 

@@ -14,6 +14,25 @@ import { Shield, User, ChevronUp, ChevronDown, Check } from 'lucide-react';
 export const RoleSwitcher: React.FC = () => {
   const { user, role, switchRole, isLoggedIn } = useAuth();
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  const handleRoleSwitch = async (targetRole: 'user' | 'admin') => {
+    if (role === targetRole || isSwitching) return;
+    setIsSwitching(true);
+    try {
+      await switchRole(targetRole);
+      setOpen(false);
+    } finally {
+      setIsSwitching(false);
+    }
+  };
 
   return (
     <div className="fixed bottom-3 right-3 z-50 font-mono text-xs md:text-sm max-w-[calc(100vw-1.5rem)]">
@@ -21,13 +40,14 @@ export const RoleSwitcher: React.FC = () => {
         {/* Toggle Bar */}
         <button
           onClick={() => setOpen(!open)}
-          className="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-ink-1 text-text-0 text-xs md:text-sm"
+          disabled={isSwitching}
+          className="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-ink-1 text-text-0 text-xs md:text-sm transition-opacity disabled:opacity-60"
           aria-expanded={open}
           aria-label="Toggle Developer Sandbox Persona Bar"
         >
-          <span className="w-2 h-2 rounded-full bg-text-0" />
+          <span className={`w-2 h-2 rounded-full ${isSwitching ? 'bg-amber-500 animate-pulse' : 'bg-text-0'}`} />
           <span className="font-semibold">
-            {role === 'admin' ? 'Admin Mode' : 'User Mode'}
+            {isSwitching ? 'Switching...' : role === 'admin' ? 'Admin Mode' : 'User Mode'}
           </span>
           <span className="text-text-1">(@{user.username})</span>
           {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
@@ -45,10 +65,8 @@ export const RoleSwitcher: React.FC = () => {
 
             <div className="space-y-1">
               <button
-                onClick={() => {
-                  switchRole('user');
-                  setOpen(false);
-                }}
+                onClick={() => handleRoleSwitch('user')}
+                disabled={isSwitching}
                 className={`w-full flex items-center justify-between p-2 rounded text-left cursor-pointer transition-colors ${
                   role === 'user'
                     ? 'bg-ink-1 text-text-0 border border-line'
@@ -66,10 +84,8 @@ export const RoleSwitcher: React.FC = () => {
               </button>
 
               <button
-                onClick={() => {
-                  switchRole('admin');
-                  setOpen(false);
-                }}
+                onClick={() => handleRoleSwitch('admin')}
+                disabled={isSwitching}
                 className={`w-full flex items-center justify-between p-2 rounded text-left cursor-pointer transition-colors ${
                   role === 'admin'
                     ? 'bg-ink-1 text-text-0 border border-line'

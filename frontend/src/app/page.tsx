@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { LedgerEntryRow } from "@/components/ui/LedgerEntryRow";
+import { LedgerFeedSkeleton } from "@/components/ui/skeletons";
 import { useAppStore } from "@/lib/store";
 import {
   ArrowRight,
@@ -19,6 +20,11 @@ import {
 export default function HomePage() {
   const { submissions, isLoggedIn } = useAppStore();
   const [copiedHash, setCopiedHash] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleCopyHash = () => {
     if (typeof window !== "undefined") {
@@ -35,45 +41,41 @@ export default function HomePage() {
       {/* ========================================================= */}
       <section className="space-y-8 md:space-y-10">
         <div className="space-y-5 max-w-3xl">
-          <h1 className="text-4xl sm:text-6xl font-semibold tracking-tight text-text-0 leading-[1.08]">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl font-semibold tracking-tight text-text-0 leading-[1.05]">
             Proof of work, <br className="hidden sm:inline" />
-            <span className="text-text-1">not another tutorial clone.</span>
+            <span className="text-text-1">not tutorial clones.</span>
           </h1>
 
-          <p className="text-base sm:text-lg text-text-1 leading-relaxed max-w-2xl">
-            Generic resumes and copy-pasted Netflix apps get rejected by hiring managers.
-            DevLedgr gives software engineers across fullstack, frontend, systems, and backend
-            production-grade operational challenges. We verify your solutions with automated CI
-            stress-testing harnesses and stamp permanent cryptographic proof packages that prove you can
-            build resilient software that doesn&apos;t break in production.
+          <p className="text-lg sm:text-xl text-text-1 leading-relaxed max-w-xl font-normal">
+            Real production challenges. Automated CI test harnesses. Permanent cryptographic proof that gets you hired.
           </p>
 
-          <div className="pt-2 flex flex-wrap items-center gap-3">
+          <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {isLoggedIn ? (
               <>
-                <Link href="/dashboard" className="btn-brass min-h-[44px] text-xs sm:text-sm px-5 inline-flex items-center gap-2">
+                <Link href="/dashboard" className="btn-brass min-h-[44px] text-xs sm:text-sm px-5 inline-flex items-center justify-center gap-2">
                   <span>Go to Dashboard</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
-                <Link href="/ideas" className="btn-outline min-h-[44px] text-xs sm:text-sm px-5 inline-flex items-center gap-2">
-                  <span>Browse 20+ Production Specs</span>
+                <Link href="/ideas" className="btn-outline min-h-[44px] text-xs sm:text-sm px-5 inline-flex items-center justify-center gap-2">
+                  <span>Browse 20+ Specs</span>
                 </Link>
               </>
             ) : (
               <>
-                <Link href="/login" className="btn-brass min-h-[44px] text-xs sm:text-sm px-5 inline-flex items-center gap-2">
+                <Link href="/login" className="btn-brass min-h-[44px] text-xs sm:text-sm px-5 inline-flex items-center justify-center gap-2">
                   <span>Start Building Proof</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
-                <Link href="/ideas" className="btn-outline min-h-[44px] text-xs sm:text-sm px-5 inline-flex items-center gap-2">
-                  <span>Browse 20+ Production Specs</span>
+                <Link href="/ideas" className="btn-outline min-h-[44px] text-xs sm:text-sm px-5 inline-flex items-center justify-center gap-2">
+                  <span>Browse 20+ Specs</span>
                 </Link>
               </>
             )}
           </div>
 
           <p className="text-xs text-text-1 font-mono">
-            Free 1-year cryptographic ledger certificate · No credit card required · Open-source friendly
+            Free 1-year cryptographic ledger certificate · Open-source friendly
           </p>
         </div>
 
@@ -95,8 +97,8 @@ export default function HomePage() {
           {/* Proof Body */}
           <div className="p-4 sm:p-6 space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-line">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 font-mono text-xs">
+              <div className="space-y-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
                   <span className="font-bold text-text-0">#c118e07</span>
                   <button
                     onClick={handleCopyHash}
@@ -115,15 +117,15 @@ export default function HomePage() {
                   <span className="text-line">·</span>
                   <span className="text-text-1">Production Proof</span>
                 </div>
-                <h3 className="text-lg sm:text-xl font-semibold tracking-tight text-text-0">
+                <h3 className="text-base sm:text-lg md:text-xl font-semibold tracking-tight text-text-0 break-words">
                   Webhook Deduplication &amp; Distributed Idempotency Engine
                 </h3>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
                 <Link
                   href="/p/junior_dev"
-                  className="btn-outline min-h-[44px] text-xs py-2 px-3.5 inline-flex items-center gap-1.5 font-mono"
+                  className="btn-outline min-h-[44px] text-xs py-2 px-3.5 w-full sm:w-auto inline-flex items-center justify-center gap-1.5 font-mono"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   <span>Inspect Proof</span>
@@ -189,12 +191,10 @@ export default function HomePage() {
                 <Terminal className="w-5 h-5 text-emerald-text" />
               </div>
               <h3 className="text-lg font-semibold text-text-0">
-                1. Production-Grade Challenge Bank
+                1. Real Failure Mode Challenges
               </h3>
               <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
-                No artificial LeetCode puzzles. Every challenge is sourced from real production teams:
-                concurrency race conditions, offline-first sync with packet loss, high-frequency client state
-                reconciliation, and zero-downtime database migrations with live mock servers.
+                No LeetCode toys. Tackle distributed race conditions, offline sync partitions, high-frequency state reconciliation, and zero-downtime schemas.
               </p>
             </div>
             <div className="pt-2">
@@ -215,12 +215,10 @@ export default function HomePage() {
                 <Cpu className="w-5 h-5 text-emerald-text" />
               </div>
               <h3 className="text-lg font-semibold text-text-0">
-                2. Automated CI Stress-Testing Harnesses
+                2. Automated CI Stress Harnesses
               </h3>
               <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
-                Your code is not judged subjectively. Automated test harnesses stress-test your solution
-                against synthetic workloads—validating p99 latency SLAs, edge failure recovery,
-                memory allocations, and contract integrity. Passing earns an immutable SHA-256 commit stamp.
+                Solutions undergo synthetic traffic bursts, chaos injection, and latency SLA checks. Pass the harness to earn an immutable SHA-256 commit stamp.
               </p>
             </div>
             <div className="pt-2">
@@ -241,12 +239,10 @@ export default function HomePage() {
                 <ShieldCheck className="w-5 h-5 text-emerald-text" />
               </div>
               <h3 className="text-lg font-semibold text-text-0">
-                3. 1-Year Verifiable Public Portfolio
+                3. Verifiable Public Portfolio
               </h3>
               <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
-                Receive your permanent portfolio address (<code className="text-text-0 font-mono">you.devledgr.io</code>)
-                stamped with cryptographic proof certificates, telemetry cards, and interactive architecture diffs
-                that recruiters can verify on the spot.
+                Your permanent domain (<code className="text-text-0 font-mono">you.devledgr.io</code>) featuring cryptographic certs, telemetry cards, and interactive architecture diffs.
               </p>
             </div>
             <div className="pt-2">
@@ -267,12 +263,10 @@ export default function HomePage() {
                 <FileText className="w-5 h-5 text-emerald-text" />
               </div>
               <h3 className="text-lg font-semibold text-text-0">
-                4. Recruiter Proof Package &amp; AI Job Match
+                4. Recruiter Proofs &amp; Job Match
               </h3>
               <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
-                Export 1-click ATS-ready Markdown tailored for resumes, LinkedIn, and recruiter DMs.
-                Our scrutiny engine audits your verified proofs against live job requirements across fullstack,
-                frontend, and backend engineering, identifying the exact missing problem to solve to unlock interviews.
+                1-click ATS-ready markdown for CVs and outreach. Our engine maps your verified proofs against live roles to pinpoint exact gaps to solve.
               </p>
             </div>
             <div className="pt-2">
@@ -303,11 +297,15 @@ export default function HomePage() {
           </p>
         </div>
 
-        <div className="border border-line bg-card/30 overflow-hidden divide-y divide-line">
-          {submissions.slice(0, 3).map((entry) => (
-            <LedgerEntryRow key={entry.hash} entry={entry} />
-          ))}
-        </div>
+        {!mounted ? (
+          <LedgerFeedSkeleton count={3} />
+        ) : (
+          <div className="border border-line bg-card/30 overflow-hidden divide-y divide-line">
+            {submissions.slice(0, 3).map((entry) => (
+              <LedgerEntryRow key={entry.hash} entry={entry} />
+            ))}
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs md:text-sm pt-1">
           <span className="text-text-1">
@@ -328,24 +326,22 @@ export default function HomePage() {
         <BrandMark size={36} className="mx-auto" />
         <div className="max-w-xl mx-auto space-y-2">
           <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text-0">
-            Ready to build proof that gets you hired?
+            Ready to build real proof?
           </h2>
-          <p className="text-xs sm:text-sm lg:text-base text-text-1 leading-relaxed">
-            Pick a real-world problem from the Idea Bank, build against the
-            provided mock infrastructure, and earn your verified 1-year
-            portfolio URL today.
+          <p className="text-sm sm:text-base text-text-1 leading-relaxed max-w-lg mx-auto">
+            Solve production failure modes. Pass automated CI. Stamp your permanent public ledger.
           </p>
         </div>
-        <div className="flex flex-wrap items-center justify-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
           <Link
             href="/ideas"
-            className="btn-brass min-h-[44px] text-xs sm:text-sm py-2 px-5 inline-flex items-center"
+            className="btn-brass min-h-[44px] text-xs sm:text-sm py-2 px-5 inline-flex items-center justify-center"
           >
             Pick a Problem to Solve
           </Link>
           <Link
             href="/about"
-            className="btn-outline min-h-[44px] text-xs sm:text-sm py-2 px-5 inline-flex items-center"
+            className="btn-outline min-h-[44px] text-xs sm:text-sm py-2 px-5 inline-flex items-center justify-center"
           >
             Read the Manifesto
           </Link>

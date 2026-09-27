@@ -6,11 +6,12 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import { ShieldAlert, LogIn, ArrowRight } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeletons';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -26,6 +27,22 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
   fallbackMessage,
 }) => {
   const { isLoggedIn, role, switchRole } = useAuth();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="max-w-md mx-auto my-12 p-6 rounded-radius border border-line bg-card/40 space-y-4 text-center">
+        <Skeleton variant="circular" className="w-10 h-10 mx-auto" />
+        <Skeleton variant="text" className="w-48 h-6 mx-auto" />
+        <Skeleton variant="text" className="w-64 h-4 mx-auto" />
+        <Skeleton variant="rectangular" className="w-36 h-9 mx-auto rounded-radius" />
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return (

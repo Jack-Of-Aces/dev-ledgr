@@ -1,16 +1,22 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { ArrowRight, Search, Clock, RotateCcw } from 'lucide-react';
 import { getDomainStyle, getDifficultyStyle } from '@/lib/colors';
+import { IdeaGridSkeleton } from '@/components/ui/skeletons';
 
 export default function IdeasPage() {
   const { ideas } = useAppStore();
+  const [mounted, setMounted] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedDomain, setSelectedDomain] = useState<string>('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const filteredIdeas = ideas.filter((idea) => {
     const matchesSearch =
@@ -90,7 +96,9 @@ export default function IdeasPage() {
       </div>
 
       {/* Problems Grid */}
-      {filteredIdeas.length > 0 ? (
+      {!mounted ? (
+        <IdeaGridSkeleton count={6} />
+      ) : filteredIdeas.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {filteredIdeas.map((idea) => {
             const domainStyle = getDomainStyle(idea.domain);

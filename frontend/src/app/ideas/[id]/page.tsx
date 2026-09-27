@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
@@ -9,14 +9,25 @@ import { SubmitSolutionModal } from '@/components/ui/SubmitSolutionModal';
 import { LedgerEntryRow } from '@/components/ui/LedgerEntryRow';
 import { ArrowLeft, Clock, ExternalLink, GitBranch, ShieldCheck } from 'lucide-react';
 import { getDomainStyle, getDifficultyStyle } from '@/lib/colors';
+import { IdeaDetailSkeleton } from '@/components/ui/skeletons';
 
 export default function IdeaDetailPage() {
   const params = useParams();
   const id = params?.id as string;
   const { ideas, submissions } = useAppStore();
   const [modalOpen, setModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const idea = ideas.find((i) => i.id === id) || ideas[0];
+
+  if (!mounted || !idea) {
+    return <IdeaDetailSkeleton />;
+  }
+
   const problemSubmissions = submissions.filter((s) => s.ideaId === idea.id);
   const domainStyle = getDomainStyle(idea.domain);
   const diffStyle = getDifficultyStyle(idea.difficulty);

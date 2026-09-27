@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { INITIAL_COACHING } from '@/lib/mock-data';
+import { CoachingSkeleton } from '@/components/ui/skeletons';
 import {
   ArrowRight,
   CheckCircle2,
@@ -21,8 +22,13 @@ import {
 
 export default function CoachingListPage() {
   const { user, submissions, jobs, getJobMatchDetails } = useAppStore();
+  const [mounted, setMounted] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'fintech' | 'systems' | 'devtools'>('all');
   const [expandedTrackId, setExpandedTrackId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const userSubmissions = submissions.filter(
     (s) => s.authorUsername.toLowerCase() === user.username.toLowerCase()
@@ -60,9 +66,12 @@ export default function CoachingListPage() {
     if (selectedFilter === 'all') return true;
     if (selectedFilter === 'fintech') return track.id.includes('fintech') || track.id === 'backend-fundamentals';
     if (selectedFilter === 'systems') return track.id === 'backend-fundamentals';
-    if (selectedFilter === 'devtools') return track.id.includes('devtools');
     return true;
   });
+
+  if (!mounted) {
+    return <CoachingSkeleton />;
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 md:py-12 space-y-8 font-sans">
@@ -104,7 +113,7 @@ export default function CoachingListPage() {
 
           <Link
             href={`/coaching/${recommendedTrackId}`}
-            className="btn-brass text-xs md:text-sm py-2 px-4 self-start md:self-auto shrink-0 inline-flex items-center gap-1.5"
+            className="btn-brass text-xs md:text-sm py-2 px-4 w-full md:w-auto shrink-0 inline-flex items-center justify-center gap-1.5"
           >
             <Zap className="w-3.5 h-3.5" />
             <span>Resume Target Track</span>
@@ -173,21 +182,21 @@ export default function CoachingListPage() {
       {/* 3. TARGET GAP ACCELERATOR BANNER                          */}
       {/* ========================================================= */}
       {primaryJobWithGap && (
-        <section className="p-4.5 rounded-radius border border-emerald-border bg-emerald-tint/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
+        <section className="p-4 sm:p-4.5 rounded-radius border border-emerald-border bg-emerald-tint/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0">
             <div className="p-2 rounded bg-emerald/15 text-emerald-text shrink-0 mt-0.5">
               <Sparkles className="w-4 h-4" />
             </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
+            <div className="space-y-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-mono uppercase tracking-wider font-semibold text-emerald-text">
                   Direct Career Accelerator
                 </span>
-                <span className="text-xs px-2 py-0.2 rounded-full bg-emerald text-white font-mono font-bold">
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald text-white font-mono font-bold shrink-0">
                   Recommended Track
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-text-0 font-medium">
+              <p className="text-xs sm:text-sm text-text-0 font-medium break-words">
                 Enrolling in <span className="font-bold underline">{INITIAL_COACHING.find((t) => t.id === recommendedTrackId)?.title}</span> covers the missing proof required for <span className="font-bold">{primaryJobWithGap.job.company}</span>.
               </p>
               <p className="text-xs text-text-1">
@@ -198,7 +207,7 @@ export default function CoachingListPage() {
 
           <Link
             href={`/coaching/${recommendedTrackId}`}
-            className="btn-brass text-xs py-2 px-3.5 self-start md:self-center shrink-0 inline-flex items-center gap-1.5"
+            className="btn-brass text-xs py-2.5 px-4 w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-1.5 font-medium"
           >
             <span>Open Recommended Track</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -210,8 +219,8 @@ export default function CoachingListPage() {
       {/* 4. IA WORKSPACE: DOMAIN FILTERS & TRACK DIRECTORY         */}
       {/* ========================================================= */}
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-line">
-          <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-line">
+          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 py-1">
             {[
               { id: 'all', label: 'All Curriculums', count: INITIAL_COACHING.length },
               { id: 'fintech', label: 'Fintech & Payments', count: 2 },
@@ -221,7 +230,7 @@ export default function CoachingListPage() {
               <button
                 key={f.id}
                 onClick={() => setSelectedFilter(f.id as typeof selectedFilter)}
-                className={`px-3 py-1.5 rounded-radius font-medium transition-colors cursor-pointer text-xs ${
+                className={`px-3 py-1.5 rounded-radius font-medium transition-colors cursor-pointer text-xs shrink-0 whitespace-nowrap ${
                   selectedFilter === f.id
                     ? 'bg-text-0 text-ink-0 font-semibold'
                     : 'bg-card border border-line text-text-1 hover:text-text-0 hover:border-text-1'
@@ -233,7 +242,7 @@ export default function CoachingListPage() {
             ))}
           </div>
 
-          <div className="text-xs font-mono text-text-1">
+          <div className="text-xs font-mono text-text-1 shrink-0">
             Showing <span className="text-text-0 font-medium">{filteredTracks.length}</span> verified tracks
           </div>
         </div>
@@ -288,25 +297,25 @@ export default function CoachingListPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
+                  <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-3 shrink-0 w-full sm:w-auto">
                     <button
                       onClick={() => setExpandedTrackId(isExpanded ? null : track.id)}
-                      className="btn-outline text-xs py-2 px-3 inline-flex items-center gap-1.5 cursor-pointer font-mono"
+                      className="btn-outline text-xs py-2 px-3 inline-flex items-center justify-center gap-1.5 cursor-pointer font-mono"
                     >
                       <span>{isExpanded ? 'Hide Syllabus' : 'View Syllabus'}</span>
                       {isExpanded ? (
-                        <ChevronUp className="w-3.5 h-3.5" />
+                        <ChevronUp className="w-3.5 h-3.5 shrink-0" />
                       ) : (
-                        <ChevronDown className="w-3.5 h-3.5" />
+                        <ChevronDown className="w-3.5 h-3.5 shrink-0" />
                       )}
                     </button>
 
                     <Link
                       href={`/coaching/${track.id}`}
-                      className="btn-brass text-xs py-2 px-4 inline-flex items-center gap-1.5"
+                      className="btn-brass text-xs py-2 px-4 inline-flex items-center justify-center gap-1.5 font-medium"
                     >
                       <span>{solvedMilestones > 0 ? 'Resume Track' : 'Start Track'}</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                     </Link>
                   </div>
                 </div>

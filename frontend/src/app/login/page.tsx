@@ -7,6 +7,7 @@ import { BrandMark } from '@/components/brand/BrandMark';
 import { useAuth } from '@/hooks/useAuth';
 import { envConfig } from '@/lib/config';
 import { ArrowLeft, Sparkles, AlertCircle } from 'lucide-react';
+import { LoginSkeleton } from '@/components/ui/skeletons';
 
 const GithubIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -115,7 +116,7 @@ function LoginForm() {
           <button
             onClick={handleGitHubAuth}
             disabled={loadingProvider !== null}
-            className="w-full btn-brass min-h-[44px] text-xs md:text-sm py-2.5 flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
+            className="w-full btn-brass min-h-11 text-xs md:text-sm py-2.5 flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
           >
             <GithubIcon className="w-4 h-4" />
             <span>
@@ -127,7 +128,7 @@ function LoginForm() {
           <button
             onClick={handleGoogleAuth}
             disabled={loadingProvider !== null}
-            className="w-full min-h-[44px] px-4 py-2.5 rounded-radius border border-line bg-card hover:bg-ink-1 text-text-0 text-xs md:text-sm font-medium flex items-center justify-center gap-2.5 transition-colors cursor-pointer disabled:opacity-50"
+            className="w-full min-h-11 px-4 py-2.5 rounded-radius border border-line bg-card hover:bg-ink-1 text-text-0 text-xs md:text-sm font-medium flex items-center justify-center gap-2.5 transition-colors cursor-pointer disabled:opacity-50"
           >
             <GoogleIcon className="w-4 h-4" />
             <span>
@@ -164,7 +165,7 @@ function LoginForm() {
             onClick={() => setShowSandbox(!showSandbox)}
             aria-expanded={showSandbox}
             aria-controls="sandbox-persona-list"
-            className="w-full min-h-[44px] flex items-center justify-between text-text-1 hover:text-text-0 font-mono text-xs md:text-sm py-1 cursor-pointer"
+            className="w-full min-h-11 flex items-center justify-between text-text-1 hover:text-text-0 font-mono text-xs md:text-sm py-1 cursor-pointer"
           >
             <span className="flex items-center gap-1.5">
               <Sparkles className="w-3 h-3 text-emerald-text" />
@@ -215,7 +216,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<LoginSkeleton />}>
       <LoginForm />
     </Suspense>
   );

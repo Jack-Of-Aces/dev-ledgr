@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useProfile } from '@/hooks/useProfile';
 import { AuthGuard } from '@/components/auth/AuthGuard';
+import { SettingsSkeleton } from '@/components/ui/skeletons';
 import {
   Key,
   User,
@@ -53,6 +54,11 @@ export default function SettingsPage() {
   const { user, isSaving, errors, updateProfile } = useProfile();
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Form states initialized from user profile
   const [name, setName] = useState(user.name);
@@ -205,6 +211,14 @@ export default function SettingsPage() {
       setTimeout(() => setSavedSuccess(false), 2500);
     }
   };
+
+  if (!mounted) {
+    return (
+      <AuthGuard fallbackMessage="Please sign in to access your ledger identity and compute settings.">
+        <SettingsSkeleton />
+      </AuthGuard>
+    );
+  }
 
   return (
     <AuthGuard fallbackMessage="Please sign in to access your ledger identity and compute settings.">

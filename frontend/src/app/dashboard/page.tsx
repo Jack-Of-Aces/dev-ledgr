@@ -6,6 +6,7 @@ import { useAppStore } from '@/lib/store';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { getDomainStyle } from '@/lib/colors';
 import { INITIAL_COACHING } from '@/lib/mock-data';
+import { DashboardSkeleton } from '@/components/ui/skeletons';
 import {
   ShieldCheck,
   ExternalLink,
@@ -45,12 +46,17 @@ export default function DashboardPage() {
   const { user, submissions, jobs, ideas, getJobMatchDetails } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<DashboardTab>('ledger');
+  const [mounted, setMounted] = useState(false);
   const [proofSearch, setProofSearch] = useState('');
   const [selectedDomain, setSelectedDomain] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'recent' | 'latency' | 'throughput'>('recent');
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [showNotificationMenu, setShowNotificationMenu] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
@@ -185,6 +191,14 @@ export default function DashboardPage() {
   // Coaching itinerary reference
   const activeCoaching = INITIAL_COACHING[0];
   const userSolvedIdeaIds = new Set(userSubmissions.map((s) => s.ideaId));
+
+  if (!mounted) {
+    return (
+      <AuthGuard fallbackMessage="Please sign in to access your developer portfolio dashboard.">
+        <DashboardSkeleton />
+      </AuthGuard>
+    );
+  }
 
   return (
     <AuthGuard fallbackMessage="Please sign in to access your developer portfolio dashboard.">
@@ -555,24 +569,24 @@ export default function DashboardPage() {
         {/* 3. STRATEGIC CAREER ACCELERATOR BANNER                    */}
         {/* ========================================================= */}
         {userSubmissions.length === 0 ? (
-          <section className="p-4.5 rounded-radius border border-emerald-border bg-emerald-tint/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
+          <section className="p-4 sm:p-5 rounded-radius border border-emerald-border bg-emerald-tint/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0">
               <div className="p-2 rounded bg-emerald/15 text-emerald-text shrink-0 mt-0.5">
                 <Sparkles className="w-4 h-4" />
               </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
+              <div className="space-y-1.5 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs font-mono uppercase tracking-wider font-semibold text-emerald-text">
                     Recommended First Proof
                   </span>
-                  <span className="text-xs px-2 py-0.2 rounded-full bg-emerald text-white font-mono font-bold">
+                  <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald text-white font-mono font-bold whitespace-nowrap inline-flex items-center">
                     High Hiring Signal
                   </span>
                 </div>
-                <p className="text-xs sm:text-sm text-text-0 font-medium">
-                  Stamp your first proof with <span className="font-bold underline">Idempotent Webhook Replayer & Deduplicator</span> to immediately unlock Moniepoint and Kobo360 backend roles.
+                <p className="text-xs sm:text-sm text-text-0 font-medium break-words leading-relaxed">
+                  Stamp your first proof with <span className="font-bold underline">Idempotent Webhook Replayer &amp; Deduplicator</span> to immediately unlock Moniepoint and Kobo360 backend roles.
                 </p>
-                <p className="text-xs text-text-1">
+                <p className="text-xs text-text-1 leading-normal">
                   Includes pre-configured mock infrastructure, payload burst generator, and automated test harness.
                 </p>
               </div>
@@ -580,23 +594,23 @@ export default function DashboardPage() {
 
             <Link
               href="/ideas/webhook-deduplicator"
-              className="btn-brass text-xs py-2 px-3.5 self-start md:self-center shrink-0 inline-flex items-center gap-1.5"
+              className="btn-brass text-xs py-2.5 px-4 w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-1.5 font-medium whitespace-nowrap"
             >
               <span>Inspect Starter Spec</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </section>
         ) : primaryJobWithGap ? (
-          <section className="p-4 rounded-radius border border-emerald-border bg-emerald-tint flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
+          <section className="p-4 sm:p-4.5 rounded-radius border border-emerald-border bg-emerald-tint flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0">
               <div className="p-2 rounded bg-emerald/10 text-emerald-text shrink-0 mt-0.5">
                 <Sparkles className="w-4 h-4" />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0">
                 <h3 className="text-xs sm:text-sm font-semibold text-text-0">
                   Targeted Skill Gap Recommendation
                 </h3>
-                <p className="text-xs sm:text-sm text-text-0 font-medium">
+                <p className="text-xs sm:text-sm text-text-0 font-medium break-words">
                   Solve <span className="font-bold underline">{primaryJobWithGap.gapProblem.title}</span> to
                   boost your <span className="font-bold">{primaryJobWithGap.job.company}</span>{' '}
                   ({primaryJobWithGap.job.title}) match score from{' '}
@@ -613,7 +627,7 @@ export default function DashboardPage() {
 
             <Link
               href={`/ideas/${primaryJobWithGap.gapProblem.id}`}
-              className="btn-brass text-xs py-2 px-3.5 self-start md:self-center shrink-0 inline-flex items-center gap-1.5"
+              className="btn-brass text-xs py-2.5 px-4 w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-1.5 font-medium"
             >
               <span>Solve Problem Spec</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -625,116 +639,118 @@ export default function DashboardPage() {
         {/* 4. IA TAB NAVIGATION                                      */}
         {/* ========================================================= */}
         <div className="space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-line">
-            <div
-              role="tablist"
-              aria-label="Dashboard views"
-              onKeyDown={(e) => {
-                const tabs: DashboardTab[] = ['ledger', 'opportunities', 'coaching', 'activity'];
-                const currentIndex = tabs.indexOf(activeTab);
-                if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-                  e.preventDefault();
-                  const nextTab = tabs[(currentIndex + 1) % tabs.length];
-                  setActiveTab(nextTab);
-                  document.getElementById(`tab-${nextTab}`)?.focus();
-                } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                  e.preventDefault();
-                  const prevTab = tabs[(currentIndex - 1 + tabs.length) % tabs.length];
-                  setActiveTab(prevTab);
-                  document.getElementById(`tab-${prevTab}`)?.focus();
-                } else if (e.key === 'Home') {
-                  e.preventDefault();
-                  setActiveTab(tabs[0]);
-                  document.getElementById(`tab-${tabs[0]}`)?.focus();
-                } else if (e.key === 'End') {
-                  e.preventDefault();
-                  setActiveTab(tabs[tabs.length - 1]);
-                  document.getElementById(`tab-${tabs[tabs.length - 1]}`)?.focus();
-                }
-              }}
-              className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-sans"
-            >
-              <button
-                role="tab"
-                id="tab-ledger"
-                tabIndex={activeTab === 'ledger' ? 0 : -1}
-                aria-selected={activeTab === 'ledger'}
-                aria-controls="panel-ledger"
-                onClick={() => setActiveTab('ledger')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-radius font-medium transition-colors cursor-pointer ${
-                  activeTab === 'ledger'
-                    ? 'bg-card text-text-0 border border-line shadow-xs font-semibold'
-                    : 'text-text-1 hover:text-text-0 hover:bg-card/50'
-                }`}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-line">
+            <div className="overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+              <div
+                role="tablist"
+                aria-label="Dashboard views"
+                onKeyDown={(e) => {
+                  const tabs: DashboardTab[] = ['ledger', 'opportunities', 'coaching', 'activity'];
+                  const currentIndex = tabs.indexOf(activeTab);
+                  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const nextTab = tabs[(currentIndex + 1) % tabs.length];
+                    setActiveTab(nextTab);
+                    document.getElementById(`tab-${nextTab}`)?.focus();
+                  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const prevTab = tabs[(currentIndex - 1 + tabs.length) % tabs.length];
+                    setActiveTab(prevTab);
+                    document.getElementById(`tab-${prevTab}`)?.focus();
+                  } else if (e.key === 'Home') {
+                    e.preventDefault();
+                    setActiveTab(tabs[0]);
+                    document.getElementById(`tab-${tabs[0]}`)?.focus();
+                  } else if (e.key === 'End') {
+                    e.preventDefault();
+                    setActiveTab(tabs[tabs.length - 1]);
+                    document.getElementById(`tab-${tabs[tabs.length - 1]}`)?.focus();
+                  }
+                }}
+                className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-sans whitespace-nowrap min-w-max"
               >
-                <Layers className="w-4 h-4 text-emerald-text" />
-                <span>Verified Proofs</span>
-                <span className="px-1.5 py-0.2 rounded-full bg-card/80 border border-line text-xs font-mono text-text-1">
-                  {userSubmissions.length}
-                </span>
-              </button>
+                <button
+                  role="tab"
+                  id="tab-ledger"
+                  tabIndex={activeTab === 'ledger' ? 0 : -1}
+                  aria-selected={activeTab === 'ledger'}
+                  aria-controls="panel-ledger"
+                  onClick={() => setActiveTab('ledger')}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-radius font-medium transition-colors cursor-pointer shrink-0 ${
+                    activeTab === 'ledger'
+                      ? 'bg-card text-text-0 border border-line shadow-xs font-semibold'
+                      : 'text-text-1 hover:text-text-0 hover:bg-card/50'
+                  }`}
+                >
+                  <Layers className="w-4 h-4 text-emerald-text" />
+                  <span>Verified Proofs</span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-card/80 border border-line text-xs font-mono text-text-1">
+                    {userSubmissions.length}
+                  </span>
+                </button>
 
-              <button
-                role="tab"
-                id="tab-opportunities"
-                tabIndex={activeTab === 'opportunities' ? 0 : -1}
-                aria-selected={activeTab === 'opportunities'}
-                aria-controls="panel-opportunities"
-                onClick={() => setActiveTab('opportunities')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-radius font-medium transition-colors cursor-pointer ${
-                  activeTab === 'opportunities'
-                    ? 'bg-card text-text-0 border border-line shadow-xs font-semibold'
-                    : 'text-text-1 hover:text-text-0 hover:bg-card/50'
-                }`}
-              >
-                <Briefcase className="w-4 h-4 text-emerald-text" />
-                <span>Matched Roles</span>
-                <span className="px-1.5 py-0.2 rounded-full bg-card/80 border border-line text-xs font-mono text-text-1">
-                  {jobs.length}
-                </span>
-              </button>
+                <button
+                  role="tab"
+                  id="tab-opportunities"
+                  tabIndex={activeTab === 'opportunities' ? 0 : -1}
+                  aria-selected={activeTab === 'opportunities'}
+                  aria-controls="panel-opportunities"
+                  onClick={() => setActiveTab('opportunities')}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-radius font-medium transition-colors cursor-pointer shrink-0 ${
+                    activeTab === 'opportunities'
+                      ? 'bg-card text-text-0 border border-line shadow-xs font-semibold'
+                      : 'text-text-1 hover:text-text-0 hover:bg-card/50'
+                  }`}
+                >
+                  <Briefcase className="w-4 h-4 text-emerald-text" />
+                  <span>Matched Roles</span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-card/80 border border-line text-xs font-mono text-text-1">
+                    {jobs.length}
+                  </span>
+                </button>
 
-              <button
-                role="tab"
-                id="tab-coaching"
-                tabIndex={activeTab === 'coaching' ? 0 : -1}
-                aria-selected={activeTab === 'coaching'}
-                aria-controls="panel-coaching"
-                onClick={() => setActiveTab('coaching')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-radius font-medium transition-colors cursor-pointer ${
-                  activeTab === 'coaching'
-                    ? 'bg-card text-text-0 border border-line shadow-xs font-semibold'
-                    : 'text-text-1 hover:text-text-0 hover:bg-card/50'
-                }`}
-              >
-                <GraduationCap className="w-4 h-4 text-emerald-text" />
-                <span>Coaching Roadmap</span>
-              </button>
+                <button
+                  role="tab"
+                  id="tab-coaching"
+                  tabIndex={activeTab === 'coaching' ? 0 : -1}
+                  aria-selected={activeTab === 'coaching'}
+                  aria-controls="panel-coaching"
+                  onClick={() => setActiveTab('coaching')}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-radius font-medium transition-colors cursor-pointer shrink-0 ${
+                    activeTab === 'coaching'
+                      ? 'bg-card text-text-0 border border-line shadow-xs font-semibold'
+                      : 'text-text-1 hover:text-text-0 hover:bg-card/50'
+                  }`}
+                >
+                  <GraduationCap className="w-4 h-4 text-emerald-text" />
+                  <span>Coaching Roadmap</span>
+                </button>
 
-              <button
-                role="tab"
-                id="tab-activity"
-                tabIndex={activeTab === 'activity' ? 0 : -1}
-                aria-selected={activeTab === 'activity'}
-                aria-controls="panel-activity"
-                onClick={() => setActiveTab('activity')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-radius font-medium transition-colors cursor-pointer ${
-                  activeTab === 'activity'
-                    ? 'bg-card text-text-0 border border-line shadow-xs font-semibold'
-                    : 'text-text-1 hover:text-text-0 hover:bg-card/50'
-                }`}
-              >
-                <Clock className="w-4 h-4 text-emerald-text" />
-                <span className="hidden sm:inline">Audit Trail & Alerts</span>
-                <span className="sm:hidden">Alerts</span>
-              </button>
+                <button
+                  role="tab"
+                  id="tab-activity"
+                  tabIndex={activeTab === 'activity' ? 0 : -1}
+                  aria-selected={activeTab === 'activity'}
+                  aria-controls="panel-activity"
+                  onClick={() => setActiveTab('activity')}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-radius font-medium transition-colors cursor-pointer shrink-0 ${
+                    activeTab === 'activity'
+                      ? 'bg-card text-text-0 border border-line shadow-xs font-semibold'
+                      : 'text-text-1 hover:text-text-0 hover:bg-card/50'
+                  }`}
+                >
+                  <Clock className="w-4 h-4 text-emerald-text" />
+                  <span className="hidden sm:inline">Audit Trail & Alerts</span>
+                  <span className="sm:hidden">Alerts</span>
+                </button>
+              </div>
             </div>
 
             {/* Quick action in tab strip */}
             {activeTab === 'ledger' && (
               <Link
                 href="/ideas"
-                className="text-xs text-emerald-text hover:underline inline-flex items-center gap-1 font-mono font-medium"
+                className="text-xs text-emerald-text hover:underline inline-flex items-center gap-1 font-mono font-medium self-end sm:self-auto shrink-0"
               >
                 <span>Browse Idea Bank</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -773,73 +789,73 @@ export default function DashboardPage() {
               {/* When user has submissions: Render Search & Domain Filter Toolbar */}
               {userSubmissions.length > 0 ? (
                 <>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                    <div className="relative flex-1 max-w-sm">
-                      <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-1" />
-                      <input
-                        type="text"
-                        value={proofSearch}
-                        onChange={(e) => setProofSearch(e.target.value)}
-                        placeholder="Search proofs by title, hash, notes..."
-                        className="w-full pl-9 pr-3 py-1.5 rounded-radius border border-line bg-card text-text-0 placeholder:text-text-1 focus:border-emerald focus:outline-none font-mono"
-                      />
-                      {proofSearch && (
-                        <button
-                          onClick={() => setProofSearch('')}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-1 hover:text-text-0"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-text-1 font-mono mr-1">Domain:</span>
-                        {['all', 'logistics', 'fintech', 'systems', 'devtools'].map((domain) => (
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
+                      <div className="relative w-full lg:max-w-sm">
+                        <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-1" />
+                        <input
+                          type="text"
+                          value={proofSearch}
+                          onChange={(e) => setProofSearch(e.target.value)}
+                          placeholder="Search proofs by title, hash, notes..."
+                          className="w-full pl-9 pr-3 py-2 rounded-radius border border-line bg-card text-text-0 placeholder:text-text-1 focus:border-emerald focus:outline-none font-mono"
+                        />
+                        {proofSearch && (
                           <button
-                            key={domain}
-                            onClick={() => setSelectedDomain(domain)}
-                            className={`px-2.5 py-1 rounded-radius text-xs capitalize transition-colors font-mono cursor-pointer ${
-                              selectedDomain === domain
-                                ? 'bg-text-0 text-ink-0 font-medium'
-                                : 'bg-card border border-line text-text-1 hover:text-text-0 hover:border-text-1'
-                            }`}
+                            onClick={() => setProofSearch('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-1 hover:text-text-0"
                           >
-                            {domain}
+                            ✕
                           </button>
-                        ))}
+                        )}
                       </div>
 
-                      <div className="flex items-center gap-1.5 pl-2 border-l border-line/60">
-                        <span className="text-text-1 font-mono">Sort:</span>
-                        <select
-                          value={sortBy}
-                          onChange={(e) => setSortBy(e.target.value as 'recent' | 'latency' | 'throughput')}
-                          aria-label="Sort verified proofs"
-                          className="px-2 py-1 rounded-radius bg-card border border-line text-text-0 font-mono text-xs focus:border-emerald outline-none cursor-pointer"
-                        >
-                          <option value="recent">Most Recent</option>
-                          <option value="latency">Lowest Latency (p99)</option>
-                          <option value="throughput">Highest Throughput</option>
-                        </select>
-                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-text-1 font-mono mr-1 text-[11px] sm:text-xs">Domain:</span>
+                          {['all', 'logistics', 'fintech', 'systems', 'devtools'].map((domain) => (
+                            <button
+                              key={domain}
+                              onClick={() => setSelectedDomain(domain)}
+                              className={`px-2.5 py-1 rounded-radius text-xs capitalize transition-colors font-mono cursor-pointer ${
+                                selectedDomain === domain
+                                  ? 'bg-text-0 text-ink-0 font-medium'
+                                  : 'bg-card border border-line text-text-1 hover:text-text-0 hover:border-text-1'
+                              }`}
+                            >
+                              {domain}
+                            </button>
+                          ))}
+                        </div>
 
-                      {(proofSearch || selectedDomain !== 'all' || sortBy !== 'recent') && (
-                        <button
-                          onClick={() => {
-                            setProofSearch('');
-                            setSelectedDomain('all');
-                            setSortBy('recent');
-                          }}
-                          className="text-text-1 hover:text-text-0 p-1 ml-1"
-                          title="Reset filters and sorting"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                        <div className="flex items-center gap-1.5 sm:pl-2 sm:border-l sm:border-line/60">
+                          <span className="text-text-1 font-mono text-[11px] sm:text-xs">Sort:</span>
+                          <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value as 'recent' | 'latency' | 'throughput')}
+                            aria-label="Sort verified proofs"
+                            className="px-2 py-1 rounded-radius bg-card border border-line text-text-0 font-mono text-xs focus:border-emerald outline-none cursor-pointer"
+                          >
+                            <option value="recent">Most Recent</option>
+                            <option value="latency">Lowest Latency (p99)</option>
+                            <option value="throughput">Highest Throughput</option>
+                          </select>
+                        </div>
+
+                        {(proofSearch || selectedDomain !== 'all' || sortBy !== 'recent') && (
+                          <button
+                            onClick={() => {
+                              setProofSearch('');
+                              setSelectedDomain('all');
+                              setSortBy('recent');
+                            }}
+                            className="text-text-1 hover:text-text-0 p-1 ml-1"
+                            title="Reset filters and sorting"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
                   {/* Submissions List Container */}
                   {sortedSubmissions.length > 0 ? (

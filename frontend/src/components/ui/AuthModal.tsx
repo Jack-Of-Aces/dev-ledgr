@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { BrandMark } from '../brand/BrandMark';
-import { X, ArrowRight, Shield } from 'lucide-react';
+import { X, ArrowRight, Shield, Loader2 } from 'lucide-react';
 
 const GithubIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -34,6 +34,7 @@ export const AuthModal: React.FC = () => {
     'Redis',
     'TypeScript',
   ]);
+  const [isConnecting, setIsConnecting] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Close on Escape key press
@@ -84,11 +85,16 @@ export const AuthModal: React.FC = () => {
   };
 
   const handleOAuthConnect = async () => {
-    if (envConfig.hasSupabase) {
-      closeAuthModal();
-      await loginWithGitHub();
-    } else {
-      setStep('onboarding');
+    setIsConnecting(true);
+    try {
+      if (envConfig.hasSupabase) {
+        closeAuthModal();
+        await loginWithGitHub();
+      } else {
+        setStep('onboarding');
+      }
+    } finally {
+      setIsConnecting(false);
     }
   };
 
@@ -157,10 +163,20 @@ export const AuthModal: React.FC = () => {
 
             <button
               onClick={handleOAuthConnect}
-              className="w-full btn-brass text-xs md:text-sm py-2.5 flex items-center justify-center gap-2 cursor-pointer"
+              disabled={isConnecting}
+              className="w-full btn-brass text-xs md:text-sm py-2.5 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
             >
-              <GithubIcon className="w-4 h-4" />
-              <span>Authorize with GitHub</span>
+              {isConnecting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Connecting to GitHub...</span>
+                </>
+              ) : (
+                <>
+                  <GithubIcon className="w-4 h-4" />
+                  <span>Authorize with GitHub</span>
+                </>
+              )}
             </button>
 
             <div className="text-xs text-text-1 space-y-1">
