@@ -61,7 +61,7 @@ func Load() (*Config, error) {
 		DatabaseURL:           os.Getenv("DATABASE_URL"),
 		FrontendURL:           strings.TrimRight(getenv("FRONTEND_URL", "http://localhost:3000"), "/"),
 		SupabaseURL:           strings.TrimRight(os.Getenv("SUPABASE_URL"), "/"),
-		SupabaseAnonKey:       os.Getenv("SUPABASE_ANON_KEY"),
+		SupabaseAnonKey:       getenv("SUPABASE_ANON_KEY", os.Getenv("SUPABASE_KEY")),
 		SupabaseJWTSecret:     os.Getenv("SUPABASE_JWT_SECRET"),
 		SupabaseWebhookSecret: os.Getenv("SUPABASE_WEBHOOK_SECRET"),
 		ServiceAPIKey:         os.Getenv("SERVICE_API_KEY"),

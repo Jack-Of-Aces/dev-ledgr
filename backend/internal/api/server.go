@@ -93,6 +93,9 @@ func (s *Server) Handler() http.Handler {
 	route("GET /api/dev/profile", requireAuth(s.getMe))
 	route("PATCH /api/dev/profile", requirePermission(model.PermEditOwnProfile, s.updateMe))
 
+	// Internal (X-Service-Key): server-to-server lookups for the Next.js AI routes.
+	route("GET /api/internal/provider-key", s.internalProviderKey)
+
 	// v1: contracts the current frontend service layer calls (frontend/src/services).
 	route("GET /api/v1/users/me", requireAuth(s.getMe))
 	route("PATCH /api/v1/users/me", requirePermission(model.PermEditOwnProfile, s.updateMe))

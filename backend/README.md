@@ -102,6 +102,14 @@ answers with `engine: "heuristic"`. The CV text is not stored, only its SHA-256 
 | GET | `/api/dev/portfolio?username=` or `/api/dev/portfolio/{username}` | - | Everything the public portfolio page needs: `dev`, `skills`, `provenSkills`, `stats`, `activeBuilds`, `completedProblems`, and `ledger` (verified submissions with certificates). With no username, returns the signed-in dev's own portfolio. The owner also sees their email and pending or rejected submissions. |
 | GET, PATCH | `/api/dev/profile` | dev | Read or update your own profile (same validation as the frontend's `UserProfileUpdateSchema`) |
 
+### Internal
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/api/internal/provider-key` | service **and** `X-User-Token: <dev access token>` | Returns `{ apiKey }`, the dev's decrypted BYOK key (empty if none or not on the `byok` plan). Used only by the Next.js server's AI routes, so the key never lives in the browser. Needs both credentials, so a stolen browser token alone cannot extract a key. |
+
+The Next.js server needs the same `SERVICE_API_KEY` in its (server-only, non-`NEXT_PUBLIC_`) environment.
+
 ### `/api/v1` (current frontend service layer)
 
 These routes back `frontend/src/services/*` and use the same Supabase auth:

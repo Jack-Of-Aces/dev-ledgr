@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -202,4 +203,39 @@ func (s *Server) providerKey(r *http.Request) string {
 		return ""
 	}
 	return key
+}
+
+// GET /api/internal/provider-key returns a dev's decrypted BYOK key to the
+// frontend's server-side AI routes, so the key never has to live in the
+// browser. It requires both the service key (held only by the Next.js server)
+// and the dev's own access token in X-User-Token: a stolen browser token
+// alone cannot extract the key.
+func (s *Server) internalProviderKey(w http.ResponseWriter, r *http.Request) error {
+	if p := principalFrom(r.Context()); p == nil || !p.Service {
+		return errForbidden("Service credentials required")
+	}
+	claims, err := s.verifier.Verify(r.Context(), strings.TrimPrefix(r.Header.Get("X-User-Token"), "Bearer "))
+	if err != nil {
+		return errUnauthorized("X-User-Token is missing, invalid or expired")
+	}
+	dev, err := s.store.GetUserByID(r.Context(), claims.Subject)
+	if errors.Is(err, store.ErrNotFound) {
+		writeJSON(w, http.StatusOK, map[string]string{"apiKey": ""})
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	key := ""
+	if dev.Plan == "byok" && dev.HasAPIKey {
+		ct, err := s.store.GetAPIKeyCiphertext(r.Context(), dev.ID)
+		if err != nil {
+			return err
+		}
+		if key, err = s.cipher.Decrypt(ct); err != nil {
+			return fmt.Errorf("decrypt provider key for %s: %w", dev.Username, err)
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"apiKey": key})
+	return nil
 }

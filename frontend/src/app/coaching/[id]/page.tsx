@@ -69,7 +69,6 @@ export default function CoachingDetailPage() {
         itineraryTitle: itinerary.title,
         milestoneTitle: selectedMilestone.title,
         prompt,
-        apiKey: user.apiKey,
         candidateContext: {
           username: user.username,
           name: user.name,
