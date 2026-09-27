@@ -26,7 +26,6 @@ export interface CoachPromptParams {
   itineraryTitle: string;
   milestoneTitle: string;
   prompt: string;
-  apiKey?: string;
   candidateContext?: {
     username: string;
     name: string;

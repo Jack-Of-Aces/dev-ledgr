@@ -268,6 +268,16 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'devledgr_storage_v1',
+      // v1: BYOK API keys are no longer kept in the browser. Strip any key an
+      // earlier version persisted to localStorage.
+      version: 1,
+      migrate: (persisted) => {
+        const state = persisted as { user?: Record<string, unknown> } | undefined;
+        if (state?.user) {
+          delete state.user.apiKey;
+        }
+        return state as unknown as AppState;
+      },
       partialize: (state) => ({
         theme: state.theme,
         user: state.user,

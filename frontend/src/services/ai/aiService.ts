@@ -22,7 +22,6 @@ export class AIService implements IAIService {
           user,
           userSubmissions,
           forceGap,
-          apiKey: user.apiKey,
         }),
       });
 

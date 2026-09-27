@@ -33,7 +33,7 @@ export class MockUserService implements IUserService {
       githubUrl: data.githubUrl || this.profile.githubUrl,
       email: data.email || this.profile.email,
       plan: data.plan,
-      apiKey: data.apiKey,
+      hasApiKey: data.plan === 'byok' && (Boolean(data.apiKey?.trim()) || Boolean(this.profile.hasApiKey)),
       statedSkills: data.statedSkills,
       updatedAt: new Date().toISOString(),
     };

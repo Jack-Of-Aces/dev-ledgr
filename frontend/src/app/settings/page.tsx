@@ -62,8 +62,27 @@ export default function SettingsPage() {
   const [githubUrl, setGithubUrl] = useState(user.githubUrl || '');
   const [email, setEmail] = useState(user.email || '');
   const [plan, setPlan] = useState<'free' | 'full-service' | 'byok'>(user.plan);
-  const [apiKey, setApiKey] = useState(user.apiKey || '');
+  // Only holds a newly typed key; the stored key never comes back to the browser.
+  const [apiKey, setApiKey] = useState('');
   const [statedSkills, setStatedSkills] = useState<string[]>(user.statedSkills || []);
+
+  // The store first holds a placeholder profile; the real one arrives from the
+  // backend after the first render. Reload the form whenever a different
+  // profile (or a newer version of it) lands, so saves never send stale values.
+  const profileKey = `${user.username}|${user.updatedAt ?? ''}`;
+  const [loadedProfileKey, setLoadedProfileKey] = useState(profileKey);
+  if (profileKey !== loadedProfileKey) {
+    setLoadedProfileKey(profileKey);
+    setName(user.name);
+    setHeadline(user.headline);
+    setBio(user.bio);
+    setAvatarUrl(user.avatarUrl || '');
+    setGithubUrl(user.githubUrl || '');
+    setEmail(user.email || '');
+    setPlan(user.plan);
+    setApiKey('');
+    setStatedSkills(user.statedSkills || []);
+  }
 
   // UI state
   const [showApiKey, setShowApiKey] = useState(false);
@@ -145,7 +164,7 @@ export default function SettingsPage() {
     setGithubUrl(user.githubUrl || '');
     setEmail(user.email || '');
     setPlan(user.plan);
-    setApiKey(user.apiKey || '');
+    setApiKey('');
     setStatedSkills(user.statedSkills || []);
   };
 
@@ -921,7 +940,11 @@ export default function SettingsPage() {
                           <input
                             id="settings-api-key"
                             type={showApiKey ? 'text' : 'password'}
-                            placeholder="AIzaSy... or sk-proj-..."
+                            placeholder={
+                              user.hasApiKey
+                                ? 'Key saved (encrypted). Enter a new key to replace it.'
+                                : 'AIzaSy... or sk-proj-...'
+                            }
                             value={apiKey}
                             onChange={(e) => {
                               setApiKey(e.target.value);
