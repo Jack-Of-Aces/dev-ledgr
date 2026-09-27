@@ -11,16 +11,17 @@ The REST backend for DevLedgr. Identity is handled by **Supabase Auth**; data li
 ```bash
 cd backend
 cp .env.example .env   # set DATABASE_URL, SUPABASE_URL, SUPABASE_ANON_KEY at minimum
-go run ./cmd/api seed  # apply migrations + load demo problems, jobs and ledger
+go run ./cmd/api seed  # apply migrations + load the coaching tracks (safe in production)
+# go run ./cmd/api seed demo   # also add sample problems and jobs (local development only)
 go run ./cmd/api       # serve on :8080 (migrations run on every start)
 go test ./...
 ```
 
 ### Supabase setup
 
-1. **Database.** Copy the connection string (Project Settings → Database) into `DATABASE_URL`. Tables are created on startup.
-   Every table has Row Level Security on with no policies, so Supabase's public REST API cannot touch DevLedgr data;
-   only this service (connecting as `postgres`) can.
+1. **Database.** Copy the connection string (Project Settings → Database) into `DATABASE_URL`. The transaction
+   pooler (port 6543) is the most reliable; some networks block the session pooler's port 5432. Migrations run on
+   startup (see [Schema](#schema)).
 2. **Auth keys.** Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` (Project Settings → API). Access tokens are verified against
    the project's JWKS (`/auth/v1/.well-known/jwks.json`). If your project still uses the legacy HS256 secret, also set `SUPABASE_JWT_SECRET`.
 3. **GitHub sign-in.** Enable the GitHub provider under Authentication → Providers, and add `AUTH_REDIRECT_URL` to the allowed redirect URLs.
@@ -34,7 +35,8 @@ go test ./...
   An invalid or expired token gets `401 INVALID_TOKEN`; call `/api/auth/refresh`.
 - **Internal services** (job scraper, CV parser): `X-Service-Key: <SERVICE_API_KEY>`.
 - **Roles** (`user`, `reviewer`, `admin`) are stored on the dev record and checked with the same permission matrix as
-  `frontend/src/types/auth.ts`. To promote someone: `update users set role = 'admin' where username = '...'`.
+  `frontend/src/types/auth.ts`. `profiles.role` stores `candidate` (API `user`), `reviewer` or `admin`.
+  To promote someone: `update profiles set role = 'admin' where username = '...'`.
 
 ## Routes
 
@@ -51,18 +53,24 @@ go test ./...
 | POST | `/api/auth/magic-link` | - | `{ email }`. Supabase emails a sign-in link. |
 | GET | `/api/auth/oauth/github?redirectTo=` | - | 302 to Supabase's GitHub sign-in. Supabase returns tokens to the redirect URL fragment. |
 | GET | `/api/auth/me` | dev | Current session and dev record |
-| POST | `/api/auth/webhook` | webhook secret | Supabase `auth.users` events. INSERT creates the dev, UPDATE syncs email, DELETE removes the dev and reopens their in-progress problems. |
+| POST | `/api/auth/webhook` | webhook secret | Supabase `auth.users` events. INSERT/UPDATE make sure the profile exists; DELETE reopens problems the dev was building. |
 
 A session response is `{ token, refreshToken, expiresAt, username, name, role, avatarUrl, dev }`, which is a superset of the frontend's `UserSession`.
 
 ### Launchpad
 
-A problem's status is one of `open`, `in_progress`, `seeking_contributors` or `complete`.
+A problem's status is one of `open`, `in_progress`, `seeking_contributors` or `complete` (stored in `problems.status`
+as `Available`, `In Progress`, `Seeking Contributors`, `Completed`). The builder is the `Active` (or, once done,
+`Completed`) row in `claimed_projects`.
+
+Only **admin-approved** problems are visible and claimable. Scraped problems arrive with `admin_approved = false`;
+admins see every problem (filter with `?approved=true|false`) and publish them with the approve route.
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
 | GET | `/api/launchpad/problems?status=&domain=&difficulty=&search=` | - | Each problem includes `status` and `claimedBy` |
 | GET | `/api/launchpad/problems/{id}` | - | |
+| POST | `/api/launchpad/problems/{id}/approve` | admin | Publishes a problem; `{ "approved": false }` unpublishes it |
 | POST | `/api/launchpad/claim` | dev | `{ problemId }`, or use `/api/launchpad/claim/{problemId}`. Only works on `open` problems. Sets the caller as builder and moves the problem to `in_progress`. Max 3 active claims per dev. |
 | GET | `/api/launchpad/claims?status=` | dev | The caller's claimed problems |
 | POST | `/api/launchpad/status` | dev | `{ problemId, status }`. See the rules below. |
@@ -81,7 +89,7 @@ Status rules:
 |---|---|---|---|
 | GET | `/api/jobBoard/jobs?level=&search=&limit=&offset=` | - | Signed-in devs get jobs ranked by skill match, each with a `match: { score, matchedSkills, missingSkills }` object. Anonymous callers get the newest jobs first. `level` is one of `intern`, `junior`, `mid`, `senior`, `lead`, `unspecified`. |
 | GET | `/api/jobBoard/jobs/{id}` | - | Includes `match` when signed in |
-| POST | `/api/jobBoard/jobs` | service or admin | Scraper ingest: `{ jobs: [{ source, externalId, title, company, location?, type?, level?, salary?, skills[], description?, url?, postedAt? }] }`, up to 500 per call. Upserts by `(source, externalId)` and returns `{ inserted, updated }`. Free-text level and type are normalized. |
+| POST | `/api/jobBoard/jobs` | service or admin | Scraper ingest: `{ jobs: [{ sourceUrl, title, company, applyUrl?, location?, type?, level?, salary?, skills[], description?, postedAt? }] }`, up to 500 per call. Jobs are matched on `sourceUrl` (the listing URL): existing ones are refreshed, new ones inserted. Returns `{ inserted, updated }`. Free-text level and type are normalized. |
 | POST | `/api/jobBoard/audit` | dev or service | `{ cvText, jobId? }`. Service callers also send `devId` or `username`. Returns the stored audit: `{ id, score, summary, breakdown[], recommendations[], matchedKeywords, missingKeywords, engine, model }`. |
 | GET | `/api/jobBoard/audit` | dev or service | The caller's audit history (service callers pass `?devId=` or `?username=`) |
 | GET | `/api/jobBoard/audit/{id}` | owner, admin or service | |
@@ -133,6 +141,32 @@ authoritative role. Supabase `user_metadata` is never trusted for roles, because
 
 Remaining follow-ups: the jobs, Launchpad and portfolio pages still read local mock data. Their
 endpoints are ready.
+
+## Schema
+
+The API uses the team's existing Supabase tables: `profiles`, `problems`, `claimed_projects`, `jobs` and `submissions`.
+Email is read from `auth.users`, so it is never stored twice.
+
+- [0001_baseline.sql](internal/db/migrations/0001_baseline.sql) describes those tables as they exist live. Every
+  statement is `if not exists`, so it is a no-op on the live project and only builds a fresh environment.
+- [0002_backend.sql](internal/db/migrations/0002_backend.sql) adds what the API needs and is purely additive:
+  - `profiles.plan`
+  - `problems` status timestamps
+  - `jobs` level, type, salary and active flag
+  - `submissions` certificate and review fields
+  - new tables `profile_secrets` (BYOK keys; `profiles` is publicly readable), `cv_audits` and `coaching_itineraries`,
+    all with RLS on and no policies.
+
+- [0003_security.sql](internal/db/migrations/0003_security.sql) and
+  [0004_no_public_profile_writes.sql](internal/db/migrations/0004_no_public_profile_writes.sql) close every write path
+  through Supabase's public Data API:
+  - RLS is on for all tables.
+  - The direct insert/update/delete policies for submissions and claims are dropped.
+  - `anon` and `authenticated` have no write privileges.
+
+All writes go through this API (which connects as `postgres`) or through tools using the `service_role` key; both bypass
+RLS. On the live project the public roles also have no table privileges at all, so the Data API cannot read these tables
+either. The frontend reads everything through the API.
 
 ## Layout
 

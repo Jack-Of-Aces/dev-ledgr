@@ -54,6 +54,8 @@ func (s *Server) claimProblem(w http.ResponseWriter, r *http.Request) error {
 	switch {
 	case errors.Is(err, store.ErrNotFound):
 		return errNotFound("Problem not found")
+	case errors.Is(err, store.ErrNotApproved):
+		return errNotFound("Problem not found")
 	case errors.Is(err, store.ErrNotOpen):
 		return errConflict("This problem is already claimed or no longer open")
 	case errors.Is(err, store.ErrClaimLimit):
@@ -96,10 +98,7 @@ type statusView struct {
 
 // GET /api/launchpad/status/{problemId}
 func (s *Server) problemStatus(w http.ResponseWriter, r *http.Request) error {
-	idea, err := s.store.GetIdea(r.Context(), r.PathValue("problemId"))
-	if errors.Is(err, store.ErrNotFound) {
-		return errNotFound("Problem not found")
-	}
+	idea, err := s.loadVisibleIdea(r, r.PathValue("problemId"))
 	if err != nil {
 		return err
 	}

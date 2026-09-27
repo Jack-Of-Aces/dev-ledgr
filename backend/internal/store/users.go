@@ -12,43 +12,62 @@ import (
 	"github.com/Jack-Of-Aces/dev-ledgr/backend/internal/security"
 )
 
-const userColumns = `id::text, username, name, email, avatar_url, headline, bio, github_url,
-	portfolio_valid_until, plan, api_key_encrypted is not null, stated_skills, role, updated_at`
+// Dev records live in public.profiles (keyed by auth.users.id). Email is read
+// from auth.users, which Supabase Auth owns; BYOK keys from profile_secrets.
+const profileSelect = `
+	select p.id::text, p.username, coalesce(nullif(p.full_name, ''), p.username), coalesce(u.email, ''),
+		coalesce(p.avatar_url, ''), coalesce(p.headline, ''), coalesce(p.bio, ''), coalesce(p.github_url, ''),
+		coalesce(p.portfolio_url, ''), p.portfolio_valid_until, p.plan, s.profile_id is not null,
+		coalesce(p.skills, '{}'), coalesce(p.role, 'candidate'), p.updated_at
+	from public.profiles p
+	left join auth.users u on u.id = p.id
+	left join public.profile_secrets s on s.profile_id = p.id`
 
 func scanUser(row pgx.Row) (*model.UserProfile, error) {
 	var u model.UserProfile
-	var email *string
 	var role string
-	err := row.Scan(&u.ID, &u.Username, &u.Name, &email, &u.AvatarURL, &u.Headline, &u.Bio, &u.GitHubURL,
-		&u.PortfolioValidUntil, &u.Plan, &u.HasAPIKey, &u.StatedSkills, &role, &u.UpdatedAt)
+	err := row.Scan(&u.ID, &u.Username, &u.Name, &u.Email, &u.AvatarURL, &u.Headline, &u.Bio, &u.GitHubURL,
+		&u.PortfolioURL, &u.PortfolioValidUntil, &u.Plan, &u.HasAPIKey, &u.StatedSkills, &role, &u.UpdatedAt)
 	if err != nil {
 		return nil, mapErr(err)
 	}
-	u.Email = deref(email)
-	u.Role = model.Role(role)
+	u.Role = model.RoleFromDB(role)
 	u.StatedSkills = nonNil(u.StatedSkills)
 	return &u, nil
 }
 
 func (s *Store) GetUserByID(ctx context.Context, id string) (*model.UserProfile, error) {
-	return scanUser(s.pool.QueryRow(ctx, `select `+userColumns+` from users where id = $1`, id))
+	if !IsUUID(id) {
+		return nil, ErrNotFound
+	}
+	return scanUser(s.pool.QueryRow(ctx, profileSelect+` where p.id = $1`, id))
 }
 
 func (s *Store) GetUserByUsername(ctx context.Context, username string) (*model.UserProfile, error) {
-	return scanUser(s.pool.QueryRow(ctx, `select `+userColumns+` from users where lower(username) = lower($1)`, username))
+	return scanUser(s.pool.QueryRow(ctx, profileSelect+` where lower(p.username) = lower($1)`, username))
 }
 
 func (s *Store) UsernameAvailable(ctx context.Context, username string) (bool, error) {
 	var taken bool
-	err := s.pool.QueryRow(ctx, `select exists(select 1 from users where lower(username) = lower($1))`, username).Scan(&taken)
+	err := s.pool.QueryRow(ctx, `select exists(select 1 from public.profiles where lower(username) = lower($1))`, username).Scan(&taken)
 	return !taken, err
+}
+
+// SetUsername changes a dev's handle (e.g. to the one chosen at sign-up,
+// replacing the trigger-generated default). Returns ErrConflict if taken.
+func (s *Store) SetUsername(ctx context.Context, userID, username string) error {
+	_, err := s.pool.Exec(ctx, `update public.profiles set username = $2, updated_at = now() where id = $1`, userID, username)
+	return mapErr(err)
 }
 
 // GetAPIKeyCiphertext returns the encrypted BYOK key, or nil if none is stored.
 func (s *Store) GetAPIKeyCiphertext(ctx context.Context, userID string) ([]byte, error) {
 	var ct []byte
-	err := s.pool.QueryRow(ctx, `select api_key_encrypted from users where id = $1`, userID).Scan(&ct)
-	return ct, mapErr(err)
+	err := s.pool.QueryRow(ctx, `select api_key_encrypted from public.profile_secrets where profile_id = $1`, userID).Scan(&ct)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	return ct, err
 }
 
 // AuthIdentity is a Supabase Auth user, normalized for dev-record creation.
@@ -61,25 +80,13 @@ type AuthIdentity struct {
 	GitHubURL string
 }
 
-// EnsureDev returns the dev record for a Supabase user, creating it on first
-// sight. It is idempotent and safe to race (webhook vs. first API request).
+// EnsureDev returns the profile for a Supabase user, creating it if the
+// on_auth_user_created trigger has not (e.g. users who predate it). It is
+// idempotent and safe to race.
 func (s *Store) EnsureDev(ctx context.Context, id AuthIdentity) (*model.UserProfile, bool, error) {
 	u, err := s.GetUserByID(ctx, id.ID)
 	if err == nil || !errors.Is(err, ErrNotFound) {
 		return u, false, err
-	}
-
-	// Emails are unique; if another record already uses this one (e.g. demo
-	// seed data), create the dev without it rather than failing sign-in.
-	email := nullIfEmpty(strings.ToLower(id.Email))
-	if email != nil {
-		var taken bool
-		if err := s.pool.QueryRow(ctx, `select exists(select 1 from users where lower(email) = $1)`, *email).Scan(&taken); err != nil {
-			return nil, false, err
-		}
-		if taken {
-			email = nil
-		}
 	}
 
 	base := id.Username
@@ -90,58 +97,53 @@ func (s *Store) EnsureDev(ctx context.Context, id AuthIdentity) (*model.UserProf
 	if name == "" {
 		name = base
 	}
-	u, err = s.createUser(ctx, base, func(username string) pgx.Row {
+	var newID string
+	err = s.createUser(ctx, base, func(username string) pgx.Row {
 		return s.pool.QueryRow(ctx, `
-			insert into users (id, username, name, email, avatar_url, github_url)
-			values ($1, $2, $3, $4, $5, $6)
+			insert into public.profiles (id, username, full_name, avatar_url, github_url)
+			values ($1, $2, $3, nullif($4, ''), nullif($5, ''))
 			on conflict (id) do nothing
-			returning `+userColumns, id.ID, username, name, email, id.AvatarURL, id.GitHubURL)
-	})
-	if errors.Is(err, ErrNotFound) {
-		// Lost the race: another request created it first.
-		u, err = s.GetUserByID(ctx, id.ID)
-		return u, false, err
+			returning id::text`, id.ID, username, name, id.AvatarURL, id.GitHubURL)
+	}, &newID)
+	created := err == nil
+	if err != nil && !errors.Is(err, ErrNotFound) { // ErrNotFound: lost the race, row exists
+		return nil, false, err
 	}
-	return u, err == nil, err
+	u, err = s.GetUserByID(ctx, id.ID)
+	return u, created, err
 }
 
-// SyncEmail mirrors an email change from Supabase Auth.
-func (s *Store) SyncEmail(ctx context.Context, userID, email string) error {
-	_, err := s.pool.Exec(ctx, `update users set email = $2, updated_at = now() where id = $1 and email is distinct from $2`,
-		userID, nullIfEmpty(strings.ToLower(email)))
-	return mapErr(err)
-}
-
-// DeleteDev removes a dev record, first returning their in-flight Launchpad
-// claims to the open pool.
+// DeleteDev removes a dev's profile (usually already gone via the auth.users
+// cascade) and reopens problems left without an active builder.
 func (s *Store) DeleteDev(ctx context.Context, userID string) error {
+	if !IsUUID(userID) {
+		return nil
+	}
 	return mapErr(pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `
-			update ideas set status = 'open', claimed_by = null, claimed_at = null, status_updated_at = now()
-			where claimed_by = $1 and status in ('in_progress', 'seeking_contributors')`, userID); err != nil {
+		if _, err := tx.Exec(ctx, `delete from public.profiles where id = $1`, userID); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `delete from users where id = $1`, userID)
+		_, err := tx.Exec(ctx, reopenOrphanedProblems)
 		return err
 	}))
 }
 
-var usernameValid = regexp.MustCompile(`^[a-zA-Z0-9_-]{3,30}$`)
+// reopenOrphanedProblems returns in-flight problems with no active claim to the pool.
+const reopenOrphanedProblems = `
+	update public.problems pr set status = 'Available', status_updated_at = now()
+	where pr.status in ('In Progress', 'Seeking Contributors')
+	  and not exists (select 1 from public.claimed_projects c
+	                  where c.problem_id = pr.id and c.collaboration_status = 'Active')`
 
-// EnsureDevUser returns (creating if needed) a sandbox persona with the given role.
-func (s *Store) EnsureDevUser(ctx context.Context, username, name string, role model.Role) (*model.UserProfile, error) {
-	return scanUser(s.pool.QueryRow(ctx, `
-		insert into users (username, name, role) values ($1, $2, $3)
-		on conflict ((lower(username))) do update set role = excluded.role, updated_at = now()
-		returning `+userColumns, username, name, role))
-}
+var (
+	usernameValid = regexp.MustCompile(`^[a-zA-Z0-9._-]{3,30}$`)
+	usernameStrip = regexp.MustCompile(`[^a-zA-Z0-9._-]+`)
+)
 
-var usernameStrip = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
-
-// createUser inserts with a username derived from base, retrying with a
-// random suffix when the handle is already taken.
-func (s *Store) createUser(ctx context.Context, base string, insert func(username string) pgx.Row) (*model.UserProfile, error) {
-	candidate := usernameStrip.ReplaceAllString(base, "_")
+// createUser runs insert with a username derived from base, retrying with a
+// random suffix when the handle is already taken. scan receives the returned row.
+func (s *Store) createUser(ctx context.Context, base string, insert func(username string) pgx.Row, dst ...any) error {
+	candidate := usernameStrip.ReplaceAllString(strings.ToLower(base), "_")
 	if len(candidate) > 24 {
 		candidate = candidate[:24]
 	}
@@ -153,45 +155,61 @@ func (s *Store) createUser(ctx context.Context, base string, insert func(usernam
 		if attempt > 0 {
 			username = candidate + "_" + security.RandomHex(4)
 		}
-		u, err := scanUser(insert(username))
+		err := mapErr(insert(username).Scan(dst...))
 		if !errors.Is(err, ErrConflict) {
-			return u, err
+			return err
 		}
 	}
-	return nil, ErrConflict
+	return ErrConflict
 }
 
-// ProfileUpdate carries validated profile fields. APIKey nil leaves the
-// stored key untouched; an empty string clears it.
+// ProfileUpdate carries validated profile fields. Nil pointers keep the
+// stored value. When APIKeyChanged, a nil ciphertext deletes the stored key.
 type ProfileUpdate struct {
-	Name, Headline, Bio  string
-	AvatarURL, GitHubURL *string
-	Email                *string
-	Plan                 string
-	StatedSkills         []string
-	APIKeyCiphertext     []byte
-	APIKeyChanged        bool
+	Name, Headline, Bio             string
+	AvatarURL, GitHubURL, Portfolio *string
+	Plan                            string
+	StatedSkills                    []string
+	APIKeyCiphertext                []byte
+	APIKeyChanged                   bool
 }
 
 func (s *Store) UpdateProfile(ctx context.Context, userID string, p ProfileUpdate) (*model.UserProfile, error) {
-	var email any
-	if p.Email != nil {
-		email = nullIfEmpty(*p.Email)
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `
+			update public.profiles set
+				full_name = $2,
+				headline = $3,
+				bio = $4,
+				avatar_url = coalesce($5, avatar_url),
+				github_url = coalesce($6, github_url),
+				portfolio_url = coalesce($7, portfolio_url),
+				plan = $8,
+				skills = $9,
+				updated_at = now()
+			where id = $1`,
+			userID, p.Name, p.Headline, p.Bio, p.AvatarURL, p.GitHubURL, p.Portfolio, p.Plan, nonNil(p.StatedSkills))
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return ErrNotFound
+		}
+		if !p.APIKeyChanged {
+			return nil
+		}
+		if p.APIKeyCiphertext == nil {
+			_, err = tx.Exec(ctx, `delete from public.profile_secrets where profile_id = $1`, userID)
+			return err
+		}
+		_, err = tx.Exec(ctx, `
+			insert into public.profile_secrets (profile_id, api_key_encrypted) values ($1, $2)
+			on conflict (profile_id) do update set api_key_encrypted = excluded.api_key_encrypted, updated_at = now()`,
+			userID, p.APIKeyCiphertext)
+		return err
+	})
+	if err != nil {
+		return nil, mapErr(err)
 	}
-	return scanUser(s.pool.QueryRow(ctx, `
-		update users set
-			name = $2,
-			headline = $3,
-			bio = $4,
-			avatar_url = coalesce($5, avatar_url),
-			github_url = coalesce($6, github_url),
-			email = case when $7 then $8 else email end,
-			plan = $9,
-			stated_skills = $10,
-			api_key_encrypted = case when $11 then $12 else api_key_encrypted end,
-			updated_at = now()
-		where id = $1
-		returning `+userColumns,
-		userID, p.Name, p.Headline, p.Bio, p.AvatarURL, p.GitHubURL,
-		p.Email != nil, email, p.Plan, nonNil(p.StatedSkills), p.APIKeyChanged, p.APIKeyCiphertext))
+	return s.GetUserByID(ctx, userID)
 }

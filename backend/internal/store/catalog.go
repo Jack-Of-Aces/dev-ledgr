@@ -11,20 +11,27 @@ import (
 	"github.com/Jack-Of-Aces/dev-ledgr/backend/internal/model"
 )
 
-const jobColumns = `id, title, company, location, type, salary, tags, match_score, matched_idea_ids,
-	required_skills, description, gap_idea_id, gap_reason, level, source, source_url, posted_at, scraped_at`
+// Jobs live in public.jobs. required_skills doubles as the matching tags;
+// only admin-approved, active jobs are listed publicly.
+const jobSelect = `
+	select j.id::text, j.title, j.company, j.location, j.employment_type, j.salary, j.required_skills,
+		coalesce(j.match_score, 0), j.job_description, coalesce(j.gap_problem_id::text, ''), coalesce(j.gap_reason, ''),
+		j.level, j.apply_url, coalesce(j.source_url, ''), j.posted_at, j.scraped_at, j.admin_approved, j.is_active
+	from public.jobs j`
 
 func scanJob(row pgx.Row) (*model.Job, error) {
 	var j model.Job
-	var gapIdea, gapReason, sourceURL *string
+	var scrapedAt time.Time
 	err := row.Scan(&j.ID, &j.Title, &j.Company, &j.Location, &j.Type, &j.Salary, &j.Tags, &j.MatchScore,
-		&j.MatchedIdeaIDs, &j.RequiredSkills, &j.Description, &gapIdea, &gapReason,
-		&j.Level, &j.Source, &sourceURL, &j.PostedAt, &j.ScrapedAt)
+		&j.Description, &j.GapIdeaID, &j.GapReason, &j.Level, &j.ApplyURL, &j.SourceURL, &j.PostedAt, &scrapedAt,
+		&j.AdminApproved, &j.IsActive)
 	if err != nil {
 		return nil, mapErr(err)
 	}
-	j.GapIdeaID, j.GapReason, j.SourceURL = deref(gapIdea), deref(gapReason), deref(sourceURL)
-	j.Tags, j.MatchedIdeaIDs, j.RequiredSkills = nonNil(j.Tags), nonNil(j.MatchedIdeaIDs), nonNil(j.RequiredSkills)
+	j.ScrapedAt = &scrapedAt
+	j.Tags = nonNil(j.Tags)
+	j.RequiredSkills = j.Tags
+	j.MatchedIdeaIDs = []string{}
 	return &j, nil
 }
 
@@ -44,8 +51,11 @@ func collectJobs(rows pgx.Rows, err error) ([]model.Job, error) {
 	return jobs, rows.Err()
 }
 
+const jobOrder = ` order by coalesce(j.posted_at, j.scraped_at) desc, j.id`
+
+// ListJobs returns the publicly visible jobs, newest first.
 func (s *Store) ListJobs(ctx context.Context) ([]model.Job, error) {
-	return collectJobs(s.pool.Query(ctx, `select `+jobColumns+` from jobs where is_active order by created_at, id`))
+	return collectJobs(s.pool.Query(ctx, jobSelect+` where j.admin_approved and j.is_active`+jobOrder))
 }
 
 type JobFilters struct {
@@ -54,73 +64,82 @@ type JobFilters struct {
 	Limit  int // max rows scanned
 }
 
-// SearchJobs returns active jobs, newest first, for ranking in the handler.
+// SearchJobs returns publicly visible jobs, newest first, for ranking in the handler.
 func (s *Store) SearchJobs(ctx context.Context, f JobFilters) ([]model.Job, error) {
 	q := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(strings.TrimSpace(f.Search))
-	return collectJobs(s.pool.Query(ctx, `select `+jobColumns+` from jobs
-		where is_active
-		  and ($1 = '' or level = $1)
-		  and ($2 = '' or title ilike '%' || $2 || '%' or company ilike '%' || $2 || '%'
-		       or exists (select 1 from unnest(tags) t where t ilike '%' || $2 || '%'))
-		order by coalesce(posted_at, created_at) desc, id
+	return collectJobs(s.pool.Query(ctx, jobSelect+`
+		where j.admin_approved and j.is_active
+		  and ($1 = '' or j.level = $1)
+		  and ($2 = '' or j.title ilike '%' || $2 || '%' or j.company ilike '%' || $2 || '%'
+		       or exists (select 1 from unnest(j.required_skills) t where t ilike '%' || $2 || '%'))`+jobOrder+`
 		limit $3`, f.Level, q, f.Limit))
 }
 
 func (s *Store) GetJob(ctx context.Context, id string) (*model.Job, error) {
-	return scanJob(s.pool.QueryRow(ctx, `select `+jobColumns+` from jobs where id = $1`, id))
+	if !IsUUID(id) {
+		return nil, ErrNotFound
+	}
+	return scanJob(s.pool.QueryRow(ctx, jobSelect+` where j.id = $1`, id))
 }
 
+// CreateJob publishes a job entered by an admin (approved immediately).
 func (s *Store) CreateJob(ctx context.Context, j model.Job) (*model.Job, error) {
 	if j.Level == "" {
 		j.Level = "unspecified"
 	}
-	if j.Source == "" {
-		j.Source = "curated"
+	var gap any
+	if IsUUID(j.GapIdeaID) {
+		gap = j.GapIdeaID
 	}
-	return scanJob(s.pool.QueryRow(ctx, `
-		insert into jobs (id, title, company, location, type, salary, tags, match_score, matched_idea_ids,
-			required_skills, description, gap_idea_id, gap_reason, level, source, source_url, posted_at)
-		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-		returning `+jobColumns,
-		j.ID, j.Title, j.Company, j.Location, j.Type, j.Salary, nonNil(j.Tags), j.MatchScore, nonNil(j.MatchedIdeaIDs),
-		nonNil(j.RequiredSkills), j.Description, nullIfEmpty(j.GapIdeaID), nullIfEmpty(j.GapReason),
-		j.Level, j.Source, nullIfEmpty(j.SourceURL), j.PostedAt))
+	var id string
+	err := s.pool.QueryRow(ctx, `
+		insert into public.jobs (title, company, location, job_description, required_skills, apply_url, employment_type,
+			level, salary, gap_problem_id, gap_reason, source_url, posted_at, admin_approved)
+		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, nullif($11, ''), nullif($12, ''), $13, true)
+		returning id::text`,
+		j.Title, j.Company, j.Location, j.Description, nonNil(j.Tags), j.ApplyURL, j.Type, j.Level, j.Salary,
+		gap, j.GapReason, j.SourceURL, j.PostedAt).Scan(&id)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	return s.GetJob(ctx, id)
 }
 
-// ScrapedJob is one listing from the job scraper.
+// ScrapedJob is one listing from the job scraper, identified by its listing URL.
 type ScrapedJob struct {
-	ID, Source, ExternalID                string
+	SourceURL                             string
 	Title, Company, Location, Type, Level string
-	Salary, Description, SourceURL        string
+	Salary, Description, ApplyURL         string
 	Skills                                []string
 	PostedAt                              *time.Time
 }
 
-// UpsertScrapedJobs inserts or refreshes scraped listings keyed by
-// (source, external_id) and reports how many were new.
+// UpsertScrapedJobs refreshes listings already stored for the same
+// source_url and inserts the rest. New rows take the table's admin_approved default.
 func (s *Store) UpsertScrapedJobs(ctx context.Context, jobs []ScrapedJob) (inserted, updated int, err error) {
 	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		for _, j := range jobs {
-			var isNew bool
-			if err := tx.QueryRow(ctx, `
-				insert into jobs (id, source, external_id, title, company, location, type, level, salary,
-					description, source_url, tags, posted_at, scraped_at, is_active)
-				values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, now(), true)
-				on conflict (source, external_id) do update set
-					title = excluded.title, company = excluded.company, location = excluded.location,
-					type = excluded.type, level = excluded.level, salary = excluded.salary,
-					description = excluded.description, source_url = excluded.source_url, tags = excluded.tags,
-					posted_at = coalesce(excluded.posted_at, jobs.posted_at), scraped_at = now(), is_active = true
-				returning (xmax = 0)`,
-				j.ID, j.Source, j.ExternalID, j.Title, j.Company, j.Location, j.Type, j.Level, j.Salary,
-				j.Description, nullIfEmpty(j.SourceURL), nonNil(j.Skills), j.PostedAt).Scan(&isNew); err != nil {
+			args := []any{j.SourceURL, j.Title, j.Company, j.Location, j.Type, j.Level, j.Salary,
+				j.Description, j.ApplyURL, nonNil(j.Skills), j.PostedAt}
+			tag, err := tx.Exec(ctx, `
+				update public.jobs set title = $2, company = $3, location = $4, employment_type = $5, level = $6,
+					salary = $7, job_description = $8, apply_url = $9, required_skills = $10,
+					posted_at = coalesce($11, posted_at), scraped_at = timezone('utc', now()), is_active = true
+				where source_url = $1`, args...)
+			if err != nil {
 				return err
 			}
-			if isNew {
-				inserted++
-			} else {
+			if tag.RowsAffected() > 0 {
 				updated++
+				continue
 			}
+			if _, err := tx.Exec(ctx, `
+				insert into public.jobs (source_url, title, company, location, employment_type, level, salary,
+					job_description, apply_url, required_skills, posted_at)
+				values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`, args...); err != nil {
+				return err
+			}
+			inserted++
 		}
 		return nil
 	})

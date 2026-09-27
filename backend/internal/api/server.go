@@ -73,6 +73,7 @@ func (s *Server) Handler() http.Handler {
 	// Launchpad: the problem bank and who is building what.
 	route("GET /api/launchpad/problems", s.listProblems)
 	route("GET /api/launchpad/problems/{id}", s.getProblem)
+	route("POST /api/launchpad/problems/{id}/approve", requirePermission(model.PermSeedIdeas, s.approveProblem))
 	route("POST /api/launchpad/claim", requirePermission(model.PermSubmitSolution, s.claimProblem))
 	route("POST /api/launchpad/claim/{problemId}", requirePermission(model.PermSubmitSolution, s.claimProblem))
 	route("GET /api/launchpad/claims", requireAuth(s.myClaims))
@@ -134,7 +135,8 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (s *Server) readyz(w http.ResponseWriter, r *http.Request) error {
-	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	// A fresh connection through the Supabase pooler can take a few seconds.
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 	if err := s.store.Ping(ctx); err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "unavailable", "database": "down"})

@@ -4,6 +4,7 @@ package store
 import (
 	"context"
 	"errors"
+	"regexp"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -48,6 +49,12 @@ func deref(s *string) string {
 	}
 	return *s
 }
+
+var uuidRe = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+// IsUUID reports whether s is a canonical UUID. Lookups by a malformed id
+// return ErrNotFound instead of a database type error.
+func IsUUID(s string) bool { return uuidRe.MatchString(s) }
 
 func nonNil(s []string) []string {
 	if s == nil {

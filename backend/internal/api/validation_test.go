@@ -27,11 +27,11 @@ func TestProfileValidationMirrorsZodSchema(t *testing.T) {
 
 	bad := profileUpdateRequest{
 		Name: "A", Headline: strings.Repeat("h", 121), Bio: strings.Repeat("b", 501),
-		AvatarURL: ptr("not a url"), GitHubURL: ptr("javascript:alert(1)"), Email: ptr("x@"),
+		AvatarURL: ptr("not a url"), GitHubURL: ptr("javascript:alert(1)"), PortfolioURL: ptr("ftp://x"),
 		Plan: "gold",
 	}
 	errs := fieldErrors(t, bad.validate())
-	for _, f := range []string{"name", "headline", "bio", "avatarUrl", "githubUrl", "email", "plan", "statedSkills"} {
+	for _, f := range []string{"name", "headline", "bio", "avatarUrl", "githubUrl", "portfolioUrl", "plan", "statedSkills"} {
 		if len(errs[f]) == 0 {
 			t.Errorf("expected error for %s", f)
 		}
@@ -39,7 +39,7 @@ func TestProfileValidationMirrorsZodSchema(t *testing.T) {
 
 	// Empty strings for optional URLs/email are allowed, like z.literal('').
 	empty := ok
-	empty.AvatarURL, empty.GitHubURL, empty.Email = ptr(""), ptr(""), ptr("")
+	empty.AvatarURL, empty.GitHubURL, empty.PortfolioURL = ptr(""), ptr(""), ptr("")
 	if err := empty.validate(); err != nil {
 		t.Fatalf("empty optional fields rejected: %v", err)
 	}
@@ -127,10 +127,6 @@ func TestNormalizeScrapedJobFields(t *testing.T) {
 		if got := normalizeJobType(in); got != want {
 			t.Errorf("normalizeJobType(%q) = %s, want %s", in, got, want)
 		}
-	}
-	a, b := scrapedJobID("linkedin", "123"), scrapedJobID("linkedin", "123")
-	if a != b || a == scrapedJobID("indeed", "123") {
-		t.Fatal("scraped job ids must be stable per (source, externalId)")
 	}
 }
 

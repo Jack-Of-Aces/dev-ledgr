@@ -187,16 +187,26 @@ func (s *Server) signup(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	user, sess, err := s.auth.SignUp(r.Context(), email, req.Password,
-		map[string]any{"username": req.Username, "name": req.Name}, s.cfg.AuthRedirectURL)
+		map[string]any{"username": req.Username, "name": req.Name, "full_name": req.Name}, s.cfg.AuthRedirectURL)
 	if err != nil {
 		return authError(err)
+	}
+	// The on_auth_user_created trigger names new profiles after the email;
+	// apply the handle the dev chose.
+	dev, _, err := s.store.EnsureDev(r.Context(), identityFromClaims(user.ID, user.Email, user.UserMetadata, user.AppMetadata))
+	if err != nil {
+		return err
+	}
+	if !strings.EqualFold(dev.Username, req.Username) {
+		if err := s.store.SetUsername(r.Context(), dev.ID, req.Username); err != nil && !errors.Is(err, store.ErrConflict) {
+			return err
+		}
 	}
 	if sess != nil {
 		return s.startSession(w, r, sess, http.StatusCreated)
 	}
-	// Email confirmation is on: create the dev record now, sign in after confirming.
-	dev, _, err := s.store.EnsureDev(r.Context(), identityFromClaims(user.ID, user.Email, user.UserMetadata, user.AppMetadata))
-	if err != nil {
+	// Email confirmation is on: sign in after confirming.
+	if dev, err = s.store.GetUserByID(r.Context(), dev.ID); err != nil {
 		return err
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
@@ -360,7 +370,8 @@ type webhookPayload struct {
 }
 
 // POST /api/auth/webhook syncs Supabase Auth users into dev records:
-// INSERT creates the dev, UPDATE syncs email, DELETE removes the dev.
+// INSERT and UPDATE ensure the dev's profile exists; DELETE removes it and
+// reopens problems the dev was building.
 // Authenticated with SUPABASE_WEBHOOK_SECRET as a bearer token.
 func (s *Server) authWebhook(w http.ResponseWriter, r *http.Request) error {
 	if s.cfg.SupabaseWebhookSecret == "" {
@@ -393,11 +404,7 @@ func (s *Server) authWebhook(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return err
 		}
-		if p.Type == "UPDATE" && !created {
-			if err := s.store.SyncEmail(r.Context(), p.Record.ID, p.Record.Email); err != nil && !errors.Is(err, store.ErrConflict) {
-				return err
-			}
-		}
+		// Email lives in auth.users and is read from there, so UPDATE needs no sync.
 		action := "synced"
 		if created {
 			action = "created"

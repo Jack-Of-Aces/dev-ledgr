@@ -10,9 +10,9 @@ import (
 )
 
 const auditSelect = `
-	select a.id::text, u.username, a.job_id, a.score, a.summary, a.breakdown::text, a.recommendations::text,
-		a.matched_keywords, a.missing_keywords, a.engine, a.model, a.cv_chars, a.created_at, a.dev_id::text
-	from cv_audits a join users u on u.id = a.dev_id`
+	select a.id::text, u.username, a.job_id::text, a.score, a.summary, a.breakdown::text, a.recommendations::text,
+		a.matched_keywords, a.missing_keywords, a.engine, a.model, a.cv_chars, a.created_at, a.profile_id::text
+	from public.cv_audits a join public.profiles u on u.id = a.profile_id`
 
 // scanAudit returns the audit and the owning dev id.
 func scanAudit(row pgx.Row) (*model.CVAudit, string, error) {
@@ -53,9 +53,9 @@ func (s *Store) CreateAudit(ctx context.Context, n NewAudit) (*model.CVAudit, er
 	}
 	var id string
 	err = s.pool.QueryRow(ctx, `
-		insert into cv_audits (dev_id, job_id, score, summary, breakdown, recommendations, matched_keywords,
+		insert into public.cv_audits (profile_id, job_id, score, summary, breakdown, recommendations, matched_keywords,
 			missing_keywords, engine, model, cv_sha256, cv_chars)
-		values ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8, $9, $10, $11, $12)
+		values ($1, $2::uuid, $3, $4, $5::jsonb, $6::jsonb, $7, $8, $9, $10, $11, $12)
 		returning id::text`,
 		n.DevID, nullIfEmpty(n.JobID), n.Result.Score, n.Result.Summary, string(breakdown), string(recs),
 		nonNil(n.Result.MatchedKeywords), nonNil(n.Result.MissingKeywords), n.Result.Engine,
@@ -69,11 +69,14 @@ func (s *Store) CreateAudit(ctx context.Context, n NewAudit) (*model.CVAudit, er
 
 // GetAudit returns an audit and the id of the dev who owns it.
 func (s *Store) GetAudit(ctx context.Context, id string) (*model.CVAudit, string, error) {
+	if !IsUUID(id) {
+		return nil, "", ErrNotFound
+	}
 	return scanAudit(s.pool.QueryRow(ctx, auditSelect+` where a.id = $1`, id))
 }
 
 func (s *Store) ListAudits(ctx context.Context, devID string, limit int) ([]model.CVAudit, error) {
-	rows, err := s.pool.Query(ctx, auditSelect+` where a.dev_id = $1 order by a.created_at desc limit $2`, devID, limit)
+	rows, err := s.pool.Query(ctx, auditSelect+` where a.profile_id = $1 order by a.created_at desc limit $2`, devID, limit)
 	if err != nil {
 		return nil, err
 	}

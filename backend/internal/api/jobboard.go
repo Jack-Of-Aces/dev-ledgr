@@ -129,10 +129,7 @@ func (s *Server) jobBoard(w http.ResponseWriter, r *http.Request) error {
 
 // GET /api/jobBoard/jobs/{id}
 func (s *Server) jobBoardJob(w http.ResponseWriter, r *http.Request) error {
-	job, err := s.store.GetJob(r.Context(), r.PathValue("id"))
-	if errors.Is(err, store.ErrNotFound) {
-		return errNotFound("Job not found")
-	}
+	job, err := s.loadVisibleJob(r, r.PathValue("id"))
 	if err != nil {
 		return err
 	}
@@ -150,9 +147,11 @@ func (s *Server) jobBoardJob(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// scrapedJobInput is one listing from the scraper. sourceUrl (the listing's
+// URL) identifies it: re-sending the same sourceUrl refreshes the job.
 type scrapedJobInput struct {
-	Source      string     `json:"source"`
-	ExternalID  string     `json:"externalId"`
+	SourceURL   string     `json:"sourceUrl"`
+	ApplyURL    string     `json:"applyUrl"`
 	Title       string     `json:"title"`
 	Company     string     `json:"company"`
 	Location    string     `json:"location"`
@@ -161,7 +160,6 @@ type scrapedJobInput struct {
 	Salary      string     `json:"salary"`
 	Skills      []string   `json:"skills"`
 	Description string     `json:"description"`
-	URL         string     `json:"url"`
 	PostedAt    *time.Time `json:"postedAt"`
 }
 
@@ -170,8 +168,6 @@ type ingestRequest struct {
 }
 
 var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
-
-var sourcePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{1,39}$`)
 
 // normalizeLevel maps free-text seniority from job boards onto the level enum.
 func normalizeLevel(raw, title string) string {
@@ -207,13 +203,8 @@ func normalizeJobType(raw string) string {
 	return "Full-time"
 }
 
-func scrapedJobID(source, externalID string) string {
-	sum := sha256.Sum256([]byte(source + "\x00" + externalID))
-	return "job-" + source + "-" + hex.EncodeToString(sum[:])[:12]
-}
-
 // POST /api/jobBoard/jobs ingests scraped listings (service key or admin).
-// Listings are upserted by (source, externalId), so re-running a scrape refreshes them.
+// Listings are matched on sourceUrl, so re-running a scrape refreshes them.
 func (s *Server) ingestJobs(w http.ResponseWriter, r *http.Request) error {
 	var req ingestRequest
 	if err := decodeJSON(w, r, &req); err != nil {
@@ -227,23 +218,21 @@ func (s *Server) ingestJobs(w http.ResponseWriter, r *http.Request) error {
 	rows := make([]store.ScrapedJob, 0, len(req.Jobs))
 	for i, j := range req.Jobs {
 		f := func(name string) string { return fmt.Sprintf("jobs[%d].%s", i, name) }
-		j.Source = strings.ToLower(strings.TrimSpace(j.Source))
-		j.ExternalID = strings.TrimSpace(j.ExternalID)
+		j.SourceURL, j.ApplyURL = strings.TrimSpace(j.SourceURL), strings.TrimSpace(j.ApplyURL)
 		j.Title, j.Company = strings.TrimSpace(j.Title), strings.TrimSpace(j.Company)
-		if !sourcePattern.MatchString(j.Source) {
-			v.add(f("source"), "source must be a short lowercase slug, e.g. linkedin")
+		if !isHTTPURL(j.SourceURL) {
+			v.add(f("sourceUrl"), "sourceUrl (the listing URL) is required")
 		}
-		if j.ExternalID == "" || len(j.ExternalID) > 200 {
-			v.add(f("externalId"), "externalId is required (max 200 chars)")
+		if j.ApplyURL == "" {
+			j.ApplyURL = j.SourceURL
+		} else if !isHTTPURL(j.ApplyURL) {
+			v.add(f("applyUrl"), "applyUrl must be a valid URL")
 		}
 		if j.Title == "" || len(j.Title) > 200 {
 			v.add(f("title"), "title is required (max 200 chars)")
 		}
 		if j.Company == "" || len(j.Company) > 200 {
 			v.add(f("company"), "company is required (max 200 chars)")
-		}
-		if j.URL != "" && !isHTTPURL(j.URL) {
-			v.add(f("url"), "url must be a valid URL")
 		}
 		if len(j.Description) > 50000 || len(j.Skills) > 50 {
 			v.add(f("description"), "description (50k chars) or skills (50) too long")
@@ -253,10 +242,9 @@ func (s *Server) ingestJobs(w http.ResponseWriter, r *http.Request) error {
 			level = normalizeLevel(j.Level, j.Title)
 		}
 		rows = append(rows, store.ScrapedJob{
-			ID: scrapedJobID(j.Source, j.ExternalID), Source: j.Source, ExternalID: j.ExternalID,
-			Title: j.Title, Company: j.Company, Location: strings.TrimSpace(j.Location),
-			Type: normalizeJobType(j.Type), Level: level, Salary: strings.TrimSpace(j.Salary),
-			Description: j.Description, SourceURL: j.URL, Skills: dedupe(j.Skills), PostedAt: j.PostedAt,
+			SourceURL: j.SourceURL, ApplyURL: j.ApplyURL, Title: j.Title, Company: j.Company,
+			Location: strings.TrimSpace(j.Location), Type: normalizeJobType(j.Type), Level: level,
+			Salary: strings.TrimSpace(j.Salary), Description: j.Description, Skills: dedupe(j.Skills), PostedAt: j.PostedAt,
 		})
 	}
 	if err := v.err(); err != nil {

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -14,38 +13,52 @@ import (
 )
 
 var (
-	ErrNotOpen    = errors.New("problem is not open for claiming")
-	ErrClaimLimit = errors.New("active claim limit reached")
-	ErrStale      = errors.New("problem changed concurrently")
+	ErrNotOpen     = errors.New("problem is not open for claiming")
+	ErrNotApproved = errors.New("problem has not been approved")
+	ErrClaimLimit  = errors.New("active claim limit reached")
+	ErrStale       = errors.New("problem changed concurrently")
 )
 
+// Problems (the Launchpad / Idea Bank) live in public.problems; the current
+// builder is the Active (or, once finished, Completed) row in claimed_projects.
 const ideaSelect = `
-	select i.id, i.title, i.tagline, i.domain, i.difficulty, i.estimated_hours, i.origin_story, i.problem_statement,
-		i.technical_requirements, i.mock_infra::text, i.tags, i.submission_count,
-		i.status, i.claimed_at, i.status_updated_at, i.completed_at,
-		c.id::text, c.username, c.name, c.avatar_url
-	from ideas i
-	left join users c on c.id = i.claimed_by`
+	select pr.id::text, pr.title, coalesce(pr.tagline, ''), coalesce(pr.domain, ''), coalesce(pr.difficulty, ''),
+		coalesce(pr.estimated_hours, 0), coalesce(pr.origin_story, ''), pr.problem_statement,
+		coalesce(pr.technical_requirements, '{}'), coalesce(pr.mock_infra, '{}'::jsonb)::text, coalesce(pr.tags, '{}'),
+		coalesce(pr.submission_count, 0), pr.suggested_stack, pr.regional_hurdles, coalesce(pr.source_url, ''),
+		pr.admin_approved, pr.created_at, pr.status, pr.status_updated_at, pr.completed_at,
+		c.claimed_at, d.id::text, d.username, coalesce(nullif(d.full_name, ''), d.username), coalesce(d.avatar_url, '')
+	from public.problems pr
+	left join lateral (
+		select cp.profile_id, cp.claimed_at from public.claimed_projects cp
+		where cp.problem_id = pr.id and cp.collaboration_status in ('Active', 'Completed')
+		order by cp.collaboration_status = 'Active' desc, cp.claimed_at desc
+		limit 1
+	) c on true
+	left join public.profiles d on d.id = c.profile_id`
 
 func scanIdea(row pgx.Row) (*model.Idea, error) {
 	var i model.Idea
-	var infra string
+	var infra, dbStatus string
 	var cID, cUsername, cName, cAvatar *string
 	err := row.Scan(&i.ID, &i.Title, &i.Tagline, &i.Domain, &i.Difficulty, &i.EstimatedHours, &i.OriginStory,
 		&i.ProblemStatement, &i.TechnicalRequirements, &infra, &i.Tags, &i.SubmissionCount,
-		&i.Status, &i.ClaimedAt, &i.StatusUpdatedAt, &i.CompletedAt,
-		&cID, &cUsername, &cName, &cAvatar)
+		&i.SuggestedStack, &i.RegionalHurdles, &i.SourceURL, &i.AdminApproved, &i.CreatedAt,
+		&dbStatus, &i.StatusUpdatedAt, &i.CompletedAt,
+		&i.ClaimedAt, &cID, &cUsername, &cName, &cAvatar)
 	if err != nil {
 		return nil, mapErr(err)
 	}
 	if err := json.Unmarshal([]byte(infra), &i.MockInfra); err != nil {
 		return nil, fmt.Errorf("decode mock_infra for %s: %w", i.ID, err)
 	}
+	i.Status = model.StatusFromDB(dbStatus)
 	if cID != nil {
 		i.ClaimedBy = &model.DevRef{ID: *cID, Username: deref(cUsername), Name: deref(cName), AvatarURL: deref(cAvatar)}
 	}
 	i.TechnicalRequirements = nonNil(i.TechnicalRequirements)
 	i.Tags = nonNil(i.Tags)
+	i.SuggestedStack = nonNil(i.SuggestedStack)
 	if i.MockInfra.Endpoints == nil {
 		i.MockInfra.Endpoints = []model.MockEndpoint{}
 	}
@@ -69,8 +82,11 @@ func collectIdeas(rows pgx.Rows, err error) ([]model.Idea, error) {
 	return ideas, rows.Err()
 }
 
+// IdeaFilters narrows the problem list. Status is an API status; Approved
+// nil means both approved and unapproved problems.
 type IdeaFilters struct {
 	Domain, Difficulty, Search, Status string
+	Approved                           *bool
 }
 
 func (s *Store) ListIdeas(ctx context.Context, f IdeaFilters) ([]model.Idea, error) {
@@ -81,90 +97,132 @@ func (s *Store) ListIdeas(ctx context.Context, f IdeaFilters) ([]model.Idea, err
 		where = append(where, fmt.Sprintf(cond, len(args)))
 	}
 	if f.Domain != "" {
-		add("i.domain = $%d", f.Domain)
+		add("lower(pr.domain) = lower($%d)", f.Domain)
 	}
 	if f.Difficulty != "" {
-		add("i.difficulty = $%d", f.Difficulty)
+		add("lower(pr.difficulty) = lower($%d)", f.Difficulty)
 	}
 	if f.Status != "" {
-		add("i.status = $%d", f.Status)
+		add("pr.status = $%d", model.StatusToDB(f.Status))
+	}
+	if f.Approved != nil {
+		add("pr.admin_approved = $%d", *f.Approved)
 	}
 	if q := strings.TrimSpace(f.Search); q != "" {
 		// Escape LIKE wildcards so user input is matched literally.
 		q = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(q)
-		add(`(i.title ilike '%%' || $%[1]d || '%%' or i.tagline ilike '%%' || $%[1]d || '%%'
-			or exists (select 1 from unnest(i.tags) t where t ilike '%%' || $%[1]d || '%%'))`, q)
+		add(`(pr.title ilike '%%' || $%[1]d || '%%' or pr.tagline ilike '%%' || $%[1]d || '%%'
+			or pr.problem_statement ilike '%%' || $%[1]d || '%%'
+			or exists (select 1 from unnest(coalesce(pr.tags, '{}') || pr.suggested_stack) t where t ilike '%%' || $%[1]d || '%%'))`, q)
 	}
 	sql := ideaSelect
 	if len(where) > 0 {
 		sql += ` where ` + strings.Join(where, " and ")
 	}
-	sql += ` order by i.created_at, i.id`
+	sql += ` order by pr.created_at desc, pr.id`
 	return collectIdeas(s.pool.Query(ctx, sql, args...))
 }
 
 func (s *Store) GetIdea(ctx context.Context, id string) (*model.Idea, error) {
-	return scanIdea(s.pool.QueryRow(ctx, ideaSelect+` where i.id = $1`, id))
+	if !IsUUID(id) {
+		return nil, ErrNotFound
+	}
+	return scanIdea(s.pool.QueryRow(ctx, ideaSelect+` where pr.id = $1`, id))
 }
 
-// IdeasByClaimant lists problems a dev holds, optionally filtered by status.
+// IdeasByClaimant lists problems a dev is building or has built, optionally
+// filtered by API status.
 func (s *Store) IdeasByClaimant(ctx context.Context, devID string, statuses ...string) ([]model.Idea, error) {
+	db := make([]string, 0, len(statuses))
+	for _, st := range statuses {
+		db = append(db, model.StatusToDB(st))
+	}
 	return collectIdeas(s.pool.Query(ctx, ideaSelect+`
-		where i.claimed_by = $1 and (cardinality($2::text[]) = 0 or i.status = any($2))
-		order by i.status_updated_at desc`, devID, nonNil(statuses)))
+		where d.id = $1 and (cardinality($2::text[]) = 0 or pr.status = any($2))
+		order by pr.status_updated_at desc`, devID, db))
 }
 
-// CreateIdea inserts a new challenge. createdBy may be empty (seed data).
-func (s *Store) CreateIdea(ctx context.Context, i model.Idea, createdBy string) (*model.Idea, error) {
+// CreateIdea publishes a problem authored by an admin; it is approved immediately.
+func (s *Store) CreateIdea(ctx context.Context, i model.Idea) (*model.Idea, error) {
 	infra, err := json.Marshal(i.MockInfra)
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.pool.Exec(ctx, `
-		insert into ideas (id, title, tagline, domain, difficulty, estimated_hours, origin_story, problem_statement,
-			technical_requirements, mock_infra, tags, submission_count, created_by)
-		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13)`,
-		i.ID, i.Title, i.Tagline, i.Domain, i.Difficulty, i.EstimatedHours, i.OriginStory, i.ProblemStatement,
-		nonNil(i.TechnicalRequirements), string(infra), nonNil(i.Tags), i.SubmissionCount, nullIfEmpty(createdBy))
+	var id string
+	err = s.pool.QueryRow(ctx, `
+		insert into public.problems (title, tagline, domain, difficulty, estimated_hours, origin_story, problem_statement,
+			technical_requirements, mock_infra, tags, suggested_stack, regional_hurdles, source_url, admin_approved)
+		values ($1, nullif($2, ''), $3, $4, $5, nullif($6, ''), $7, $8, $9::jsonb, $10, $11, $12, nullif($13, ''), true)
+		returning id::text`,
+		i.Title, i.Tagline, i.Domain, i.Difficulty, i.EstimatedHours, i.OriginStory, i.ProblemStatement,
+		nonNil(i.TechnicalRequirements), string(infra), nonNil(i.Tags), nonNil(i.SuggestedStack), i.RegionalHurdles,
+		i.SourceURL).Scan(&id)
 	if err != nil {
 		return nil, mapErr(err)
 	}
-	return s.GetIdea(ctx, i.ID)
+	return s.GetIdea(ctx, id)
 }
 
-// ClaimIdea assigns an open problem to a dev and moves it to in_progress.
-// maxActive caps how many in-flight problems one dev may hold.
+// SetApproved approves or unpublishes a problem.
+func (s *Store) SetApproved(ctx context.Context, id string, approved bool) (*model.Idea, error) {
+	if !IsUUID(id) {
+		return nil, ErrNotFound
+	}
+	tag, err := s.pool.Exec(ctx, `update public.problems set admin_approved = $2 where id = $1`, id, approved)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return nil, ErrNotFound
+	}
+	return s.GetIdea(ctx, id)
+}
+
+// ClaimIdea makes a dev the builder of an approved, available problem and
+// moves it to In Progress. maxActive caps a dev's in-flight claims.
 func (s *Store) ClaimIdea(ctx context.Context, ideaID, devID string, maxActive int) (*model.Idea, error) {
+	if !IsUUID(ideaID) {
+		return nil, ErrNotFound
+	}
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		// Serialize claims per dev so the limit check cannot be raced.
 		if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtext($1))`, "claim:"+devID); err != nil {
 			return err
 		}
 		var active int
-		if err := tx.QueryRow(ctx, `select count(*) from ideas
-			where claimed_by = $1 and status in ('in_progress', 'seeking_contributors')`, devID).Scan(&active); err != nil {
+		if err := tx.QueryRow(ctx, `select count(*) from public.claimed_projects
+			where profile_id = $1 and collaboration_status = 'Active'`, devID).Scan(&active); err != nil {
 			return err
 		}
 		if active >= maxActive {
 			return ErrClaimLimit
 		}
-		tag, err := tx.Exec(ctx, `
-			update ideas set claimed_by = $2, claimed_at = now(), status = 'in_progress', status_updated_at = now()
-			where id = $1 and status = 'open' and claimed_by is null`, ideaID, devID)
+		var status string
+		var approved bool
+		err := tx.QueryRow(ctx, `select status, admin_approved from public.problems where id = $1 for update`, ideaID).
+			Scan(&status, &approved)
 		if err != nil {
 			return err
 		}
-		if tag.RowsAffected() == 0 {
-			var exists bool
-			if err := tx.QueryRow(ctx, `select exists(select 1 from ideas where id = $1)`, ideaID).Scan(&exists); err != nil {
-				return err
-			}
-			if !exists {
-				return ErrNotFound
-			}
+		switch {
+		case !approved:
+			return ErrNotApproved
+		case status != model.StatusToDB(model.StatusOpen):
 			return ErrNotOpen
 		}
-		return nil
+		if _, err := tx.Exec(ctx, `
+			insert into public.claimed_projects (profile_id, problem_id, collaboration_status)
+			values ($1, $2, 'Active')
+			on conflict (profile_id, problem_id) do update
+				set collaboration_status = 'Active', claimed_at = timezone('utc', now())`, devID, ideaID); err != nil {
+			if errors.Is(mapErr(err), ErrConflict) { // someone else holds the active claim
+				return ErrNotOpen
+			}
+			return err
+		}
+		_, err = tx.Exec(ctx, `update public.problems set status = 'In Progress', status_updated_at = now(), completed_at = null
+			where id = $1`, ideaID)
+		return err
 	})
 	if err != nil {
 		return nil, mapErr(err)
@@ -172,40 +230,55 @@ func (s *Store) ClaimIdea(ctx context.Context, ideaID, devID string, maxActive i
 	return s.GetIdea(ctx, ideaID)
 }
 
-// SetIdeaStatus moves a problem to a new status, guarded by the status the
-// caller last saw. Moving to open releases the claim.
+// SetIdeaStatus moves a problem between API statuses, guarded by the status
+// the caller last saw, and keeps the builder's claim in step:
+// open releases the claim, complete marks it Completed, and leaving
+// complete reactivates it.
 func (s *Store) SetIdeaStatus(ctx context.Context, ideaID, from, to string) (*model.Idea, error) {
-	var completedAt any
-	if to == model.StatusComplete {
-		completedAt = time.Now()
-	}
-	tag, err := s.pool.Exec(ctx, `
-		update ideas set
-			status = $3,
-			status_updated_at = now(),
-			completed_at = $4,
-			claimed_by = case when $3 = 'open' then null else claimed_by end,
-			claimed_at = case when $3 = 'open' then null else claimed_at end
-		where id = $1 and status = $2`, ideaID, from, to, completedAt)
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `
+			update public.problems set
+				status = $3,
+				status_updated_at = now(),
+				completed_at = case when $3 = 'Completed' then now() end
+			where id = $1 and status = $2`, ideaID, model.StatusToDB(from), model.StatusToDB(to))
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return ErrStale
+		}
+		switch {
+		case to == model.StatusOpen:
+			_, err = tx.Exec(ctx, `delete from public.claimed_projects
+				where problem_id = $1 and collaboration_status in ('Active', 'Completed')`, ideaID)
+		case to == model.StatusComplete:
+			_, err = tx.Exec(ctx, `update public.claimed_projects set collaboration_status = 'Completed'
+				where problem_id = $1 and collaboration_status = 'Active'`, ideaID)
+		case from == model.StatusComplete:
+			_, err = tx.Exec(ctx, `update public.claimed_projects set collaboration_status = 'Active'
+				where id = (select id from public.claimed_projects where problem_id = $1 and collaboration_status = 'Completed'
+				            order by claimed_at desc limit 1)`, ideaID)
+		}
+		return err
+	})
 	if err != nil {
 		return nil, mapErr(err)
-	}
-	if tag.RowsAffected() == 0 {
-		return nil, ErrStale
 	}
 	return s.GetIdea(ctx, ideaID)
 }
 
-// ProvenSkills returns tags of problems a dev has proven: verified
-// submissions or completed Launchpad builds.
+// ProvenSkills returns the tags and stack of problems a dev has proven:
+// verified submissions or completed Launchpad builds.
 func (s *Store) ProvenSkills(ctx context.Context, devID string) ([]string, error) {
 	rows, err := s.pool.Query(ctx, `
-		select distinct t from ideas i, unnest(i.tags) t
-		where i.id in (select idea_id from submissions where author_id = $1 and status = 'verified')
-		   or (i.claimed_by = $1 and i.status = 'complete')
+		select distinct t from public.problems pr, unnest(coalesce(pr.tags, '{}') || pr.suggested_stack) t
+		where pr.id in (select problem_id from public.submissions where profile_id = $1 and status = 'verified')
+		   or pr.id in (select problem_id from public.claimed_projects where profile_id = $1 and collaboration_status = 'Completed')
 		order by t`, devID)
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, pgx.RowTo[string])
+	out, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	return nonNil(out), err
 }

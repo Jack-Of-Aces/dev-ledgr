@@ -2,7 +2,8 @@
 //
 //	api [serve]   run migrations, then serve HTTP (default)
 //	api migrate   apply database migrations and exit
-//	api seed      apply migrations, load seed data and exit
+//	api seed      apply migrations, load the coaching tracks and exit
+//	api seed demo also add the sample problems and jobs (not in production)
 package main
 
 import (
@@ -63,7 +64,16 @@ func run() error {
 		slog.Info("migrations up to date")
 		return nil
 	case "seed":
-		return seed.Run(ctx, st, cfg)
+		if err := seed.Run(ctx, st); err != nil {
+			return err
+		}
+		if len(os.Args) > 2 && os.Args[2] == "demo" {
+			if cfg.IsProduction() {
+				return errors.New("refusing to load demo data with APP_ENV=production")
+			}
+			return seed.RunDemo(ctx, st)
+		}
+		return nil
 	case "serve":
 		return serve(ctx, cfg, st)
 	default:

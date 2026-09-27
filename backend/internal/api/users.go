@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	usernamePattern   = regexp.MustCompile(`^[a-zA-Z0-9_-]{3,30}$`)
+	usernamePattern   = regexp.MustCompile(`^[a-zA-Z0-9._-]{3,30}$`)
 	reservedUsernames = []string{"me", "available", "admin", "api", "settings", "dashboard", "login", "p"}
 )
 
@@ -47,7 +47,7 @@ func (s *Server) usernameAvailable(w http.ResponseWriter, r *http.Request) error
 	name := r.URL.Query().Get("username")
 	if !usernamePattern.MatchString(name) {
 		v := validationErrors{}
-		v.add("username", "Username must be 3-30 characters of letters, digits, _ or -")
+		v.add("username", "Username must be 3-30 characters of letters, digits, '.', '_' or '-'")
 		return v.err()
 	}
 	available := !slices.Contains(reservedUsernames, strings.ToLower(name))
@@ -64,11 +64,14 @@ func (s *Server) usernameAvailable(w http.ResponseWriter, r *http.Request) error
 // profileUpdateRequest mirrors UserProfileUpdateSchema in lib/schemas/profile.ts.
 // Optional fields that are omitted keep their stored value.
 type profileUpdateRequest struct {
-	Name         string   `json:"name"`
-	Headline     string   `json:"headline"`
-	Bio          string   `json:"bio"`
-	AvatarURL    *string  `json:"avatarUrl"`
-	GitHubURL    *string  `json:"githubUrl"`
+	Name         string  `json:"name"`
+	Headline     string  `json:"headline"`
+	Bio          string  `json:"bio"`
+	AvatarURL    *string `json:"avatarUrl"`
+	GitHubURL    *string `json:"githubUrl"`
+	PortfolioURL *string `json:"portfolioUrl"`
+	// Email is accepted for compatibility with the settings form but not
+	// stored here: it belongs to Supabase Auth (auth.users).
 	Email        *string  `json:"email"`
 	Plan         string   `json:"plan"`
 	APIKey       *string  `json:"apiKey"`
@@ -119,12 +122,8 @@ func (req *profileUpdateRequest) validate() error {
 	if req.GitHubURL != nil && *req.GitHubURL != "" && !isHTTPURL(*req.GitHubURL) {
 		v.add("githubUrl", "Must be a valid GitHub URL")
 	}
-	if req.Email != nil && *req.Email != "" {
-		if e, ok := normalizeEmail(*req.Email); ok {
-			*req.Email = e
-		} else {
-			v.add("email", "Must be a valid email")
-		}
+	if req.PortfolioURL != nil && *req.PortfolioURL != "" && !isHTTPURL(*req.PortfolioURL) {
+		v.add("portfolioUrl", "Must be a valid URL")
 	}
 	if !slices.Contains(model.Plans, req.Plan) {
 		v.add("plan", "Plan must be one of free, full-service, byok")
@@ -161,7 +160,7 @@ func (s *Server) updateMe(w http.ResponseWriter, r *http.Request) error {
 
 	upd := store.ProfileUpdate{
 		Name: req.Name, Headline: req.Headline, Bio: req.Bio,
-		AvatarURL: req.AvatarURL, GitHubURL: req.GitHubURL, Email: req.Email,
+		AvatarURL: req.AvatarURL, GitHubURL: req.GitHubURL, Portfolio: req.PortfolioURL,
 		Plan: req.Plan, StatedSkills: dedupe(req.StatedSkills),
 	}
 	switch {
@@ -176,11 +175,6 @@ func (s *Server) updateMe(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	u, err := s.store.UpdateProfile(r.Context(), devFrom(r.Context()).ID, upd)
-	if errors.Is(err, store.ErrConflict) {
-		v := validationErrors{}
-		v.add("email", "This email is already linked to another account")
-		return &apiError{Message: "Email already in use", StatusCode: http.StatusConflict, Code: "CONFLICT", Errors: v}
-	}
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,7 @@ package model
 import (
 	"encoding/json"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -70,6 +71,7 @@ type UserProfile struct {
 	Headline            string     `json:"headline"`
 	Bio                 string     `json:"bio"`
 	GitHubURL           string     `json:"githubUrl"`
+	PortfolioURL        string     `json:"portfolioUrl,omitempty"`
 	PortfolioValidUntil *time.Time `json:"portfolioValidUntil"`
 	Plan                string     `json:"plan"`
 	HasAPIKey           bool       `json:"hasApiKey"`
@@ -115,6 +117,13 @@ type Idea struct {
 	Tags                  []string      `json:"tags"`
 	SubmissionCount       int           `json:"submissionCount"`
 
+	// Scraped problem fields.
+	SuggestedStack  []string  `json:"suggestedStack"`
+	RegionalHurdles string    `json:"regionalHurdles"`
+	SourceURL       string    `json:"sourceUrl,omitempty"`
+	AdminApproved   bool      `json:"adminApproved"`
+	CreatedAt       time.Time `json:"createdAt"`
+
 	// Launchpad state.
 	Status          string     `json:"status"`
 	ClaimedBy       *DevRef    `json:"claimedBy"`
@@ -141,12 +150,55 @@ const (
 
 var ProblemStatuses = []string{StatusOpen, StatusInProgress, StatusSeekingContributors, StatusComplete}
 
+// problems.status in the database uses Title Case labels.
+var statusToDB = map[string]string{
+	StatusOpen:                "Available",
+	StatusInProgress:          "In Progress",
+	StatusSeekingContributors: "Seeking Contributors",
+	StatusComplete:            "Completed",
+}
+
+// StatusToDB converts an API problem status to its database label.
+func StatusToDB(s string) string { return statusToDB[s] }
+
+// StatusFromDB converts a database label to the API status. Unknown labels
+// are passed through lowercased with underscores.
+func StatusFromDB(s string) string {
+	for api, db := range statusToDB {
+		if strings.EqualFold(db, s) {
+			return api
+		}
+	}
+	return strings.ReplaceAll(strings.ToLower(strings.TrimSpace(s)), " ", "_")
+}
+
+// Claim (claimed_projects.collaboration_status) values.
+const (
+	ClaimActive    = "Active"
+	ClaimCompleted = "Completed"
+)
+
+// RoleFromDB maps profiles.role onto an API role; the database default
+// "candidate" (and anything unknown) is a regular user.
+func RoleFromDB(s string) Role {
+	if r := Role(s); r == RoleReviewer || r == RoleAdmin {
+		return r
+	}
+	return RoleUser
+}
+
+// RoleToDB maps an API role onto the profiles.role value.
+func RoleToDB(r Role) string {
+	if r == RoleUser {
+		return "candidate"
+	}
+	return string(r)
+}
+
 var (
-	Domains      = []string{"fintech", "systems", "logistics", "ai", "security", "devtools"}
-	Difficulties = []string{"foundational", "intermediate", "production-grade"}
-	Plans        = []string{"free", "full-service", "byok"}
-	JobTypes     = []string{"Full-time", "Part-time", "Contract", "Internship", "Remote"}
-	JobLevels    = []string{"intern", "junior", "mid", "senior", "lead", "unspecified"}
+	Plans     = []string{"free", "full-service", "byok"}
+	JobTypes  = []string{"Full-time", "Part-time", "Contract", "Internship", "Remote"}
+	JobLevels = []string{"intern", "junior", "mid", "senior", "lead", "unspecified"}
 )
 
 type TestResults struct {
@@ -208,11 +260,13 @@ type Job struct {
 	GapIdeaID      string   `json:"gapIdeaId,omitempty"`
 	GapReason      string   `json:"gapReason,omitempty"`
 
-	Level     string     `json:"level"`
-	Source    string     `json:"source"`
-	SourceURL string     `json:"sourceUrl,omitempty"`
-	PostedAt  *time.Time `json:"postedAt,omitempty"`
-	ScrapedAt *time.Time `json:"scrapedAt,omitempty"`
+	Level         string     `json:"level"`
+	ApplyURL      string     `json:"applyUrl"`
+	AdminApproved bool       `json:"adminApproved"`
+	IsActive      bool       `json:"isActive"`
+	SourceURL     string     `json:"sourceUrl,omitempty"`
+	PostedAt      *time.Time `json:"postedAt,omitempty"`
+	ScrapedAt     *time.Time `json:"scrapedAt,omitempty"`
 }
 
 // JobMatch explains how well a job fits a developer's skills.
