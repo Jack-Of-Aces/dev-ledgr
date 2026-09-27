@@ -91,7 +91,7 @@ func Run(ctx context.Context, st *store.Store, cfg *config.Config) error {
 		if s.Status == "verified" {
 			issued := s.Timestamp
 			cert := &model.Certificate{IssuedAt: issued, ValidUntil: issued.Add(365 * 24 * time.Hour)}
-			cert.Hash = security.SignCertificate(cfg.SessionSecret, security.CertificateInput{
+			cert.Hash = security.SignCertificate(cfg.SigningSecret, security.CertificateInput{
 				SubmissionHash: s.Hash, IdeaID: s.IdeaID, AuthorUsername: s.AuthorUsername, RepoURL: s.RepoURL,
 				TestsPassed: s.TestResults.Passed, TestsTotal: s.TestResults.Total,
 				IssuedAt: cert.IssuedAt, ValidUntil: cert.ValidUntil,

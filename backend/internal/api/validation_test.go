@@ -107,3 +107,42 @@ func TestRateLimiter(t *testing.T) {
 		t.Fatal("limits leaked across keys")
 	}
 }
+
+func TestNormalizeScrapedJobFields(t *testing.T) {
+	levels := map[[2]string]string{
+		{"", "Senior Backend Engineer"}:      "senior",
+		{"Entry level", "Software Engineer"}: "junior",
+		{"", "Graduate Developer"}:           "junior",
+		{"", "Staff Engineer"}:               "lead",
+		{"Internship", "SWE"}:                "intern",
+		{"", "Backend Engineer"}:             "unspecified",
+	}
+	for in, want := range levels {
+		if got := normalizeLevel(in[0], in[1]); got != want {
+			t.Errorf("normalizeLevel(%q, %q) = %s, want %s", in[0], in[1], got, want)
+		}
+	}
+	types := map[string]string{"Part time": "Part-time", "Freelance": "Contract", "": "Full-time", "Remote - Africa": "Remote"}
+	for in, want := range types {
+		if got := normalizeJobType(in); got != want {
+			t.Errorf("normalizeJobType(%q) = %s, want %s", in, got, want)
+		}
+	}
+	a, b := scrapedJobID("linkedin", "123"), scrapedJobID("linkedin", "123")
+	if a != b || a == scrapedJobID("indeed", "123") {
+		t.Fatal("scraped job ids must be stable per (source, externalId)")
+	}
+}
+
+func TestIdentityFromGitHubMetadata(t *testing.T) {
+	id := identityFromClaims("u1", "a@b.co",
+		map[string]any{"user_name": "octodev", "full_name": "Octo Dev", "avatar_url": "https://x/y.png"},
+		map[string]any{"provider": "github"})
+	if id.Username != "octodev" || id.Name != "Octo Dev" || id.GitHubURL != "https://github.com/octodev" || id.AvatarURL == "" {
+		t.Fatalf("identity = %+v", id)
+	}
+	id = identityFromClaims("u2", "b@c.co", map[string]any{"username": "bee"}, map[string]any{"provider": "email"})
+	if id.Username != "bee" || id.GitHubURL != "" {
+		t.Fatalf("identity = %+v", id)
+	}
+}

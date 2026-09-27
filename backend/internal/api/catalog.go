@@ -15,8 +15,12 @@ var slugPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{2,63}$`)
 
 // GET /api/v1/ideas?domain=&difficulty=&search=
 func (s *Server) listIdeas(w http.ResponseWriter, r *http.Request) error {
+	return s.listIdeasWith(w, r, "")
+}
+
+func (s *Server) listIdeasWith(w http.ResponseWriter, r *http.Request, status string) error {
 	q := r.URL.Query()
-	f := store.IdeaFilters{Domain: q.Get("domain"), Difficulty: q.Get("difficulty"), Search: q.Get("search")}
+	f := store.IdeaFilters{Domain: q.Get("domain"), Difficulty: q.Get("difficulty"), Search: q.Get("search"), Status: status}
 	v := validationErrors{}
 	if f.Domain != "" && !slices.Contains(model.Domains, f.Domain) {
 		v.add("domain", "Unknown domain")
@@ -123,7 +127,7 @@ func (s *Server) createIdea(w http.ResponseWriter, r *http.Request) error {
 		Difficulty: req.Difficulty, EstimatedHours: req.EstimatedHours, OriginStory: req.OriginStory,
 		ProblemStatement: req.ProblemStatement, TechnicalRequirements: req.TechnicalRequirements,
 		MockInfra: req.MockInfra, Tags: dedupe(req.Tags),
-	}, principalFrom(r.Context()).User.ID)
+	}, devFrom(r.Context()).ID)
 	if errors.Is(err, store.ErrConflict) {
 		return errConflict("An idea with this id already exists")
 	}

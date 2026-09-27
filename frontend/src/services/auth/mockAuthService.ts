@@ -67,6 +67,11 @@ export class MockAuthService implements IAuthService {
     };
   }
 
+  async fetchDevProfile(): Promise<UserProfile | null> {
+    // The sandbox has no backend; callers keep their locally derived profile.
+    return null;
+  }
+
   async switchRole(role: UserRole): Promise<UserProfile> {
     const profile = role === 'admin' ? ADMIN_USER : DEFAULT_USER;
     const token = `mock_switched_token_${Date.now()}_${role}`;

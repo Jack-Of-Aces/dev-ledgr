@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"log/slog"
 	"net"
@@ -13,24 +14,25 @@ import (
 	"time"
 
 	"github.com/Jack-Of-Aces/dev-ledgr/backend/internal/model"
-	"github.com/Jack-Of-Aces/dev-ledgr/backend/internal/security"
-	"github.com/Jack-Of-Aces/dev-ledgr/backend/internal/store"
 )
 
 const (
 	sessionCookie = "devledgr_session"
 	roleCookie    = "devledgr_role"
+	refreshCookie = "devledgr_refresh"
 )
 
 type ctxKey int
 
 const principalKey ctxKey = iota
 
-// principal is the authenticated caller attached to the request context.
+// principal is the authenticated caller attached to the request context:
+// either a developer (Supabase user) or an internal service (scraper, CV parser).
 type principal struct {
 	User      *model.UserProfile
 	Token     string
 	ExpiresAt time.Time
+	Service   bool
 }
 
 func principalFrom(ctx context.Context) *principal {
@@ -38,9 +40,17 @@ func principalFrom(ctx context.Context) *principal {
 	return p
 }
 
-// sessionToken reads the bearer token (what the frontend httpClient sends)
-// or falls back to the HttpOnly session cookie.
-func sessionToken(r *http.Request) string {
+// devFrom returns the authenticated developer, or nil.
+func devFrom(ctx context.Context) *model.UserProfile {
+	if p := principalFrom(ctx); p != nil {
+		return p.User
+	}
+	return nil
+}
+
+// bearerToken reads the Supabase access token from the Authorization header
+// or, for same-site browser calls, the devledgr_session cookie.
+func bearerToken(r *http.Request) string {
 	if h := r.Header.Get("Authorization"); h != "" {
 		if tok, ok := strings.CutPrefix(h, "Bearer "); ok {
 			return strings.TrimSpace(tok)
@@ -52,31 +62,55 @@ func sessionToken(r *http.Request) string {
 	return ""
 }
 
-// authenticate resolves the session, if any. Invalid or expired tokens are
-// treated as anonymous; endpoints that need a user enforce it via requireAuth.
+func secretEqual(a, b string) bool {
+	return a != "" && b != "" && subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
+}
+
+// authenticate resolves the caller. A present-but-invalid token is rejected
+// with 401 so clients know to refresh, rather than silently treated as anonymous.
 func (s *Server) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tok := sessionToken(r)
-		if tok == "" {
+		if key := r.Header.Get("X-Service-Key"); key != "" {
+			if !secretEqual(key, s.cfg.ServiceAPIKey) {
+				writeError(w, r, errUnauthorized("Invalid service key"))
+				return
+			}
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), principalKey, &principal{Service: true})))
+			return
+		}
+
+		// Auth routes (login, refresh, webhook, ...) must work even while the
+		// browser still holds an expired token; only /api/auth/me needs a user.
+		authRoute := strings.HasPrefix(r.URL.Path, "/api/auth/") && r.URL.Path != "/api/auth/me"
+		tok := bearerToken(r)
+		if tok == "" || authRoute {
 			next.ServeHTTP(w, r)
 			return
 		}
-		user, exp, err := s.store.SessionUser(r.Context(), security.HashToken(tok))
-		switch {
-		case err == nil:
-			ctx := context.WithValue(r.Context(), principalKey, &principal{User: user, Token: tok, ExpiresAt: exp})
-			r = r.WithContext(ctx)
-		case !errors.Is(err, store.ErrNotFound):
+		claims, err := s.verifier.Verify(r.Context(), tok)
+		if err != nil {
+			writeError(w, r, &apiError{Message: "Access token is invalid or expired", StatusCode: http.StatusUnauthorized, Code: "INVALID_TOKEN"})
+			return
+		}
+		// The webhook normally creates the dev record; provisioning here too
+		// means a missed or delayed webhook never locks a user out.
+		user, _, err := s.store.EnsureDev(r.Context(), identityFromClaims(claims.Subject, claims.Email, claims.UserMetadata, claims.AppMetadata))
+		if err != nil {
 			writeError(w, r, err)
 			return
 		}
-		next.ServeHTTP(w, r)
+		var exp time.Time
+		if claims.ExpiresAt != nil {
+			exp = claims.ExpiresAt.Time
+		}
+		ctx := context.WithValue(r.Context(), principalKey, &principal{User: user, Token: tok, ExpiresAt: exp})
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
 func requireAuth(h handler) handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		if principalFrom(r.Context()) == nil {
+		if devFrom(r.Context()) == nil {
 			return errUnauthorized("Authentication required")
 		}
 		return h(w, r)
@@ -86,11 +120,21 @@ func requireAuth(h handler) handler {
 // requirePermission enforces the same ROLE_PERMISSIONS matrix the frontend uses.
 func requirePermission(p model.Permission, h handler) handler {
 	return requireAuth(func(w http.ResponseWriter, r *http.Request) error {
-		if !model.HasPermission(principalFrom(r.Context()).User.Role, p) {
+		if !model.HasPermission(devFrom(r.Context()).Role, p) {
 			return errForbidden("Your role does not grant the '" + string(p) + "' permission")
 		}
 		return h(w, r)
 	})
+}
+
+// requireServiceOr admits internal services, or developers holding permission p.
+func requireServiceOr(p model.Permission, h handler) handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		if pr := principalFrom(r.Context()); pr != nil && pr.Service {
+			return h(w, r)
+		}
+		return requirePermission(p, h)(w, r)
+	}
 }
 
 func (s *Server) cors(next http.Handler) http.Handler {
@@ -103,7 +147,7 @@ func (s *Server) cors(next http.Handler) http.Handler {
 			h.Add("Vary", "Origin")
 			if r.Method == http.MethodOptions {
 				h.Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-				h.Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept")
+				h.Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, X-Service-Key")
 				h.Set("Access-Control-Max-Age", "600")
 				w.WriteHeader(http.StatusNoContent)
 				return

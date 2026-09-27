@@ -5,7 +5,6 @@ import (
 	"errors"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -52,62 +51,82 @@ func (s *Store) GetAPIKeyCiphertext(ctx context.Context, userID string) ([]byte,
 	return ct, mapErr(err)
 }
 
-// GitHubIdentity is the subset of the GitHub user payload used for sign-in.
-type GitHubIdentity struct {
-	ID        int64
-	Login     string
-	Name      string
+// AuthIdentity is a Supabase Auth user, normalized for dev-record creation.
+type AuthIdentity struct {
+	ID        string // auth.users.id
 	Email     string
+	Username  string // preferred handle; derived from Email when empty
+	Name      string
 	AvatarURL string
-	HTMLURL   string
+	GitHubURL string
 }
 
-// UpsertGitHubUser finds the user linked to a GitHub account, links an
-// existing email-only account with the same verified email, or creates one.
-func (s *Store) UpsertGitHubUser(ctx context.Context, gh GitHubIdentity) (*model.UserProfile, error) {
-	u, err := scanUser(s.pool.QueryRow(ctx, `select `+userColumns+` from users where github_id = $1`, gh.ID))
+// EnsureDev returns the dev record for a Supabase user, creating it on first
+// sight. It is idempotent and safe to race (webhook vs. first API request).
+func (s *Store) EnsureDev(ctx context.Context, id AuthIdentity) (*model.UserProfile, bool, error) {
+	u, err := s.GetUserByID(ctx, id.ID)
 	if err == nil || !errors.Is(err, ErrNotFound) {
-		return u, err
+		return u, false, err
 	}
 
-	if gh.Email != "" {
-		u, err := scanUser(s.pool.QueryRow(ctx, `
-			update users set github_id = $1,
-				github_url = coalesce(nullif(github_url, ''), $2),
-				avatar_url = coalesce(nullif(avatar_url, ''), $3),
-				updated_at = now()
-			where lower(email) = lower($4) and github_id is null
-			returning `+userColumns, gh.ID, gh.HTMLURL, gh.AvatarURL, gh.Email))
-		if err == nil || !errors.Is(err, ErrNotFound) {
-			return u, err
+	// Emails are unique; if another record already uses this one (e.g. demo
+	// seed data), create the dev without it rather than failing sign-in.
+	email := nullIfEmpty(strings.ToLower(id.Email))
+	if email != nil {
+		var taken bool
+		if err := s.pool.QueryRow(ctx, `select exists(select 1 from users where lower(email) = $1)`, *email).Scan(&taken); err != nil {
+			return nil, false, err
+		}
+		if taken {
+			email = nil
 		}
 	}
 
-	name := gh.Name
-	if name == "" {
-		name = gh.Login
+	base := id.Username
+	if !usernameValid.MatchString(base) {
+		base, _, _ = strings.Cut(id.Email, "@")
 	}
-	return s.createUser(ctx, gh.Login, func(username string) pgx.Row {
+	name := strings.TrimSpace(id.Name)
+	if name == "" {
+		name = base
+	}
+	u, err = s.createUser(ctx, base, func(username string) pgx.Row {
 		return s.pool.QueryRow(ctx, `
-			insert into users (username, name, email, avatar_url, github_id, github_url)
+			insert into users (id, username, name, email, avatar_url, github_url)
 			values ($1, $2, $3, $4, $5, $6)
-			returning `+userColumns, username, name, nullIfEmpty(gh.Email), gh.AvatarURL, gh.ID, gh.HTMLURL)
+			on conflict (id) do nothing
+			returning `+userColumns, id.ID, username, name, email, id.AvatarURL, id.GitHubURL)
 	})
+	if errors.Is(err, ErrNotFound) {
+		// Lost the race: another request created it first.
+		u, err = s.GetUserByID(ctx, id.ID)
+		return u, false, err
+	}
+	return u, err == nil, err
 }
 
-// FindOrCreateEmailUser returns the account for an email, creating it on first sign-in.
-func (s *Store) FindOrCreateEmailUser(ctx context.Context, email string) (*model.UserProfile, error) {
-	u, err := scanUser(s.pool.QueryRow(ctx, `select `+userColumns+` from users where lower(email) = lower($1)`, email))
-	if err == nil || !errors.Is(err, ErrNotFound) {
-		return u, err
-	}
-	local, _, _ := strings.Cut(email, "@")
-	return s.createUser(ctx, local, func(username string) pgx.Row {
-		return s.pool.QueryRow(ctx, `
-			insert into users (username, name, email) values ($1, $2, $3)
-			returning `+userColumns, username, local, email)
-	})
+// SyncEmail mirrors an email change from Supabase Auth.
+func (s *Store) SyncEmail(ctx context.Context, userID, email string) error {
+	_, err := s.pool.Exec(ctx, `update users set email = $2, updated_at = now() where id = $1 and email is distinct from $2`,
+		userID, nullIfEmpty(strings.ToLower(email)))
+	return mapErr(err)
 }
+
+// DeleteDev removes a dev record, first returning their in-flight Launchpad
+// claims to the open pool.
+func (s *Store) DeleteDev(ctx context.Context, userID string) error {
+	return mapErr(pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `
+			update ideas set status = 'open', claimed_by = null, claimed_at = null, status_updated_at = now()
+			where claimed_by = $1 and status in ('in_progress', 'seeking_contributors')`, userID); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `delete from users where id = $1`, userID)
+		return err
+	}))
+}
+
+var usernameValid = regexp.MustCompile(`^[a-zA-Z0-9_-]{3,30}$`)
 
 // EnsureDevUser returns (creating if needed) a sandbox persona with the given role.
 func (s *Store) EnsureDevUser(ctx context.Context, username, name string, role model.Role) (*model.UserProfile, error) {
@@ -175,60 +194,4 @@ func (s *Store) UpdateProfile(ctx context.Context, userID string, p ProfileUpdat
 		returning `+userColumns,
 		userID, p.Name, p.Headline, p.Bio, p.AvatarURL, p.GitHubURL,
 		p.Email != nil, email, p.Plan, nonNil(p.StatedSkills), p.APIKeyChanged, p.APIKeyCiphertext))
-}
-
-func (s *Store) CreateSession(ctx context.Context, userID string, tokenHash []byte, expiresAt time.Time) error {
-	_, err := s.pool.Exec(ctx, `insert into sessions (token_hash, user_id, expires_at) values ($1, $2, $3)`,
-		tokenHash, userID, expiresAt)
-	return err
-}
-
-// SessionUser resolves a session token hash to its user and expiry.
-func (s *Store) SessionUser(ctx context.Context, tokenHash []byte) (*model.UserProfile, time.Time, error) {
-	var expiresAt time.Time
-	var userID string
-	err := s.pool.QueryRow(ctx, `select user_id::text, expires_at from sessions where token_hash = $1 and expires_at > now()`,
-		tokenHash).Scan(&userID, &expiresAt)
-	if err != nil {
-		return nil, time.Time{}, mapErr(err)
-	}
-	u, err := s.GetUserByID(ctx, userID)
-	return u, expiresAt, err
-}
-
-func (s *Store) DeleteSession(ctx context.Context, tokenHash []byte) error {
-	_, err := s.pool.Exec(ctx, `delete from sessions where token_hash = $1`, tokenHash)
-	return err
-}
-
-// PurgeExpired removes stale sessions and magic links.
-func (s *Store) PurgeExpired(ctx context.Context) error {
-	if _, err := s.pool.Exec(ctx, `delete from sessions where expires_at < now()`); err != nil {
-		return err
-	}
-	_, err := s.pool.Exec(ctx, `delete from magic_links where expires_at < now() - interval '1 day'`)
-	return err
-}
-
-func (s *Store) CreateMagicLink(ctx context.Context, email string, tokenHash []byte, expiresAt time.Time) error {
-	_, err := s.pool.Exec(ctx, `insert into magic_links (token_hash, email, expires_at) values ($1, $2, $3)`,
-		tokenHash, email, expiresAt)
-	return err
-}
-
-func (s *Store) RecentMagicLinks(ctx context.Context, email string, since time.Time) (int, error) {
-	var n int
-	err := s.pool.QueryRow(ctx, `select count(*) from magic_links where lower(email) = lower($1) and created_at > $2`,
-		email, since).Scan(&n)
-	return n, err
-}
-
-// ConsumeMagicLink marks a link used exactly once and returns its email.
-func (s *Store) ConsumeMagicLink(ctx context.Context, tokenHash []byte) (string, error) {
-	var email string
-	err := s.pool.QueryRow(ctx, `
-		update magic_links set used_at = now()
-		where token_hash = $1 and used_at is null and expires_at > now()
-		returning email`, tokenHash).Scan(&email)
-	return email, mapErr(err)
 }

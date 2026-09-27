@@ -12,9 +12,11 @@ import { envConfig } from '@/lib/config';
 import { getSupabase } from '@/lib/supabase';
 import { setAuthCookies, clearAuthCookies } from '@/lib/cookies';
 import { DEFAULT_USER } from '@/lib/mock-data';
+import { defaultHttpClient } from '../api/httpClient';
 
 export class AuthService implements IAuthService {
   private mock = mockAuthService;
+  private http = defaultHttpClient;
 
   async loginWithGitHub(username?: string, name?: string): Promise<UserSession> {
     const supabase = getSupabase();
@@ -116,16 +118,20 @@ export class AuthService implements IAuthService {
           const username = meta.user_name || meta.preferred_username || u.email?.split('@')[0] || 'developer';
           const name = meta.full_name || meta.name || username;
           const avatarUrl = meta.avatar_url || meta.picture || DEFAULT_USER.avatarUrl;
-          const role: UserRole = meta.role === 'admin' ? 'admin' : 'user';
+
+          // The role comes from the backend dev record, never from
+          // user_metadata, which users can edit themselves.
+          const dev = await this.fetchDevProfile(session.access_token);
+          const role: UserRole = dev?.role ?? 'user';
 
           setAuthCookies(session.access_token, role);
 
           return {
             token: session.access_token,
-            username,
-            name,
+            username: dev?.username ?? username,
+            name: dev?.name ?? name,
             role,
-            avatarUrl,
+            avatarUrl: dev?.avatarUrl || avatarUrl,
             expiresAt: new Date(session.expires_at ? session.expires_at * 1000 : Date.now() + 3600000).toISOString(),
           };
         }
@@ -135,6 +141,23 @@ export class AuthService implements IAuthService {
     }
 
     return this.mock.getCurrentSession();
+  }
+
+  async fetchDevProfile(accessToken: string): Promise<UserProfile | null> {
+    if (envConfig.useMocks) {
+      return null;
+    }
+
+    try {
+      // GET /api/auth/me provisions the dev record on first sign-in.
+      const res = await this.http.get<{ dev: UserProfile }>('/api/auth/me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      return res.dev ?? null;
+    } catch (err) {
+      console.warn('[AuthService] Could not load dev profile from backend:', err);
+      return null;
+    }
   }
 
   async switchRole(role: UserRole): Promise<UserProfile> {

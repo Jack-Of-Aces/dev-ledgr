@@ -20,7 +20,7 @@ var (
 
 // GET /api/v1/users/me returns the caller's full profile.
 func (s *Server) getMe(w http.ResponseWriter, r *http.Request) error {
-	writeJSON(w, http.StatusOK, principalFrom(r.Context()).User)
+	writeJSON(w, http.StatusOK, devFrom(r.Context()))
 	return nil
 }
 
@@ -33,7 +33,7 @@ func (s *Server) getUser(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	if p := principalFrom(r.Context()); p != nil && p.User.ID == u.ID {
+	if dev := devFrom(r.Context()); dev != nil && dev.ID == u.ID {
 		writeJSON(w, http.StatusOK, u)
 		return nil
 	}
@@ -174,7 +174,7 @@ func (s *Server) updateMe(w http.ResponseWriter, r *http.Request) error {
 		upd.APIKeyCiphertext = s.cipher.Encrypt(strings.TrimSpace(*req.APIKey))
 	}
 
-	u, err := s.store.UpdateProfile(r.Context(), principalFrom(r.Context()).User.ID, upd)
+	u, err := s.store.UpdateProfile(r.Context(), devFrom(r.Context()).ID, upd)
 	if errors.Is(err, store.ErrConflict) {
 		v := validationErrors{}
 		v.add("email", "This email is already linked to another account")
@@ -189,11 +189,11 @@ func (s *Server) updateMe(w http.ResponseWriter, r *http.Request) error {
 
 // providerKey returns the caller's decrypted BYOK key, or "".
 func (s *Server) providerKey(r *http.Request) string {
-	p := principalFrom(r.Context())
-	if p == nil || !p.User.HasAPIKey {
+	dev := devFrom(r.Context())
+	if dev == nil || !dev.HasAPIKey {
 		return ""
 	}
-	ct, err := s.store.GetAPIKeyCiphertext(r.Context(), p.User.ID)
+	ct, err := s.store.GetAPIKeyCiphertext(r.Context(), dev.ID)
 	if err != nil || ct == nil {
 		return ""
 	}

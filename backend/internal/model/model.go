@@ -114,13 +114,39 @@ type Idea struct {
 	MockInfra             MockInfraSpec `json:"mockInfra"`
 	Tags                  []string      `json:"tags"`
 	SubmissionCount       int           `json:"submissionCount"`
+
+	// Launchpad state.
+	Status          string     `json:"status"`
+	ClaimedBy       *DevRef    `json:"claimedBy"`
+	ClaimedAt       *time.Time `json:"claimedAt,omitempty"`
+	StatusUpdatedAt time.Time  `json:"statusUpdatedAt"`
+	CompletedAt     *time.Time `json:"completedAt,omitempty"`
 }
+
+// DevRef is a compact public reference to a developer.
+type DevRef struct {
+	ID        string `json:"-"`
+	Username  string `json:"username"`
+	Name      string `json:"name"`
+	AvatarURL string `json:"avatarUrl"`
+}
+
+// Problem statuses on the Launchpad.
+const (
+	StatusOpen                = "open"
+	StatusInProgress          = "in_progress"
+	StatusSeekingContributors = "seeking_contributors"
+	StatusComplete            = "complete"
+)
+
+var ProblemStatuses = []string{StatusOpen, StatusInProgress, StatusSeekingContributors, StatusComplete}
 
 var (
 	Domains      = []string{"fintech", "systems", "logistics", "ai", "security", "devtools"}
 	Difficulties = []string{"foundational", "intermediate", "production-grade"}
 	Plans        = []string{"free", "full-service", "byok"}
-	JobTypes     = []string{"Full-time", "Contract", "Remote"}
+	JobTypes     = []string{"Full-time", "Part-time", "Contract", "Internship", "Remote"}
+	JobLevels    = []string{"intern", "junior", "mid", "senior", "lead", "unspecified"}
 )
 
 type TestResults struct {
@@ -181,6 +207,50 @@ type Job struct {
 	Description    string   `json:"description"`
 	GapIdeaID      string   `json:"gapIdeaId,omitempty"`
 	GapReason      string   `json:"gapReason,omitempty"`
+
+	Level     string     `json:"level"`
+	Source    string     `json:"source"`
+	SourceURL string     `json:"sourceUrl,omitempty"`
+	PostedAt  *time.Time `json:"postedAt,omitempty"`
+	ScrapedAt *time.Time `json:"scrapedAt,omitempty"`
+}
+
+// JobMatch explains how well a job fits a developer's skills.
+type JobMatch struct {
+	Score         int      `json:"score"`
+	MatchedSkills []string `json:"matchedSkills"`
+	MissingSkills []string `json:"missingSkills"`
+}
+
+// ATSBreakdownItem scores one dimension of a CV.
+type ATSBreakdownItem struct {
+	Category string `json:"category"`
+	Score    int    `json:"score"`
+	Notes    string `json:"notes"`
+}
+
+type ATSRecommendation struct {
+	Category   string `json:"category"`
+	Priority   string `json:"priority"` // high | medium | low
+	Issue      string `json:"issue"`
+	Suggestion string `json:"suggestion"`
+}
+
+// CVAudit is a stored ATS compliance audit.
+type CVAudit struct {
+	ID              string              `json:"id"`
+	DevUsername     string              `json:"devUsername"`
+	JobID           string              `json:"jobId,omitempty"`
+	Score           int                 `json:"score"`
+	Summary         string              `json:"summary"`
+	Breakdown       []ATSBreakdownItem  `json:"breakdown"`
+	Recommendations []ATSRecommendation `json:"recommendations"`
+	MatchedKeywords []string            `json:"matchedKeywords"`
+	MissingKeywords []string            `json:"missingKeywords"`
+	Engine          string              `json:"engine"` // claude | heuristic
+	Model           string              `json:"model,omitempty"`
+	CVChars         int                 `json:"cvChars"`
+	CreatedAt       time.Time           `json:"createdAt"`
 }
 
 type Milestone struct {

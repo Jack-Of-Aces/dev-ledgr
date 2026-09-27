@@ -1,7 +1,7 @@
-// Package ai implements the scrutiny audit and coaching features described in
-// ADR-005. When AI_GATEWAY_URL is configured requests are forwarded to it;
-// otherwise (or if it fails) the deterministic Heuristic Reasoning Engine
-// answers from the candidate's real ledger data.
+// Package ai implements the AI features: the CV ATS audit (Claude, with a
+// heuristic fallback when no API key is configured) and the ADR-005 scrutiny
+// audit and coaching (forwarded to AI_GATEWAY_URL when set, otherwise the
+// deterministic Heuristic Reasoning Engine answers from real ledger data).
 package ai
 
 import (
@@ -14,6 +14,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/anthropics/anthropic-sdk-go"
 
 	"github.com/Jack-Of-Aces/dev-ledgr/backend/internal/model"
 )
@@ -45,6 +47,10 @@ type CoachInput struct {
 type Engine struct {
 	GatewayURL string
 	HTTP       *http.Client
+
+	// Claude, when non-nil, powers the ATS audit using Model.
+	Claude *anthropic.Client
+	Model  string
 }
 
 // Scrutiny runs the audit. onLog, if non-nil, receives each step as it completes.

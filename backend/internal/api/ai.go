@@ -40,7 +40,7 @@ func (s *Server) scrutiny(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	user := principalFrom(r.Context()).User
+	user := devFrom(r.Context())
 	subs, err := s.store.ListSubmissions(r.Context(), store.SubmissionFilters{Username: user.Username, Status: "verified"})
 	if err != nil {
 		return err

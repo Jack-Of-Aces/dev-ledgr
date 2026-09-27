@@ -1,125 +1,139 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-	"html"
 	"log/slog"
 	"net/http"
 	"net/mail"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
-	"github.com/Jack-Of-Aces/dev-ledgr/backend/internal/github"
-	mailer "github.com/Jack-Of-Aces/dev-ledgr/backend/internal/mail"
 	"github.com/Jack-Of-Aces/dev-ledgr/backend/internal/model"
-	"github.com/Jack-Of-Aces/dev-ledgr/backend/internal/security"
 	"github.com/Jack-Of-Aces/dev-ledgr/backend/internal/store"
+	"github.com/Jack-Of-Aces/dev-ledgr/backend/internal/supabase"
 )
 
-const (
-	magicLinkTTL      = 15 * time.Minute
-	magicLinkPerEmail = 3 // per magicLinkWindow
-	magicLinkWindow   = 15 * time.Minute
-)
+// Identity is owned by Supabase Auth. These routes proxy its REST API so the
+// frontend has one backend to talk to, and make sure every Supabase user has
+// a DevLedgr dev record.
 
-// startSession issues a session token, persists its hash, sets the cookies
-// the Next.js proxy reads, and returns the UserSession payload.
-func (s *Server) startSession(w http.ResponseWriter, r *http.Request, u *model.UserProfile) error {
-	token := security.NewToken()
-	expires := time.Now().Add(s.cfg.SessionTTL).UTC().Truncate(time.Second)
-	if err := s.store.CreateSession(r.Context(), u.ID, security.HashToken(token), expires); err != nil {
+var oauthProviders = map[string]string{
+	"github": "read:user user:email",
+}
+
+// authResponse extends the frontend's UserSession with the refresh token and
+// the full dev record.
+type authResponse struct {
+	Token        string             `json:"token"`
+	RefreshToken string             `json:"refreshToken,omitempty"`
+	ExpiresAt    time.Time          `json:"expiresAt"`
+	Username     string             `json:"username"`
+	Name         string             `json:"name"`
+	Role         model.Role         `json:"role"`
+	AvatarURL    string             `json:"avatarUrl"`
+	Dev          *model.UserProfile `json:"dev"`
+}
+
+func metaString(m map[string]any, keys ...string) string {
+	for _, k := range keys {
+		if v, ok := m[k].(string); ok && strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
+}
+
+// identityFromClaims maps Supabase user metadata (email sign-up fields or the
+// GitHub OAuth profile) onto a dev identity.
+func identityFromClaims(id, email string, userMeta, appMeta map[string]any) store.AuthIdentity {
+	ident := store.AuthIdentity{
+		ID:        id,
+		Email:     email,
+		Username:  metaString(userMeta, "username", "user_name", "preferred_username"),
+		Name:      metaString(userMeta, "full_name", "name"),
+		AvatarURL: metaString(userMeta, "avatar_url", "picture"),
+	}
+	if metaString(appMeta, "provider") == "github" {
+		if login := metaString(userMeta, "user_name", "preferred_username"); login != "" {
+			ident.GitHubURL = "https://github.com/" + login
+		}
+	}
+	return ident
+}
+
+func (s *Server) requireAuthClient() error {
+	if !s.auth.Configured() {
+		return &apiError{Message: "Supabase Auth is not configured (SUPABASE_ANON_KEY)", StatusCode: http.StatusServiceUnavailable, Code: "AUTH_NOT_CONFIGURED"}
+	}
+	return nil
+}
+
+// authError maps a Supabase Auth failure onto an API error.
+func authError(err error) error {
+	var se *supabase.Error
+	if !errors.As(err, &se) {
+		slog.Error("supabase auth unreachable", "err", err)
+		return &apiError{Message: "Authentication service unavailable", StatusCode: http.StatusBadGateway, Code: "AUTH_UNAVAILABLE"}
+	}
+	switch {
+	case se.Status == http.StatusTooManyRequests:
+		return errTooMany(se.Message)
+	case se.Status >= 400 && se.Status < 500:
+		code := "AUTH_ERROR"
+		if se.Code != "" {
+			code = "AUTH_" + strings.ToUpper(se.Code)
+		}
+		return &apiError{Message: se.Message, StatusCode: se.Status, Code: code}
+	default:
+		slog.Error("supabase auth error", "status", se.Status, "code", se.Code, "msg", se.Message)
+		return &apiError{Message: "Authentication service unavailable", StatusCode: http.StatusBadGateway, Code: "AUTH_UNAVAILABLE"}
+	}
+}
+
+// startSession provisions the dev record, sets cookies and writes the session.
+func (s *Server) startSession(w http.ResponseWriter, r *http.Request, sess *supabase.Session, status int) error {
+	dev, _, err := s.store.EnsureDev(r.Context(),
+		identityFromClaims(sess.User.ID, sess.User.Email, sess.User.UserMetadata, sess.User.AppMetadata))
+	if err != nil {
 		return err
 	}
-	s.setSessionCookies(w, token, u.Role, expires)
-	writeJSON(w, http.StatusOK, model.UserSession{
-		Token: token, Username: u.Username, Name: u.Name, Role: u.Role, AvatarURL: u.AvatarURL, ExpiresAt: expires,
+	expires := time.Unix(sess.ExpiresAt, 0).UTC()
+	if sess.ExpiresAt == 0 {
+		expires = time.Now().Add(time.Duration(sess.ExpiresIn) * time.Second).UTC()
+	}
+	s.setAuthCookies(w, sess.AccessToken, sess.RefreshToken, dev.Role, expires)
+	writeJSON(w, status, authResponse{
+		Token: sess.AccessToken, RefreshToken: sess.RefreshToken, ExpiresAt: expires,
+		Username: dev.Username, Name: dev.Name, Role: dev.Role, AvatarURL: dev.AvatarURL, Dev: dev,
 	})
 	return nil
 }
 
-// setSessionCookies writes devledgr_session (HttpOnly) and devledgr_role.
-// The role cookie is only a routing hint for the edge proxy; the API always
-// authorizes against the role stored in the database.
-func (s *Server) setSessionCookies(w http.ResponseWriter, token string, role model.Role, expires time.Time) {
-	maxAge := int(time.Until(expires).Seconds())
-	if token == "" {
-		maxAge = -1
+// setAuthCookies writes devledgr_session (the access token, HttpOnly),
+// devledgr_refresh (HttpOnly, only sent to /api/auth) and devledgr_role, a
+// routing hint for the Next.js proxy. The API never trusts the role cookie.
+func (s *Server) setAuthCookies(w http.ResponseWriter, access, refresh string, role model.Role, expires time.Time) {
+	sessionAge, longAge := int(time.Until(expires).Seconds()), 30*24*60*60
+	if access == "" {
+		sessionAge, longAge = -1, -1
 	}
 	for _, c := range []*http.Cookie{
-		{Name: sessionCookie, Value: token, HttpOnly: true},
-		{Name: roleCookie, Value: string(role)},
+		{Name: sessionCookie, Value: access, HttpOnly: true, Path: "/", MaxAge: sessionAge},
+		{Name: refreshCookie, Value: refresh, HttpOnly: true, Path: "/api/auth", MaxAge: longAge},
+		{Name: roleCookie, Value: string(role), Path: "/", MaxAge: longAge},
 	} {
-		c.Path = "/"
+		if c.Name == refreshCookie && refresh == "" && access != "" {
+			continue
+		}
 		c.Domain = s.cfg.CookieDomain
-		c.MaxAge = maxAge
 		c.Secure = s.cfg.CookieSecure
 		c.SameSite = http.SameSiteLaxMode
 		http.SetCookie(w, c)
 	}
-}
-
-type githubLoginRequest struct {
-	Code        string `json:"code"`
-	RedirectURI string `json:"redirectUri"`
-}
-
-// POST /api/v1/auth/github exchanges the OAuth code received by the
-// frontend's /api/auth/callback/github route for a DevLedgr session.
-func (s *Server) loginGitHub(w http.ResponseWriter, r *http.Request) error {
-	if !s.github.Configured() {
-		return &apiError{Message: "GitHub sign-in is not configured", StatusCode: http.StatusServiceUnavailable, Code: "GITHUB_NOT_CONFIGURED"}
-	}
-	var req githubLoginRequest
-	if err := decodeJSON(w, r, &req); err != nil {
-		return err
-	}
-	if strings.TrimSpace(req.Code) == "" {
-		v := validationErrors{}
-		v.add("code", "OAuth code is required")
-		return v.err()
-	}
-	if req.RedirectURI != "" && !s.allowedRedirect(req.RedirectURI) {
-		return errBadRequest("redirectUri must point to an allowed frontend origin")
-	}
-
-	identity, err := s.github.Exchange(r.Context(), req.Code, req.RedirectURI)
-	if errors.Is(err, github.ErrBadCode) {
-		return errUnauthorized("GitHub authorization code is invalid or expired")
-	}
-	if err != nil {
-		slog.Error("github exchange failed", "err", err)
-		return &apiError{Message: "Could not reach GitHub", StatusCode: http.StatusBadGateway, Code: "GITHUB_UNAVAILABLE"}
-	}
-	user, err := s.store.UpsertGitHubUser(r.Context(), identity)
-	if err != nil {
-		return err
-	}
-	return s.startSession(w, r, user)
-}
-
-func (s *Server) allowedRedirect(raw string) bool {
-	u, err := url.Parse(raw)
-	if err != nil || u.Scheme == "" || u.Host == "" {
-		return false
-	}
-	origin := u.Scheme + "://" + u.Host
-	for _, o := range s.cfg.AllowedOrigins {
-		if o == origin {
-			return true
-		}
-	}
-	return false
-}
-
-type magicLinkRequest struct {
-	Email string `json:"email"`
-}
-
-type magicLinkResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
 }
 
 func normalizeEmail(raw string) (string, bool) {
@@ -131,9 +145,142 @@ func normalizeEmail(raw string) (string, bool) {
 	return strings.ToLower(raw), true
 }
 
-// POST /api/v1/auth/magic-link emails a single-use sign-in link. The
-// response is identical whether or not the email has an account.
-func (s *Server) requestMagicLink(w http.ResponseWriter, r *http.Request) error {
+type signupRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Username string `json:"username"`
+	Name     string `json:"name"`
+}
+
+// POST /api/auth/signup creates a Supabase user and their dev record.
+func (s *Server) signup(w http.ResponseWriter, r *http.Request) error {
+	if err := s.requireAuthClient(); err != nil {
+		return err
+	}
+	var req signupRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		return err
+	}
+	v := validationErrors{}
+	email, ok := normalizeEmail(req.Email)
+	if !ok {
+		v.add("email", "Please enter a valid email")
+	}
+	if n := len(req.Password); n < 8 || n > 72 {
+		v.add("password", "Password must be 8-72 characters")
+	}
+	if !usernamePattern.MatchString(req.Username) || slices.Contains(reservedUsernames, strings.ToLower(req.Username)) {
+		v.add("username", "Username must be 3-30 characters of letters, digits, _ or -")
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	if n := runeLen(req.Name); n < 2 || n > 60 {
+		v.add("name", "Name must be 2-60 characters")
+	}
+	if err := v.err(); err != nil {
+		return err
+	}
+	if free, err := s.store.UsernameAvailable(r.Context(), req.Username); err != nil {
+		return err
+	} else if !free {
+		v.add("username", "This username is taken")
+		return &apiError{Message: "Username is taken", StatusCode: http.StatusConflict, Code: "CONFLICT", Errors: v}
+	}
+
+	user, sess, err := s.auth.SignUp(r.Context(), email, req.Password,
+		map[string]any{"username": req.Username, "name": req.Name}, s.cfg.AuthRedirectURL)
+	if err != nil {
+		return authError(err)
+	}
+	if sess != nil {
+		return s.startSession(w, r, sess, http.StatusCreated)
+	}
+	// Email confirmation is on: create the dev record now, sign in after confirming.
+	dev, _, err := s.store.EnsureDev(r.Context(), identityFromClaims(user.ID, user.Email, user.UserMetadata, user.AppMetadata))
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"confirmationRequired": true,
+		"message":              fmt.Sprintf("Check %s for a confirmation link to activate your account.", email),
+		"dev":                  dev,
+	})
+	return nil
+}
+
+type loginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+// POST /api/auth/login signs in with email and password.
+func (s *Server) login(w http.ResponseWriter, r *http.Request) error {
+	if err := s.requireAuthClient(); err != nil {
+		return err
+	}
+	var req loginRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		return err
+	}
+	email, ok := normalizeEmail(req.Email)
+	if !ok || req.Password == "" {
+		return errBadRequest("email and password are required")
+	}
+	sess, err := s.auth.PasswordLogin(r.Context(), email, req.Password)
+	if err != nil {
+		return authError(err)
+	}
+	return s.startSession(w, r, sess, http.StatusOK)
+}
+
+type refreshRequest struct {
+	RefreshToken string `json:"refreshToken"`
+}
+
+// POST /api/auth/refresh exchanges a refresh token (body or cookie) for a new session.
+func (s *Server) refresh(w http.ResponseWriter, r *http.Request) error {
+	if err := s.requireAuthClient(); err != nil {
+		return err
+	}
+	var req refreshRequest
+	if err := decodeOptionalJSON(w, r, &req); err != nil {
+		return err
+	}
+	if req.RefreshToken == "" {
+		if c, err := r.Cookie(refreshCookie); err == nil {
+			req.RefreshToken = c.Value
+		}
+	}
+	if req.RefreshToken == "" {
+		return errUnauthorized("refreshToken is required")
+	}
+	sess, err := s.auth.Refresh(r.Context(), req.RefreshToken)
+	if err != nil {
+		return authError(err)
+	}
+	return s.startSession(w, r, sess, http.StatusOK)
+}
+
+// POST /api/auth/logout revokes the session in Supabase and clears cookies. Always 204.
+func (s *Server) logout(w http.ResponseWriter, r *http.Request) error {
+	if tok := bearerToken(r); tok != "" && s.auth.Configured() {
+		if err := s.auth.Logout(r.Context(), tok); err != nil {
+			slog.Warn("supabase logout", "err", err) // expired tokens are fine; cookies are cleared regardless
+		}
+	}
+	s.setAuthCookies(w, "", "", "", time.Now())
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+type magicLinkRequest struct {
+	Email string `json:"email"`
+}
+
+// POST /api/auth/magic-link emails a passwordless sign-in link via Supabase.
+func (s *Server) magicLink(w http.ResponseWriter, r *http.Request) error {
+	if err := s.requireAuthClient(); err != nil {
+		return err
+	}
 	var req magicLinkRequest
 	if err := decodeJSON(w, r, &req); err != nil {
 		return err
@@ -141,125 +288,131 @@ func (s *Server) requestMagicLink(w http.ResponseWriter, r *http.Request) error 
 	email, ok := normalizeEmail(req.Email)
 	if !ok {
 		v := validationErrors{}
-		v.add("email", "Please enter a valid work or personal email")
+		v.add("email", "Please enter a valid email")
 		return v.err()
 	}
-	if _, isLog := s.mailer.(mailer.Log); isLog && s.cfg.IsProduction() {
-		return &apiError{Message: "Email sign-in is not configured", StatusCode: http.StatusServiceUnavailable, Code: "EMAIL_NOT_CONFIGURED"}
+	if err := s.auth.SendMagicLink(r.Context(), email, s.cfg.AuthRedirectURL); err != nil {
+		return authError(err)
 	}
-
-	recent, err := s.store.RecentMagicLinks(r.Context(), email, time.Now().Add(-magicLinkWindow))
-	if err != nil {
-		return err
-	}
-	if recent >= magicLinkPerEmail {
-		return errTooMany("Too many sign-in links requested for this email. Try again in a few minutes.")
-	}
-
-	token := security.NewToken()
-	if err := s.store.CreateMagicLink(r.Context(), email, security.HashToken(token), time.Now().Add(magicLinkTTL)); err != nil {
-		return err
-	}
-	link := s.cfg.MagicLinkURL + "?token=" + url.QueryEscape(token)
-	err = s.mailer.Send(r.Context(), mailer.Message{
-		To:      email,
-		Subject: "Your DevLedgr sign-in link",
-		Text:    fmt.Sprintf("Sign in to DevLedgr: %s\n\nThis link expires in 15 minutes and can be used once. If you did not request it, ignore this email.", link),
-		HTML: fmt.Sprintf(`<p>Sign in to DevLedgr:</p><p><a href="%s">Sign in</a></p><p>This link expires in 15 minutes and can be used once. If you did not request it, ignore this email.</p>`,
-			html.EscapeString(link)),
-	})
-	if err != nil {
-		slog.Error("send magic link", "err", err)
-		return &apiError{Message: "Could not send the sign-in email. Please retry.", StatusCode: http.StatusBadGateway, Code: "EMAIL_SEND_FAILED"}
-	}
-	writeJSON(w, http.StatusOK, magicLinkResponse{
-		Success: true,
-		Message: fmt.Sprintf("Verification link dispatched to %s. It expires in 15 minutes.", email),
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"message": fmt.Sprintf("Sign-in link sent to %s.", email),
 	})
 	return nil
 }
 
-type verifyMagicLinkRequest struct {
-	Token string `json:"token"`
-}
-
-// POST /api/v1/auth/magic-link/verify redeems the emailed token for a session.
-func (s *Server) verifyMagicLink(w http.ResponseWriter, r *http.Request) error {
-	var req verifyMagicLinkRequest
-	if err := decodeJSON(w, r, &req); err != nil {
+// GET /api/auth/oauth/{provider}?redirectTo= starts an OAuth sign-in by
+// redirecting the browser to Supabase. Supabase returns the session to
+// redirectTo (default AUTH_REDIRECT_URL) in the URL fragment.
+func (s *Server) oauthStart(w http.ResponseWriter, r *http.Request) error {
+	if err := s.requireAuthClient(); err != nil {
 		return err
 	}
-	if req.Token == "" {
-		return errBadRequest("token is required")
+	provider := r.PathValue("provider")
+	scopes, ok := oauthProviders[provider]
+	if !ok {
+		return errNotFound("Unsupported sign-in provider")
 	}
-	email, err := s.store.ConsumeMagicLink(r.Context(), security.HashToken(req.Token))
-	if errors.Is(err, store.ErrNotFound) {
-		return errUnauthorized("This sign-in link is invalid, expired, or already used")
-	}
-	if err != nil {
-		return err
-	}
-	user, err := s.store.FindOrCreateEmailUser(r.Context(), email)
-	if err != nil {
-		return err
-	}
-	return s.startSession(w, r, user)
-}
-
-// POST /api/v1/auth/logout revokes the current session. Always succeeds.
-func (s *Server) logout(w http.ResponseWriter, r *http.Request) error {
-	if tok := sessionToken(r); tok != "" {
-		if err := s.store.DeleteSession(r.Context(), security.HashToken(tok)); err != nil {
-			return err
+	redirect := s.cfg.AuthRedirectURL
+	if rt := r.URL.Query().Get("redirectTo"); rt != "" {
+		if !s.allowedRedirect(rt) {
+			return errBadRequest("redirectTo must point to an allowed frontend origin")
 		}
+		redirect = rt
 	}
-	s.setSessionCookies(w, "", "", time.Now())
-	w.WriteHeader(http.StatusNoContent)
+	http.Redirect(w, r, s.auth.AuthorizeURL(provider, redirect, scopes), http.StatusFound)
 	return nil
 }
 
-// GET /api/v1/auth/me returns the current UserSession.
+func (s *Server) allowedRedirect(raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return false
+	}
+	return slices.Contains(s.cfg.AllowedOrigins, u.Scheme+"://"+u.Host)
+}
+
+// GET /api/auth/me returns the current session and dev record.
 func (s *Server) me(w http.ResponseWriter, r *http.Request) error {
 	p := principalFrom(r.Context())
-	writeJSON(w, http.StatusOK, model.UserSession{
-		Token: p.Token, Username: p.User.Username, Name: p.User.Name, Role: p.User.Role,
-		AvatarURL: p.User.AvatarURL, ExpiresAt: p.ExpiresAt,
+	writeJSON(w, http.StatusOK, authResponse{
+		Token: p.Token, ExpiresAt: p.ExpiresAt, Username: p.User.Username, Name: p.User.Name,
+		Role: p.User.Role, AvatarURL: p.User.AvatarURL, Dev: p.User,
 	})
 	return nil
 }
 
-type devLoginRequest struct {
-	Username string     `json:"username"`
-	Name     string     `json:"name"`
-	Role     model.Role `json:"role"`
+// webhookUser is the auth.users row sent by the trigger in supabase/auth_webhook.sql.
+type webhookUser struct {
+	ID              string         `json:"id"`
+	Email           string         `json:"email"`
+	RawUserMetaData map[string]any `json:"raw_user_meta_data"`
+	RawAppMetaData  map[string]any `json:"raw_app_meta_data"`
 }
 
-// POST /api/v1/auth/dev/login is the "Instant Dev Persona Sandbox" from
-// ADR-002. Only registered when ENABLE_DEV_LOGIN is true (never in production).
-func (s *Server) devLogin(w http.ResponseWriter, r *http.Request) error {
-	var req devLoginRequest
-	if err := decodeJSON(w, r, &req); err != nil {
-		return err
+// webhookPayload is the Supabase database-webhook envelope.
+type webhookPayload struct {
+	Type      string       `json:"type"` // INSERT | UPDATE | DELETE
+	Table     string       `json:"table"`
+	Schema    string       `json:"schema"`
+	Record    *webhookUser `json:"record"`
+	OldRecord *webhookUser `json:"old_record"`
+}
+
+// POST /api/auth/webhook syncs Supabase Auth users into dev records:
+// INSERT creates the dev, UPDATE syncs email, DELETE removes the dev.
+// Authenticated with SUPABASE_WEBHOOK_SECRET as a bearer token.
+func (s *Server) authWebhook(w http.ResponseWriter, r *http.Request) error {
+	if s.cfg.SupabaseWebhookSecret == "" {
+		return &apiError{Message: "Webhook secret is not configured", StatusCode: http.StatusServiceUnavailable, Code: "WEBHOOK_NOT_CONFIGURED"}
 	}
-	if req.Role == "" {
-		req.Role = model.RoleUser
+	got, _ := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if got == "" {
+		got = r.Header.Get("X-Webhook-Secret")
 	}
-	v := validationErrors{}
-	if !usernamePattern.MatchString(req.Username) {
-		v.add("username", "Username must be 3-30 characters of letters, digits, _ or -")
+	if !secretEqual(got, s.cfg.SupabaseWebhookSecret) {
+		return errUnauthorized("Invalid webhook secret")
 	}
-	if !req.Role.Valid() {
-		v.add("role", "Role must be user, reviewer or admin")
+
+	var p webhookPayload
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodyBytes))
+	if err := dec.Decode(&p); err != nil {
+		return errBadRequest("Invalid webhook payload")
 	}
-	if err := v.err(); err != nil {
-		return err
+	if p.Schema != "auth" || p.Table != "users" {
+		return errBadRequest("Expected an auth.users event")
 	}
-	if req.Name == "" {
-		req.Name = req.Username
+
+	switch p.Type {
+	case "INSERT", "UPDATE":
+		if p.Record == nil || p.Record.ID == "" {
+			return errBadRequest("record.id is required")
+		}
+		dev, created, err := s.store.EnsureDev(r.Context(),
+			identityFromClaims(p.Record.ID, p.Record.Email, p.Record.RawUserMetaData, p.Record.RawAppMetaData))
+		if err != nil {
+			return err
+		}
+		if p.Type == "UPDATE" && !created {
+			if err := s.store.SyncEmail(r.Context(), p.Record.ID, p.Record.Email); err != nil && !errors.Is(err, store.ErrConflict) {
+				return err
+			}
+		}
+		action := "synced"
+		if created {
+			action = "created"
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "action": action, "username": dev.Username})
+	case "DELETE":
+		if p.OldRecord == nil || p.OldRecord.ID == "" {
+			return errBadRequest("old_record.id is required")
+		}
+		if err := s.store.DeleteDev(r.Context(), p.OldRecord.ID); err != nil {
+			return err
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "action": "deleted"})
+	default:
+		return errBadRequest("Unsupported event type " + p.Type)
 	}
-	user, err := s.store.EnsureDevUser(r.Context(), req.Username, req.Name, req.Role)
-	if err != nil {
-		return err
-	}
-	return s.startSession(w, r, user)
+	return nil
 }

@@ -85,11 +85,9 @@ func serve(ctx context.Context, cfg *config.Config, st *store.Store) error {
 		IdleTimeout:       120 * time.Second,
 	}
 
-	go purgeLoop(ctx, st)
-
 	errCh := make(chan error, 1)
 	go func() {
-		slog.Info("listening", "addr", httpServer.Addr, "env", cfg.Env, "dev_login", cfg.EnableDevLogin)
+		slog.Info("listening", "addr", httpServer.Addr, "env", cfg.Env, "claude_ats", cfg.AnthropicAPIKey != "")
 		errCh <- httpServer.ListenAndServe()
 	}()
 
@@ -105,20 +103,4 @@ func serve(ctx context.Context, cfg *config.Config, st *store.Store) error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	return httpServer.Shutdown(shutdownCtx)
-}
-
-// purgeLoop periodically deletes expired sessions and magic links.
-func purgeLoop(ctx context.Context, st *store.Store) {
-	t := time.NewTicker(time.Hour)
-	defer t.Stop()
-	for {
-		if err := st.PurgeExpired(ctx); err != nil && ctx.Err() == nil {
-			slog.Warn("purge expired sessions", "err", err)
-		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-		}
-	}
 }

@@ -406,7 +406,7 @@ export default function PrivacyPolicyPage() {
             We use strictly necessary and functional browser storage:
           </p>
           <ul className="list-disc pl-6 space-y-2 text-xs sm:text-sm">
-            <li><code className="font-mono text-xs bg-card px-1.5 py-0.5 rounded border border-line">sb-auth-token / devledgr_token</code>: Secure HTTP-only cookies maintaining your authenticated developer session.</li>
+            <li><code className="font-mono text-xs bg-card px-1.5 py-0.5 rounded border border-line">sb-auth-token / devledgr_session</code>: Secure HTTP-only cookies maintaining your authenticated developer session.</li>
             <li><code className="font-mono text-xs bg-card px-1.5 py-0.5 rounded border border-line">devledgr_storage_v1</code>: Client-side local storage storing your selected theme (dark/light) and active UI preferences.</li>
           </ul>
         </section>

@@ -103,7 +103,7 @@ func (s *Server) createSubmission(w http.ResponseWriter, r *http.Request) error 
 	if err := req.validate(); err != nil {
 		return err
 	}
-	author := principalFrom(r.Context()).User
+	author := devFrom(r.Context())
 
 	dup, err := s.store.DuplicateSubmission(r.Context(), author.ID, req.IdeaID, req.CommitHash)
 	if err != nil {
@@ -150,7 +150,7 @@ func (s *Server) loadForReview(r *http.Request) (*model.Submission, error) {
 	if err != nil {
 		return nil, err
 	}
-	reviewer := principalFrom(r.Context()).User
+	reviewer := devFrom(r.Context())
 	if strings.EqualFold(sub.AuthorUsername, reviewer.Username) {
 		return nil, errForbidden("Reviewers cannot review their own submissions")
 	}
@@ -194,10 +194,10 @@ func (s *Server) verifySubmission(w http.ResponseWriter, r *http.Request) error 
 
 	issued := time.Now().UTC().Truncate(time.Second)
 	cert := &model.Certificate{IssuedAt: issued, ValidUntil: issued.Add(certificateValidity)}
-	cert.Hash = security.SignCertificate(s.cfg.SessionSecret, certificateInput(sub, tests, cert))
+	cert.Hash = security.SignCertificate(s.cfg.SigningSecret, certificateInput(sub, tests, cert))
 
 	if err := s.store.RecordReview(r.Context(), store.ReviewDecision{
-		Hash: sub.Hash, ReviewerID: principalFrom(r.Context()).User.ID, Status: "verified",
+		Hash: sub.Hash, ReviewerID: devFrom(r.Context()).ID, Status: "verified",
 		Tests: &tests, Metrics: req.Metrics, Notes: req.Notes, Certificate: cert,
 	}); err != nil {
 		return err
@@ -226,7 +226,7 @@ func (s *Server) rejectSubmission(w http.ResponseWriter, r *http.Request) error 
 		return err
 	}
 	if err := s.store.RecordReview(r.Context(), store.ReviewDecision{
-		Hash: sub.Hash, ReviewerID: principalFrom(r.Context()).User.ID, Status: "rejected", Notes: req.Notes,
+		Hash: sub.Hash, ReviewerID: devFrom(r.Context()).ID, Status: "rejected", Notes: req.Notes,
 	}); err != nil {
 		return err
 	}
@@ -272,7 +272,7 @@ func (s *Server) getCertificate(w http.ResponseWriter, r *http.Request) error {
 	switch {
 	case sub.Status != "verified" || sub.Certificate == nil:
 		res.Reason = "Submission has not been stamped"
-	case !security.VerifyCertificate(s.cfg.SessionSecret, certificateInput(sub, sub.TestResults, sub.Certificate), sub.Certificate.Hash):
+	case !security.VerifyCertificate(s.cfg.SigningSecret, certificateInput(sub, sub.TestResults, sub.Certificate), sub.Certificate.Hash):
 		res.Reason = "Certificate signature does not match the recorded submission"
 	case time.Now().After(sub.Certificate.ValidUntil):
 		res.Expired = true

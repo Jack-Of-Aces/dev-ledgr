@@ -9,7 +9,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type Config struct {
@@ -17,32 +16,37 @@ type Config struct {
 	Port        string
 	DatabaseURL string
 
-	// FrontendURL is the Next.js origin; used for CORS and magic link URLs.
+	// FrontendURL is the Next.js origin; used for CORS and auth redirects.
 	FrontendURL    string
 	AllowedOrigins []string
 
-	// SessionSecret signs ledger certificates. EncryptionKey (32 bytes, hex)
+	// Supabase Auth. SupabaseURL is the project URL (https://<ref>.supabase.co).
+	// Access tokens are verified against the project's JWKS; SupabaseJWTSecret
+	// additionally accepts legacy HS256-signed tokens.
+	SupabaseURL           string
+	SupabaseAnonKey       string
+	SupabaseJWTSecret     string
+	SupabaseWebhookSecret string
+	// AuthRedirectURL is where Supabase sends users after OAuth / magic-link sign-in.
+	AuthRedirectURL string
+
+	// ServiceAPIKey authenticates internal callers (job scraper, CV parser).
+	ServiceAPIKey string
+
+	// SigningSecret signs ledger certificates. EncryptionKey (32 bytes, hex)
 	// encrypts BYOK API keys at rest.
-	SessionSecret []byte
+	SigningSecret []byte
 	EncryptionKey []byte
-	SessionTTL    time.Duration
 	CookieDomain  string
 	CookieSecure  bool
 
-	GitHubClientID     string
-	GitHubClientSecret string
+	// AnthropicAPIKey enables the Claude-powered ATS audit; without it the
+	// heuristic scorer answers. AnthropicModel overrides the model id.
+	AnthropicAPIKey string
+	AnthropicModel  string
 
-	// MagicLinkURL is where the emailed link points; the token is appended as ?token=.
-	MagicLinkURL string
-	ResendAPIKey string
-	EmailFrom    string
-
-	// AIGatewayURL, when set, receives /ai/* requests; otherwise the built-in
-	// heuristic reasoning engine answers them.
+	// AIGatewayURL, when set, receives /api/v1/ai/* requests.
 	AIGatewayURL string
-
-	// EnableDevLogin exposes POST /api/v1/auth/dev/login for persona sandboxing.
-	EnableDevLogin bool
 }
 
 func (c *Config) IsProduction() bool { return c.Env == "production" }
@@ -52,42 +56,41 @@ func Load() (*Config, error) {
 	loadDotEnv(".env")
 
 	c := &Config{
-		Env:                getenv("APP_ENV", "development"),
-		Port:               getenv("PORT", "8080"),
-		DatabaseURL:        os.Getenv("DATABASE_URL"),
-		FrontendURL:        strings.TrimRight(getenv("FRONTEND_URL", "http://localhost:3000"), "/"),
-		CookieDomain:       os.Getenv("COOKIE_DOMAIN"),
-		GitHubClientID:     os.Getenv("GITHUB_CLIENT_ID"),
-		GitHubClientSecret: os.Getenv("GITHUB_CLIENT_SECRET"),
-		ResendAPIKey:       os.Getenv("RESEND_API_KEY"),
-		EmailFrom:          getenv("EMAIL_FROM", "DevLedgr <auth@devledgr.io>"),
-		AIGatewayURL:       strings.TrimRight(os.Getenv("AI_GATEWAY_URL"), "/"),
+		Env:                   getenv("APP_ENV", "development"),
+		Port:                  getenv("PORT", "8080"),
+		DatabaseURL:           os.Getenv("DATABASE_URL"),
+		FrontendURL:           strings.TrimRight(getenv("FRONTEND_URL", "http://localhost:3000"), "/"),
+		SupabaseURL:           strings.TrimRight(os.Getenv("SUPABASE_URL"), "/"),
+		SupabaseAnonKey:       os.Getenv("SUPABASE_ANON_KEY"),
+		SupabaseJWTSecret:     os.Getenv("SUPABASE_JWT_SECRET"),
+		SupabaseWebhookSecret: os.Getenv("SUPABASE_WEBHOOK_SECRET"),
+		ServiceAPIKey:         os.Getenv("SERVICE_API_KEY"),
+		CookieDomain:          os.Getenv("COOKIE_DOMAIN"),
+		AnthropicAPIKey:       os.Getenv("ANTHROPIC_API_KEY"),
+		AnthropicModel:        getenv("ANTHROPIC_MODEL", "claude-opus-5"),
+		AIGatewayURL:          strings.TrimRight(os.Getenv("AI_GATEWAY_URL"), "/"),
 	}
 
 	var errs []error
 	if c.DatabaseURL == "" {
 		errs = append(errs, errors.New("DATABASE_URL is required"))
 	}
+	if c.SupabaseURL == "" {
+		errs = append(errs, errors.New("SUPABASE_URL is required"))
+	}
 
 	c.AllowedOrigins = splitList(getenv("ALLOWED_ORIGINS", c.FrontendURL))
-	c.MagicLinkURL = getenv("MAGIC_LINK_URL", c.FrontendURL+"/api/auth/magic")
+	c.AuthRedirectURL = getenv("AUTH_REDIRECT_URL", c.FrontendURL+"/auth/callback")
 	c.CookieSecure = getbool("COOKIE_SECURE", c.IsProduction())
-	c.EnableDevLogin = getbool("ENABLE_DEV_LOGIN", !c.IsProduction())
 
-	ttlHours, err := strconv.Atoi(getenv("SESSION_TTL_HOURS", "168"))
-	if err != nil || ttlHours <= 0 {
-		errs = append(errs, errors.New("SESSION_TTL_HOURS must be a positive integer"))
-	}
-	c.SessionTTL = time.Duration(ttlHours) * time.Hour
-
-	secret := os.Getenv("SESSION_SECRET")
+	secret := os.Getenv("LEDGER_SIGNING_SECRET")
 	switch {
 	case len(secret) >= 32:
-		c.SessionSecret = []byte(secret)
+		c.SigningSecret = []byte(secret)
 	case c.IsProduction():
-		errs = append(errs, errors.New("SESSION_SECRET must be at least 32 characters in production"))
+		errs = append(errs, errors.New("LEDGER_SIGNING_SECRET must be at least 32 characters in production"))
 	default:
-		c.SessionSecret = []byte("dev-only-insecure-session-secret-change-me")
+		c.SigningSecret = []byte("dev-only-insecure-ledger-secret-change-me")
 	}
 
 	if key := os.Getenv("ENCRYPTION_KEY"); key != "" {
@@ -102,8 +105,13 @@ func Load() (*Config, error) {
 		c.EncryptionKey = make([]byte, 32) // dev only: all-zero key
 	}
 
-	if c.IsProduction() && c.EnableDevLogin {
-		errs = append(errs, errors.New("ENABLE_DEV_LOGIN must be false in production"))
+	if c.IsProduction() {
+		if c.SupabaseWebhookSecret != "" && len(c.SupabaseWebhookSecret) < 24 {
+			errs = append(errs, errors.New("SUPABASE_WEBHOOK_SECRET must be at least 24 characters"))
+		}
+		if c.ServiceAPIKey != "" && len(c.ServiceAPIKey) < 24 {
+			errs = append(errs, errors.New("SERVICE_API_KEY must be at least 24 characters"))
+		}
 	}
 
 	if len(errs) > 0 {

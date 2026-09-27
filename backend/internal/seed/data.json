@@ -371,7 +371,9 @@
       ],
       "description": "We are looking for early-career engineers who don't just know syntax, but understand what happens when a banking network times out under pressure.\n\nYou will maintain high-volume merchant processing switches where duplicate requests cause real money losses. Candidates with verified proof in event deduplication and spatial dispatch will be fast-tracked to technical interview.",
       "gapIdeaId": "webhook-deduplicator",
-      "gapReason": "Role requires proven experience handling high-concurrency duplicate webhook spikes."
+      "gapReason": "Role requires proven experience handling high-concurrency duplicate webhook spikes.",
+      "level": "junior",
+      "source": "curated"
     },
     {
       "id": "job-paystack-infra",
@@ -398,7 +400,9 @@
       ],
       "description": "Join the developer experience team building internal guards that prevent developers from breaking production databases.",
       "gapIdeaId": "schema-migration-guard",
-      "gapReason": "You need demonstrated proof in PostgreSQL lock analysis to qualify for immediate CV generation."
+      "gapReason": "You need demonstrated proof in PostgreSQL lock analysis to qualify for immediate CV generation.",
+      "level": "junior",
+      "source": "curated"
     },
     {
       "id": "job-kobo360-routing",
@@ -424,7 +428,9 @@
       ],
       "description": "Building the nervous system for inter-African logistics. We value real operational proof over Leetcode ratings.",
       "gapIdeaId": "lpg-route-optimizer",
-      "gapReason": "Requires spatial routing and constraint handling proof."
+      "gapReason": "Requires spatial routing and constraint handling proof.",
+      "level": "junior",
+      "source": "curated"
     }
   ],
   "coaching": [
