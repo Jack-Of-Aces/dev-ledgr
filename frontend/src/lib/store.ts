@@ -56,6 +56,7 @@ interface AppState {
   getUserSubmissions: (username: string) => SubmissionEntry[];
   setJobs: (jobs: JobOpportunity[]) => void;
   setIdeas: (ideas: IdeaItem[]) => void;
+  setSubmissions: (submissions: SubmissionEntry[]) => void;
 
   // Dynamic Job Matcher
   getJobMatchDetails: (job: JobOpportunity) => {
@@ -103,14 +104,17 @@ export const useAppStore = create<AppState>()(
             return canonical ? { ...canonical, submissionCount: Math.max(canonical.submissionCount, idea.submissionCount) } : idea;
           });
 
-          // Merge fresh submissions
+          // Merge fresh submissions (only if there are no persisted user submissions)
           const existingHashes = new Set(state.submissions.map((s) => s.hash.toLowerCase()));
           const freshSubs = INITIAL_SUBMISSIONS.filter((s) => !existingHashes.has(s.hash.toLowerCase()));
 
+          // Only seed mock submissions when state is completely empty (first launch)
+          const seedSubmissions = state.submissions.length === 0 ? freshSubs : [];
+
           return {
             ideas: [...updatedIdeas, ...freshIdeas],
-            submissions: [...freshSubs, ...state.submissions],
-            jobs: INITIAL_JOBS,
+            submissions: [...seedSubmissions, ...state.submissions],
+            // Do not reset jobs here — live jobs are fetched and set by individual pages via setJobs
           };
         });
       },
@@ -302,6 +306,7 @@ export const useAppStore = create<AppState>()(
 
       setJobs: (jobs) => set({ jobs }),
       setIdeas: (ideas) => set({ ideas }),
+      setSubmissions: (submissions) => set({ submissions }),
 
       getJobMatchDetails: (job) => {
         const { user, submissions, ideas } = get();

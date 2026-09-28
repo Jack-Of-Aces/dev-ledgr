@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { getDomainStyle } from '@/lib/colors';
-import { INITIAL_COACHING } from '@/lib/mock-data';
 import { DashboardSkeleton } from '@/components/ui/skeletons';
+import { coachingService } from '@/services/coaching/coachingService';
+import { submissionService } from '@/services/submissions/submissionService';
+import { CoachingItinerary } from '@/types';
 import {
   ShieldCheck,
   ExternalLink,
@@ -47,7 +49,7 @@ interface NotificationItem {
 }
 
 export default function DashboardPage() {
-  const { user, submissions, jobs, ideas, getJobMatchDetails, setJobs } = useAppStore();
+  const { user, submissions, jobs, ideas, getJobMatchDetails, setJobs, setSubmissions } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<DashboardTab>('ledger');
   const [mounted, setMounted] = useState(false);
@@ -60,20 +62,46 @@ export default function DashboardPage() {
   const [liveJobs, setLiveJobs] = useState<JobOpportunity[]>([]);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [selectedAuditJob, setSelectedAuditJob] = useState<JobOpportunity | undefined>(undefined);
+  const [activeCoaching, setActiveCoaching] = useState<CoachingItinerary | null>(null);
 
   useEffect(() => {
     setMounted(true);
     let active = true;
+
+    // Fetch live jobs
     jobService.getJobs().then((fetched) => {
       if (active && fetched && fetched.length > 0) {
         setLiveJobs(fetched);
         setJobs(fetched);
       }
     });
+
+    // Fetch live coaching tracks (first track is active track for dashboard preview)
+    coachingService.getItineraries().then((tracks) => {
+      if (active && tracks && tracks.length > 0) {
+        setActiveCoaching(tracks[0]);
+      }
+    }).catch(() => {});
+
+    // Fetch live submissions for authenticated users
+    if (user.username) {
+      submissionService.getSubmissions(user.username).then((subs) => {
+        if (active && subs) {
+          // If backend returned real submissions for this user, sync to store
+          const userLiveSubs = subs.filter(
+            (s) => s.authorUsername.toLowerCase() === user.username.toLowerCase()
+          );
+          if (userLiveSubs.length > 0) {
+            setSubmissions(subs);
+          }
+        }
+      }).catch(() => {});
+    }
+
     return () => {
       active = false;
     };
-  }, [setJobs]);
+  }, [setJobs, setSubmissions, user.username]);
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
@@ -205,8 +233,7 @@ export default function DashboardPage() {
     return null;
   })();
 
-  // Coaching itinerary reference
-  const activeCoaching = INITIAL_COACHING[0];
+  // Coaching itinerary reference — populated from live coachingService in useEffect
   const userSolvedIdeaIds = new Set(userSubmissions.map((s) => s.ideaId));
 
   if (!mounted) {
@@ -517,11 +544,11 @@ export default function DashboardPage() {
             : '--';
 
           // Coaching Track Completion
-          const solvedMilestones = activeCoaching.milestones.filter(
+          const solvedMilestones = activeCoaching?.milestones.filter(
             (m) => m.ideaIdRef && userSolvedIdeaIds.has(m.ideaIdRef)
-          ).length;
-          const totalMilestones = activeCoaching.milestones.length;
-          const coachingPercent = Math.round((solvedMilestones / totalMilestones) * 100);
+          ).length ?? 0;
+          const totalMilestones = activeCoaching?.milestones.length ?? 0;
+          const coachingPercent = totalMilestones > 0 ? Math.round((solvedMilestones / totalMilestones) * 100) : 0;
 
           // Top Matched Role
           const jobMatches = jobs.map((j) => ({ job: j, details: getJobMatchDetails(j) }));
@@ -1315,6 +1342,12 @@ export default function DashboardPage() {
               aria-labelledby="tab-coaching"
               className="space-y-6"
             >
+              {!activeCoaching ? (
+                <div className="p-6 rounded-radius border border-line bg-card/60 text-center text-xs font-mono text-text-1 animate-pulse">
+                  Loading coaching curriculum…
+                </div>
+              ) : (
+              <>
               {/* Program header card */}
               <div className="p-5 rounded-radius border border-line bg-card space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-line">
@@ -1447,6 +1480,8 @@ export default function DashboardPage() {
               );
             })()}
           </div>
+          </>
+          )}
         </div>
       )}
 

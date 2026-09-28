@@ -24,7 +24,6 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  Tag,
   Briefcase,
 } from 'lucide-react';
 
@@ -116,7 +115,6 @@ export default function JobsPage() {
   // Filter and sort opportunities
   const filteredJobs = useMemo(() => {
     const searchLower = search.trim().toLowerCase();
-    const userTrack = user.engineeringTrack?.toLowerCase() || '';
 
     const matched = activeJobs.map((job) => {
       const match = getJobMatchDetails(job);

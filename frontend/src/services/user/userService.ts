@@ -33,9 +33,12 @@ export class UserService implements IUserService {
       return this.mock.updateProfile(data);
     }
 
+    // Per ADR-001: mutations never silently fall back. Try primary endpoint; if it fails,
+    // attempt the alternate endpoint. If both fail, the error propagates to the caller.
     try {
       return await this.http.patch<UserProfile>('/api/dev/profile', data);
     } catch {
+      // Attempt alternate endpoint — error propagates if this also fails
       return await this.http.patch<UserProfile>('/api/v1/users/me', data);
     }
   }

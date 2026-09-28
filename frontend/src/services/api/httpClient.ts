@@ -25,7 +25,12 @@ export class HttpClient {
     params?: Record<string, string | number | boolean | undefined>
   ): string {
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    const fullUrl = this.baseUrl ? `${this.baseUrl}${cleanEndpoint}` : cleanEndpoint;
+    // In the browser, use same-origin relative URLs (/api/...) so Next.js rewrites
+    // proxy calls server-side, preventing browser CORS preflight blocks.
+    const isBrowser = typeof window !== 'undefined';
+    const fullUrl = isBrowser
+      ? cleanEndpoint
+      : (this.baseUrl ? `${this.baseUrl}${cleanEndpoint}` : cleanEndpoint);
 
     if (!params) return fullUrl;
 
