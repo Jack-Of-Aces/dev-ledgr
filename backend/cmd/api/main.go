@@ -5,18 +5,21 @@
 //	api seed      apply migrations, load the coaching tracks and exit
 //	api seed demo also add the sample problems and jobs (not in production)
 //	api promote <username> <role>   set a dev's role (user|reviewer|admin)
+//	api users [query]  list dev profiles, optionally filtered by a substring
 package main
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"text/tabwriter"
 	"time"
 
 	"github.com/Jack-Of-Aces/dev-ledgr/backend/internal/api"
@@ -50,6 +53,9 @@ func run() error {
 	// Supabase and signing secrets that only the HTTP server actually uses.
 	if cmd == "promote" {
 		return promote(ctx, os.Args[2:])
+	}
+	if cmd == "users" {
+		return listUsers(ctx, os.Args[2:])
 	}
 
 	cfg, err := config.Load()
@@ -86,7 +92,7 @@ func run() error {
 	case "serve":
 		return serve(ctx, cfg, st)
 	default:
-		return fmt.Errorf("unknown command %q (want serve, migrate, seed or promote)", cmd)
+		return fmt.Errorf("unknown command %q (want serve, migrate, seed, promote or users)", cmd)
 	}
 }
 
@@ -130,7 +136,13 @@ func promote(ctx context.Context, args []string) error {
 
 	dev, err := st.GetUserByUsername(ctx, username)
 	if errors.Is(err, store.ErrNotFound) {
-		return fmt.Errorf("no profile for %q: they must sign in through the app once first", username)
+		// Name the command that answers this. The handle a dev picks at sign-up
+		// is not the handle that reaches the table: the on_auth_user_created
+		// trigger names the row after the account's email and pads it when that
+		// is taken, so "michojekunle_551" and "michojekunle1_551" look like a
+		// typo to the person holding the account and are not. Without this
+		// pointer the only way to recover the real handle is to query by hand.
+		return fmt.Errorf("no profile for %q: check the handle with `api users`, or have them sign in through the app once first", username)
 	}
 	if err != nil {
 		return err
@@ -144,6 +156,71 @@ func promote(ctx context.Context, args []string) error {
 	}
 	slog.Info("role set", "username", dev.Username, "from", string(dev.Role), "to", string(role))
 	return nil
+}
+
+// listUsers prints the dev roster, optionally filtered by a substring of the
+// username, name or email.
+//
+// The handles are the reason this exists. Sign-up does not use the handle you
+// pick: a Supabase on_auth_user_created trigger creates the row and names it
+// after the account's email, padding it with a random suffix when that is
+// already taken. So the handle a dev chose is often not the one in the
+// database, promote then fails with "no profile for X" naming a handle that
+// never existed, and the only way to recover it is to query the table by hand.
+func listUsers(ctx context.Context, args []string) error {
+	query := ""
+	if len(args) > 0 {
+		query = strings.TrimSpace(args[0])
+	}
+
+	databaseURL, err := config.DatabaseURL()
+	if err != nil {
+		return err
+	}
+	pool, err := db.Connect(ctx, databaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	if err := db.Migrate(ctx, pool); err != nil {
+		return err
+	}
+
+	users, err := store.New(pool).ListPlatformUsers(ctx, query, 200)
+	if err != nil {
+		return err
+	}
+	if len(users) == 0 {
+		if query != "" {
+			slog.Info("no profiles matched", "query", query)
+			return nil
+		}
+		slog.Info("no profiles yet", "hint", "they appear here after their first sign-in")
+		return nil
+	}
+
+	if err := writeUserTable(os.Stdout, users); err != nil {
+		return err
+	}
+	slog.Info("profiles listed", "count", len(users), "query", query)
+	return nil
+}
+
+// writeUserTable renders the roster as an aligned table.
+//
+// Emails are included because the handle is derived from the account email and
+// is frequently not the one the dev recognises, which is the whole reason the
+// command exists. This is operator tooling run against the database directly,
+// not a public surface.
+func writeUserTable(w io.Writer, users []model.PlatformUser) error {
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "USERNAME\tNAME\tEMAIL\tROLE\tUPDATED")
+	for _, u := range users {
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
+			u.Username, u.Name, u.Email, string(u.Role), u.UpdatedAt.Format(time.DateOnly))
+	}
+	return tw.Flush()
 }
 
 func serve(ctx context.Context, cfg *config.Config, st *store.Store) error {
