@@ -24,6 +24,59 @@ import { IdeaItem } from '@/types';
 type SortOption = 'relevance' | 'proofs-desc' | 'hours-asc' | 'hours-desc';
 type StatusOption = 'solved' | 'unsolved';
 
+/**
+ * The skill vocabulary a problem advertises. Tags are editorial and often
+ * empty on scraped rows, while the suggested stack is what the developer is
+ * actually asked to build with, so both are counted and matched.
+ */
+function ideaSkillLabels(idea: IdeaItem & { suggestedStack?: string[] }): string[] {
+  return Array.from(new Set([...(idea.tags ?? []), ...(idea.suggestedStack ?? [])]));
+}
+
+/** Display names for the domains the product recognises. */
+const DOMAIN_LABELS: Record<string, string> = {
+  fintech: 'Fintech',
+  systems: 'Systems',
+  logistics: 'Logistics',
+  ai: 'AI',
+  security: 'Security',
+  devtools: 'DevTools',
+  infrastructure: 'Infrastructure',
+};
+
+const DIFFICULTY_LABELS: Record<string, string> = {
+  foundational: 'Foundational',
+  intermediate: 'Intermediate',
+  'production-grade': 'Production-Grade',
+  easy: 'Easy',
+  medium: 'Medium',
+  hard: 'Hard',
+};
+
+/**
+ * Counts the distinct values present in the bank, keeping the order of the
+ * supplied label map first and appending anything unrecognised after it. A
+ * value with no label still appears, so an unmapped domain is filterable
+ * rather than invisible.
+ */
+function facetCounts(
+  values: string[],
+  labels: Record<string, string>
+): { label: string; value: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const value of values) {
+    const key = (value || 'unspecified').trim() || 'unspecified';
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const ordered = Object.keys(labels).filter((key) => counts.has(key));
+  const extra = [...counts.keys()].filter((key) => !(key in labels)).sort();
+  return [...ordered, ...extra].map((key) => ({
+    label: labels[key] ?? key.replace(/(^|[\s_-])([a-z])/g, (_, sep, ch: string) => sep + ch.toUpperCase()),
+    value: key,
+    count: counts.get(key) ?? 0,
+  }));
+}
+
 export default function IdeasPage() {
   const { ideas, user, submissions, setIdeas } = useAppStore();
   const [mounted, setMounted] = useState(false);
@@ -61,11 +114,13 @@ export default function IdeasPage() {
     return new Set(userSubs.map((s) => s.ideaId));
   }, [submissions, user.username]);
 
-  // Extract all unique tags dynamically
+  // Extract all unique tags dynamically. Scraped problems carry their stack in
+  // suggestedStack and leave tags empty, so counting only idea.tags hides the
+  // entire vocabulary the bank actually has.
   const allTags = useMemo(() => {
     const tagMap = new Map<string, number>();
     activeIdeas.forEach((i) => {
-      i.tags.forEach((t) => {
+      ideaSkillLabels(i).forEach((t) => {
         tagMap.set(t, (tagMap.get(t) || 0) + 1);
       });
     });
@@ -74,20 +129,19 @@ export default function IdeasPage() {
       .map(([name, count]) => ({ name, count }));
   }, [activeIdeas]);
 
-  // Counts for domains
-  const domains: { label: string; value: string; count: number }[] = useMemo(() => [
-    { label: 'Logistics', value: 'logistics', count: activeIdeas.filter((i) => i.domain === 'logistics').length },
-    { label: 'Fintech', value: 'fintech', count: activeIdeas.filter((i) => i.domain === 'fintech').length },
-    { label: 'Systems', value: 'systems', count: activeIdeas.filter((i) => i.domain === 'systems').length },
-    { label: 'DevTools', value: 'devtools', count: activeIdeas.filter((i) => i.domain === 'devtools').length },
-  ], [activeIdeas]);
+  // Domain and difficulty facets are counted from the bank rather than from a
+  // fixed list. A hardcoded vocabulary silently drops whatever the data
+  // actually contains, which left the real domain unfilterable and the visible
+  // options all reading zero.
+  const domains: { label: string; value: string; count: number }[] = useMemo(
+    () => facetCounts(activeIdeas.map((i) => i.domain), DOMAIN_LABELS),
+    [activeIdeas]
+  );
 
-  // Counts for difficulties
-  const difficulties: { label: string; value: string; count: number }[] = useMemo(() => [
-    { label: 'Foundational', value: 'foundational', count: activeIdeas.filter((i) => i.difficulty === 'foundational').length },
-    { label: 'Intermediate', value: 'intermediate', count: activeIdeas.filter((i) => i.difficulty === 'intermediate').length },
-    { label: 'Production-Grade', value: 'production-grade', count: activeIdeas.filter((i) => i.difficulty === 'production-grade').length },
-  ], [activeIdeas]);
+  const difficulties: { label: string; value: string; count: number }[] = useMemo(
+    () => facetCounts(activeIdeas.map((i) => i.difficulty), DIFFICULTY_LABELS),
+    [activeIdeas]
+  );
 
   // Multi-select toggle helpers
   const toggleDomain = (val: string) => {
@@ -128,13 +182,15 @@ export default function IdeasPage() {
     const searchLower = search.trim().toLowerCase();
 
     const matches = activeIdeas.filter((idea) => {
+      const skills = ideaSkillLabels(idea);
+
       // 1. Text Search
       const matchesSearch =
         !searchLower ||
         idea.title.toLowerCase().includes(searchLower) ||
-        idea.tagline.toLowerCase().includes(searchLower) ||
-        idea.tags.some((t) => t.toLowerCase().includes(searchLower)) ||
-        idea.problemStatement.toLowerCase().includes(searchLower);
+        (idea.tagline || '').toLowerCase().includes(searchLower) ||
+        skills.some((t) => t.toLowerCase().includes(searchLower)) ||
+        (idea.problemStatement || '').toLowerCase().includes(searchLower);
 
       // 2. Multi-select Domains: Match if no domains selected OR idea.domain is in selectedDomains
       const matchesDomain =
@@ -144,9 +200,9 @@ export default function IdeasPage() {
       const matchesDifficulty =
         selectedDifficulties.length === 0 || selectedDifficulties.includes(idea.difficulty);
 
-      // 4. Multi-select Tags: Match if empty OR idea has AT LEAST ONE of selectedTags
+      // 4. Multi-select Tags: Match if empty OR idea advertises AT LEAST ONE of selectedTags
       const matchesTag =
-        selectedTags.length === 0 || selectedTags.some((t) => idea.tags.includes(t));
+        selectedTags.length === 0 || selectedTags.some((t) => skills.includes(t));
 
       // 5. Multi-select Status: Solved vs Unsolved
       const isSolved = solvedIdeaIds.has(idea.id);
@@ -159,7 +215,7 @@ export default function IdeasPage() {
       const matchesTrack =
         !filterMyTrack ||
         currentTrack.recommendedIdeaIds.includes(idea.id) ||
-        idea.tags.some((t) => currentTrack.defaultSkills.includes(t));
+        skills.some((t) => currentTrack.defaultSkills.includes(t));
 
       return matchesSearch && matchesDomain && matchesDifficulty && matchesTag && matchesStatus && matchesTrack;
     });
@@ -611,6 +667,8 @@ export default function IdeasPage() {
             const domainStyle = getDomainStyle(idea.domain);
             const diffStyle = getDifficultyStyle(idea.difficulty);
             const isSolved = solvedIdeaIds.has(idea.id);
+            const skills = ideaSkillLabels(idea);
+            const hasMockInfra = Boolean(idea.mockInfra?.baseUrl);
 
             return (
               <div
@@ -655,19 +713,24 @@ export default function IdeasPage() {
                     <h2 className="text-xl font-semibold tracking-tight text-text-0 leading-snug">
                       {idea.title}
                     </h2>
-                    <p className="text-xs sm:text-sm text-text-1 mt-2 leading-relaxed">
-                      {idea.tagline}
-                    </p>
+                    {idea.tagline && (
+                      <p className="text-xs sm:text-sm text-text-1 mt-2 leading-relaxed">
+                        {idea.tagline}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Origin Story Quote */}
-                  <p className="text-xs text-text-1 leading-relaxed italic pl-3 border-l-2 border-line">
-                    &ldquo;{idea.originStory}&rdquo;
-                  </p>
+                  {/* Origin Story Quote. Hidden when empty: a pair of empty
+                      quotation marks reads as corrupted data. */}
+                  {idea.originStory && (
+                    <p className="text-xs text-text-1 leading-relaxed italic pl-3 border-l-2 border-line">
+                      &ldquo;{idea.originStory}&rdquo;
+                    </p>
+                  )}
 
-                  {/* Tags */}
+                  {/* Tags & suggested stack */}
                   <div className="flex flex-wrap gap-1.5 pt-1">
-                    {idea.tags.map((tag) => {
+                    {skills.map((tag) => {
                       const isTagSelected = selectedTags.includes(tag);
                       return (
                         <button
@@ -693,9 +756,18 @@ export default function IdeasPage() {
 
                 {/* Bottom Actions */}
                 <div className="pt-4 border-t border-line flex flex-wrap items-center justify-between gap-3 text-xs md:text-sm">
-                  <span className="text-xs text-emerald-text flex items-center gap-1.5 font-medium font-mono">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald shrink-0" />
-                    Mock Infra Ready
+                  {/* Only claim mock infra where there is some. */}
+                  <span
+                    className={`text-xs font-mono flex items-center gap-1.5 font-medium ${
+                      hasMockInfra ? 'text-emerald-text' : 'text-text-1'
+                    }`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                        hasMockInfra ? 'bg-emerald' : 'bg-line'
+                      }`}
+                    />
+                    {hasMockInfra ? 'Mock Infra Ready' : 'Self-Hosted Fixture'}
                   </span>
                   <Link
                     href={`/ideas/${idea.id}`}

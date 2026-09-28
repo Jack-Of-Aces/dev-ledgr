@@ -49,14 +49,15 @@ export class AuthService implements IAuthService {
       }
     }
 
-    // 2. Direct GitHub OAuth fallback (if custom client ID configured without Supabase)
-    if (envConfig.githubClientId && typeof window !== 'undefined') {
-      const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/callback/github`);
-      window.location.href = `https://github.com/login/oauth/authorize?client_id=${envConfig.githubClientId}&scope=read:user,public_repo&redirect_uri=${redirectUri}`;
-      return this.mock.loginWithGitHub(username, name);
-    }
-
-    // 3. Fallback to Sandbox Provider
+    // 2. Fallback to Sandbox Provider.
+    //
+    // There used to be a second branch here that sent the browser straight to
+    // github.com/login/oauth/authorize when a custom client id was configured.
+    // Its redirect_uri pointed at /api/auth/callback/github, which does not
+    // exist in this app, so it was a 404 waiting for anyone who set that var
+    // and hit a Supabase error. There is no code exchange on that path either:
+    // the Supabase PKCE route is the only one that can turn a code into a
+    // session. Silent sandbox sign-in is the honest fallback.
     return this.mock.loginWithGitHub(username, name);
   }
 
@@ -124,7 +125,11 @@ export class AuthService implements IAuthService {
           const username = meta.user_name || meta.preferred_username || u.email?.split('@')[0] || 'developer';
           const name = meta.full_name || meta.name || username;
           const avatarUrl = meta.avatar_url || meta.picture || DEFAULT_USER.avatarUrl;
-          let role: UserRole = meta.role === 'admin' ? 'admin' : 'user';
+          // Starts as the base role and is only ever raised by the backend below.
+          // Seeding it from user_metadata would trust an account-editable field:
+          // the /api/auth/me call is conditional, so any failure to reach it
+          // would otherwise leave a self-declared admin in the role cookie.
+          let role: UserRole = 'user';
           let devUsername = username;
           let devName = name;
           let devAvatar = avatarUrl;
@@ -152,7 +157,7 @@ export class AuthService implements IAuthService {
           }
 
           // Use the authoritative role from /api/auth/me (already in `role` var above).
-          setAuthCookies(session.access_token, role);
+          setAuthCookies(session.access_token, role, session.refresh_token);
 
           return {
             token: session.access_token,
@@ -186,10 +191,6 @@ export class AuthService implements IAuthService {
       console.warn('[AuthService] Could not load dev profile from backend:', err);
       return null;
     }
-  }
-
-  async switchRole(role: UserRole): Promise<UserProfile> {
-    return this.mock.switchRole(role);
   }
 }
 

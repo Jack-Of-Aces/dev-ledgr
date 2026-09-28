@@ -16,16 +16,26 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
   const [responseLog, setResponseLog] = useState<string | null>(null);
   const [latency, setLatency] = useState<number | null>(null);
 
-  const currentEndpoint: MockEndpoint =
-    mockInfra.endpoints[selectedEndpointIndex] || mockInfra.endpoints[0];
+  // Every field is optional in practice: a problem scraped from an external
+  // report arrives with no mock server at all. Without this guard an empty
+  // endpoints list resolves to undefined and reading .description off it takes
+  // down the whole detail page.
+  const endpoints = mockInfra?.endpoints ?? [];
+  const testCriteria = mockInfra?.testCriteria ?? [];
+  const hasInfra = Boolean(mockInfra?.baseUrl) && endpoints.length > 0;
+
+  const currentEndpoint: MockEndpoint | undefined =
+    endpoints[selectedEndpointIndex] ?? endpoints[0];
 
   const handleCopyCurl = () => {
+    if (!mockInfra?.curlExample) return;
     navigator.clipboard.writeText(mockInfra.curlExample);
     setCopiedCurl(true);
     setTimeout(() => setCopiedCurl(false), 2000);
   };
 
   const handleSimulate = () => {
+    if (!currentEndpoint) return;
     setSimulating(true);
     setResponseLog(null);
     setLatency(null);
@@ -65,30 +75,47 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           <span className="text-xs md:text-sm text-text-1 hidden sm:inline">
-            base: <code className="text-text-0">{mockInfra.baseUrl}</code>
+            base: <code className="text-text-0">{mockInfra?.baseUrl || '—'}</code>
           </span>
-          <button
-            onClick={handleCopyCurl}
-            className="flex items-center gap-1.5 px-2 py-1 text-xs md:text-sm text-text-1 hover:text-text-0 transition-colors cursor-pointer shrink-0"
-          >
-            {copiedCurl ? (
-              <>
-                <Check className="w-3 h-3 text-diff-green" />
-                <span>copied cURL</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3 h-3" />
-                <span>copy cURL</span>
-              </>
-            )}
-          </button>
+          {mockInfra?.curlExample && (
+            <button
+              onClick={handleCopyCurl}
+              className="flex items-center gap-1.5 px-2 py-1 text-xs md:text-sm text-text-1 hover:text-text-0 transition-colors cursor-pointer shrink-0"
+            >
+              {copiedCurl ? (
+                <>
+                  <Check className="w-3 h-3 text-diff-green" />
+                  <span>copied cURL</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3 h-3" />
+                  <span>copy cURL</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
+      {!hasInfra ? (
+        /* Honest empty state: this problem ships without a mock server, so say
+           that rather than presenting an empty terminal as a working one. */
+        <div className="p-6 sm:p-8 text-center space-y-2">
+          <p className="text-xs md:text-sm text-text-0 font-medium">
+            No mock infrastructure provided
+          </p>
+          <p className="text-xs md:text-sm text-text-1 max-w-md mx-auto leading-relaxed">
+            This problem was published from a field report and has no hosted
+            sandbox attached. Read the problem statement and build against your
+            own fixtures.
+          </p>
+        </div>
+      ) : (
+        <>
       {/* Endpoint Tabs */}
       <div role="tablist" aria-label="Mock infrastructure endpoints" className="flex border-b border-line overflow-x-auto px-2 pt-1 gap-1">
-        {mockInfra.endpoints.map((ep, idx) => {
+        {endpoints.map((ep, idx) => {
           const isSelected = idx === selectedEndpointIndex;
           return (
             <button
@@ -126,7 +153,7 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
         className="p-4 space-y-3"
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs md:text-sm">
-          <p style={{ maxWidth: '65ch' }} className="text-text-1 leading-relaxed">{currentEndpoint.description}</p>
+          <p style={{ maxWidth: '65ch' }} className="text-text-1 leading-relaxed">{currentEndpoint?.description}</p>
           <button
             onClick={handleSimulate}
             disabled={simulating}
@@ -172,20 +199,20 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
           ) : (
             <pre className="overflow-x-auto text-xs md:text-sm leading-relaxed text-text-0">
               <code>
-                {responseLog || JSON.stringify(currentEndpoint.responseSample, null, 2)}
+                {responseLog || JSON.stringify(currentEndpoint?.responseSample, null, 2)}
               </code>
             </pre>
           )}
         </div>
 
         {/* Test Criteria */}
-        {mockInfra.testCriteria && mockInfra.testCriteria.length > 0 && (
+        {testCriteria.length > 0 && (
           <div className="pt-2">
             <div className="text-xs md:text-sm font-semibold text-text-1 mb-1.5">
               Verification Test Criteria (CI Gates):
             </div>
             <ul className="space-y-1 text-xs md:text-sm text-text-0 max-w-2xl">
-              {mockInfra.testCriteria.map((crit, i) => (
+              {testCriteria.map((crit, i) => (
                 <li key={i} className="flex items-center gap-2">
                   <span className="text-diff-green" aria-hidden="true">✓</span>
                   <span>{crit}</span>
@@ -194,7 +221,9 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
             </ul>
           </div>
         )}
-      </div>
+        </div>
+        </>
+      )}
     </div>
   );
 };

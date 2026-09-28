@@ -12,10 +12,16 @@ import { useEffect, useRef } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabase';
 import { useAppStore } from '@/lib/store';
-import { setAuthCookies, clearAuthCookies, getClientCookie, AUTH_COOKIE_NAME } from '@/lib/cookies';
+import {
+  setAuthCookies,
+  clearAuthCookies,
+  getClientCookie,
+  AUTH_COOKIE_NAME,
+  REFRESH_COOKIE_NAME,
+} from '@/lib/cookies';
 import { DEFAULT_USER } from '@/lib/mock-data';
 import { UserRole } from '@/types/auth';
-import { EngineeringTrack, ExperienceLevel } from '@/types';
+import { EngineeringTrack, ExperienceLevel, UserProfile } from '@/types';
 import { authService } from '@/services/auth/authService';
 
 interface JwtPayload {
@@ -58,37 +64,82 @@ function parseJwt(token: string): JwtPayload | null {
   }
 }
 
-async function applySession(session: Session): Promise<void> {
+/**
+ * The access token whose dev record is already in the store.
+ *
+ * onAuthStateChange emits INITIAL_SESSION with the session that getSession() has
+ * just returned, so without this the whole sync ran twice on every page load:
+ * two calls to /api/auth/me, and two writes of authReady: false. The second one
+ * can land after a page that gates on authReady has already mounted, which
+ * unmounts and remounts its subtree — a half-filled onboarding wizard would be
+ * thrown away by nothing more than a reload. Reset on sign-out, since the next
+ * sign-in has to run the full sync again.
+ */
+let appliedAccessToken: string | null = null;
+
+async function applySession(
+  session: Session,
+  { isRefresh = false }: { isRefresh?: boolean } = {}
+): Promise<void> {
   const u = session.user;
   const meta = u.user_metadata || {};
   const username =
     meta.user_name || meta.preferred_username || u.email?.split('@')[0] || 'developer';
 
+  if (isRefresh) {
+    // A background token renewal. Keep the token cookie current so the Edge
+    // proxy and anything still reading it stay in step, and leave the profile
+    // alone: blanking the headline, bio or skills a dev is looking at, or
+    // resetting authReady so the page remounts from scratch, would both be
+    // wrong. Onboarding in particular would lose a half-filled wizard once an
+    // hour when Supabase renews silently.
+    setAuthCookies(session.access_token, 'user', session.refresh_token);
+    return;
+  }
+
+  if (session.access_token === appliedAccessToken) {
+    return;
+  }
+  appliedAccessToken = session.access_token;
+
   // Seed the store with Supabase metadata immediately so the UI responds.
   // role is always 'user' here — user_metadata is user-editable, not trusted.
   useAppStore.setState({
     isLoggedIn: true,
+    authReady: false,
     user: {
       ...DEFAULT_USER,
       username,
       name: meta.full_name || meta.name || username,
       role: 'user',
-      headline: meta.headline || 'Full-Stack Software Engineer',
-      bio: meta.bio || 'Verified developer on DevLedgr.',
+      // Provisional values only, and never invented ones. This object is
+      // persisted, then overwritten by the authoritative dev record, but the
+      // settings and onboarding forms seed from whatever is in the store — so a
+      // placeholder headline, bio or skill list written here could end up saved
+      // to the backend as if the dev had claimed it. Skills are the sharpest
+      // case: they drive job matching and idea ranking, and asserting three
+      // technologies for someone who never said so is both wrong and
+      // consequential. Empty means "ask the dev", not "guess for them".
+      headline: meta.headline || '',
+      bio: meta.bio || '',
       avatarUrl: meta.avatar_url || meta.picture || DEFAULT_USER.avatarUrl,
       githubUrl: meta.user_name ? `https://github.com/${meta.user_name}` : '',
-      statedSkills: meta.skills || ['Go', 'TypeScript', 'PostgreSQL'],
+      statedSkills: Array.isArray(meta.skills) ? meta.skills : [],
       email: u.email,
     },
   });
-  setAuthCookies(session.access_token, 'user');
+  setAuthCookies(session.access_token, 'user', session.refresh_token);
 
   // Overwrite with the authoritative dev record from the backend.
   const dev = await authService.fetchDevProfile(session.access_token);
   if (dev) {
     useAppStore.setState({ user: dev });
-    setAuthCookies(session.access_token, dev.role);
+    setAuthCookies(session.access_token, dev.role, session.refresh_token);
   }
+  // Ready either way. fetchDevProfile swallows its own errors and returns null
+  // when the backend is unreachable, and holding authReady false for that would
+  // leave every page that waits on it spinning forever on a network blip.
+  useAppStore.setState({ authReady: true });
 }
 
 export const SupabaseAuthSync: React.FC = () => {
@@ -105,6 +156,7 @@ export const SupabaseAuthSync: React.FC = () => {
         hashParams.get('error') ||
         'Authentication failed';
       window.location.replace(`/login?error=${encodeURIComponent(errorMsg)}`);
+      useAppStore.setState({ authReady: true, isLoggedIn: false });
       return;
     }
 
@@ -127,7 +179,11 @@ export const SupabaseAuthSync: React.FC = () => {
           'developer';
         const name = meta.full_name || meta.name || username;
         const avatarUrl = meta.avatar_url || meta.picture || DEFAULT_USER.avatarUrl;
-        const role: UserRole = meta.role === 'admin' ? 'admin' : 'user';
+        // Never trust a role from the JWT. user_metadata is editable by the
+        // account holder, so reading meta.role here would let anyone grant
+        // themselves admin in a cookie the Edge proxy gates /admin on. The
+        // authoritative role is fetched from the backend just below.
+        const role: UserRole = 'user';
         const isOnboarded = Boolean(meta.onboarding_completed);
         const shouldOnboard = !isOnboarded || (isGoogle && !meta.github_connected);
         const githubConnected = isGoogle ? Boolean(meta.github_connected) : true;
@@ -135,7 +191,7 @@ export const SupabaseAuthSync: React.FC = () => {
           ? meta.github_username || undefined
           : meta.user_name || username;
 
-        setAuthCookies(accessToken, role);
+        setAuthCookies(accessToken, role, refreshToken || undefined);
 
         useAppStore.setState({
           isLoggedIn: true,
@@ -144,10 +200,11 @@ export const SupabaseAuthSync: React.FC = () => {
             username,
             name,
             role,
-            headline:
-              meta.headline ||
-              (isGoogle ? 'Engineering Candidate' : 'Software Engineer · Verified Ledger'),
-            bio: meta.bio || 'Verified developer on DevLedgr.',
+            // Same rule as applySession: provisional means provisional. These
+            // are placeholders for the millisecond before the dev record
+            // arrives, not a profile to be saved.
+            headline: meta.headline || '',
+            bio: meta.bio || '',
             avatarUrl,
             githubUrl: githubUsername ? `https://github.com/${githubUsername}` : '',
             githubConnected,
@@ -157,7 +214,7 @@ export const SupabaseAuthSync: React.FC = () => {
             engineeringTrack: meta.engineering_track || undefined,
             targetRole: meta.target_role || undefined,
             experienceLevel: meta.experience_level || undefined,
-            statedSkills: meta.skills || ['Go', 'TypeScript', 'PostgreSQL'],
+            statedSkills: Array.isArray(meta.skills) ? meta.skills : [],
             email: payload?.email,
           },
         });
@@ -169,22 +226,84 @@ export const SupabaseAuthSync: React.FC = () => {
             .catch((err) => console.warn('[SupabaseAuthSync] setSession notice:', err));
         }
 
-        window.location.replace(shouldOnboard ? '/onboarding' : '/dashboard');
+        // Replace the provisional profile with the backend's dev record before
+        // navigating, so a real reviewer or admin does not get bounced off /admin
+        // by a role the token cannot legitimately carry.
+        let authoritative: UserProfile | null = null;
+        void authService
+          .fetchDevProfile(accessToken)
+          .then((dev) => {
+            if (!dev) return;
+            authoritative = dev;
+            useAppStore.setState({ user: dev });
+            setAuthCookies(accessToken, dev.role, refreshToken || undefined);
+          })
+          .finally(() => {
+            // The dev record decides whether onboarding is done, not the token.
+            // onboarding_completed in user_metadata is editable by the account
+            // holder, so a value there must not decide the redirect. The
+            // metadata-derived flag is only the fallback for when the fetch
+            // failed and there is no record to ask.
+            const needsOnboarding = authoritative
+              ? !authoritative.onboardingCompleted
+              : shouldOnboard;
+            useAppStore.setState({ authReady: true });
+            window.location.replace(needsOnboarding ? '/onboarding' : '/dashboard');
+          });
         return;
       }
     }
 
     // 3. Regular session sync via Supabase client
     const supabase = getSupabase();
-    if (!supabase) return;
+    if (!supabase) {
+      // No Supabase configured. Nothing will ever resolve a session, so the
+      // wait is over by definition.
+      useAppStore.setState({ authReady: true });
+      return;
+    }
 
     // Check active session on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
-        void applySession(session);
-      } else if (!getClientCookie(AUTH_COOKIE_NAME)) {
+        void applySession(session, { isRefresh: false });
+        return;
+      }
+
+      // No browser session, but there may still be a valid one: /auth/callback
+      // completes the PKCE exchange in a route handler, so the tokens arrive as
+      // cookies rather than in the Supabase client's storage. Adopt them here so
+      // the client owns the token from now on and can renew it. Without this the
+      // access token in devledgr_session expired after an hour with nothing able
+      // to refresh it, and every later request came back 401 INVALID_TOKEN.
+      const accessToken = getClientCookie(AUTH_COOKIE_NAME);
+      const refreshToken = getClientCookie(REFRESH_COOKIE_NAME);
+      if (accessToken && refreshToken) {
+        const { data: adopted, error: adoptError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (!adoptError && adopted.session?.user) {
+          setAuthCookies(adopted.session.access_token, 'user', adopted.session.refresh_token);
+          void applySession(adopted.session, { isRefresh: false });
+          return;
+        }
+        console.warn('[SupabaseAuthSync] could not adopt the callback session:', adoptError);
+      }
+
+      // isLoggedIn is left alone rather than forced false: the callback route
+      // sets its cookie before the redirect, and on a hard reload the cookie can
+      // briefly outlive a Supabase session that is still being restored.
+      if (!accessToken) {
         useAppStore.setState({ isLoggedIn: false });
       }
+      useAppStore.setState({ authReady: true });
+    }).catch((err) => {
+      // A rejected getSession used to leave authReady false with no terminal
+      // path, which would hang every page waiting on it. Treat it as "no
+      // session": the auth guard sends the dev to sign in from there.
+      console.warn('[SupabaseAuthSync] session check failed:', err);
+      useAppStore.setState({ isLoggedIn: false, authReady: true });
     });
 
     // Listen to real-time auth events (OAuth redirect, signout, token refresh)
@@ -197,9 +316,17 @@ export const SupabaseAuthSync: React.FC = () => {
           event === 'TOKEN_REFRESHED') &&
         session?.user
       ) {
-        void applySession(session);
+        // A refresh is not a new session. It must not clear authReady, because
+        // pages that gate on it unmount and remount their subtree — which would
+        // throw away a half-filled onboarding wizard once an hour, when Supabase
+        // silently renews the token.
+        void applySession(session, { isRefresh: event === 'TOKEN_REFRESHED' });
       } else if (event === 'SIGNED_OUT') {
-        useAppStore.setState({ isLoggedIn: false, user: DEFAULT_USER });
+        // Let the next sign-in run the full sync; a reused token would otherwise
+        // be skipped as already applied and leave the previous dev's profile in
+        // the store.
+        appliedAccessToken = null;
+        useAppStore.setState({ isLoggedIn: false, user: DEFAULT_USER, authReady: true });
         clearAuthCookies();
       }
     });

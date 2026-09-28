@@ -7,6 +7,7 @@
 import { ApiError } from '@/types/api';
 import { envConfig } from '@/lib/config';
 import { getClientCookie, AUTH_COOKIE_NAME } from '@/lib/cookies';
+import { getSupabase } from '@/lib/supabase';
 
 export interface RequestOptions extends RequestInit {
   timeoutMs?: number;
@@ -45,10 +46,39 @@ export class HttpClient {
     return queryString ? `${fullUrl}?${queryString}` : fullUrl;
   }
 
-  private getAuthHeader(): Record<string, string> {
-    let token = getClientCookie(AUTH_COOKIE_NAME);
+  /**
+   * Resolves the bearer token for a request.
+   *
+   * A live Supabase session wins over the devledgr_session cookie. That ordering
+   * is the whole point: the cookie is written once at sign-in and kept for seven
+   * days, while the access token inside it is only valid for an hour. Preferring
+   * the cookie meant that after the first hour every call carried a dead token
+   * and came back 401 INVALID_TOKEN, with no refresh in sight — which is exactly
+   * what broke saving onboarding. Supabase's client keeps its token current, so
+   * reading from the session first makes the cookie a fallback rather than the
+   * source of truth.
+   */
+  private async getAuthHeader(): Promise<Record<string, string>> {
+    let token: string | null = null;
 
-    // If running in browser and cookie not yet populated, read Supabase session token from localStorage
+    if (typeof window !== 'undefined') {
+      const supabase = getSupabase();
+      if (supabase) {
+        try {
+          const { data } = await supabase.auth.getSession();
+          token = data.session?.access_token ?? null;
+        } catch {
+          // Fall through to the cookie below.
+        }
+      }
+    }
+
+    if (!token) {
+      token = getClientCookie(AUTH_COOKIE_NAME);
+    }
+
+    // Last resort: a session in localStorage that the Supabase client is not
+    // managing, e.g. a Supabase version that stored it under a different key.
     if (!token && typeof window !== 'undefined' && window.localStorage) {
       try {
         for (let i = 0; i < localStorage.length; i++) {
@@ -76,7 +106,38 @@ export class HttpClient {
     return headers;
   }
 
+  /**
+   * Forces Supabase to mint a new access token, so a request that was rejected
+   * with INVALID_TOKEN can be retried once instead of failing outright.
+   */
+  private async refreshAccessToken(): Promise<string | null> {
+    if (typeof window === 'undefined') return null;
+    const supabase = getSupabase();
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+      return error ? null : (data.session?.access_token ?? null);
+    } catch {
+      return null;
+    }
+  }
+
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+    return this.send<T>(endpoint, options, true);
+  }
+
+  /**
+   * send issues the request, retrying once after a forced token refresh when the
+   * API rejects an expired token.
+   *
+   * `canRetry` is threaded through rather than looped, so a genuinely
+   * unauthorized request fails once instead of hammering the auth endpoint.
+   */
+  private async send<T>(
+    endpoint: string,
+    options: RequestOptions,
+    canRetry: boolean
+  ): Promise<T> {
     const { timeoutMs = envConfig.requestTimeoutMs, params, headers, ...customConfig } = options;
 
     const controller = new AbortController();
@@ -84,10 +145,13 @@ export class HttpClient {
 
     const url = this.buildUrl(endpoint, params);
 
+    const authHeader = await this.getAuthHeader();
+    // A caller-supplied Authorization header wins; some routes pass a token
+    // explicitly.
     const mergedHeaders: HeadersInit = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
-      ...this.getAuthHeader(),
+      ...authHeader,
       ...headers,
     };
 
@@ -110,12 +174,19 @@ export class HttpClient {
       const data = isJson ? await response.json() : await response.text();
 
       if (!response.ok) {
+        const code = typeof data === 'object' ? data?.code : undefined;
+        if (canRetry && response.status === 401 && code === 'INVALID_TOKEN') {
+          const refreshed = await this.refreshAccessToken();
+          if (refreshed) {
+            return this.send<T>(endpoint, { ...options, headers: { ...headers, Authorization: `Bearer ${refreshed}` } }, false);
+          }
+        }
         throw new ApiError({
           message:
             (typeof data === 'object' && data?.message) ||
             `HTTP ${response.status}: ${response.statusText}`,
           statusCode: response.status,
-          code: typeof data === 'object' ? data?.code : undefined,
+          code,
           errors: typeof data === 'object' ? data?.errors : undefined,
         });
       }

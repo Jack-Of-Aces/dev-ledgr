@@ -10,6 +10,13 @@ import { SettingsSkeleton } from '@/components/ui/skeletons';
 import { getAllTracks, getTrackById } from '@/lib/tracks';
 import { EngineeringTrack, ExperienceLevel } from '@/types';
 import { uploadImageToCloudinary } from '@/lib/upload';
+import { userService } from '@/services/user/userService';
+import {
+  readStoredDraft,
+  writeStoredDraft,
+  clearStoredDraft,
+  hasStoredDraft,
+} from '@/lib/profileDraft';
 import {
   Key,
   User,
@@ -58,6 +65,7 @@ const POPULAR_SKILLS = [
 
 export default function SettingsPage() {
   const { user, isSaving, errors, updateProfile } = useProfile();
+  const setUser = useAppStore((state) => state.setUser);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
   const [mounted, setMounted] = useState(false);
@@ -72,7 +80,11 @@ export default function SettingsPage() {
   const [bio, setBio] = useState(user.bio);
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl || '');
   const [githubUrl, setGithubUrl] = useState(user.githubUrl || '');
-  const [email, setEmail] = useState(user.email || '');
+  // Where recruiters should reach this dev. Deliberately not seeded from
+  // user.email: blank is a real, meaningful state that means "use the address
+  // the account is registered with", and pre-filling it would copy the auth
+  // identity into a dev-authored field.
+  const [contactEmail, setContactEmail] = useState(user.contactEmail || '');
   const [plan, setPlan] = useState<'free' | 'full-service' | 'byok'>(user.plan);
   // Only holds a newly typed key; the stored key never comes back to the browser.
   const [apiKey, setApiKey] = useState('');
@@ -88,41 +100,138 @@ export default function SettingsPage() {
     user.githubUsername || (user.githubUrl ? user.githubUrl.split('/').pop() || '' : '')
   );
 
-  // Sync form states whenever user profile in store updates (e.g. on auth or rehydration)
+  // The handle is edited and saved on its own, not with the rest of the form:
+  // it is the public URL and certificates reference it, so it gets an explicit
+  // confirmation rather than riding along with a bio tweak. The backend derives
+  // the first handle from OAuth metadata and appends a random suffix on
+  // conflict, which is how an account ends up as "michojekunle_1a3f".
+  const [handleInput, setHandleInput] = useState(user.username);
+  const [isSavingHandle, setIsSavingHandle] = useState(false);
+  const [handleError, setHandleError] = useState<string | null>(null);
+  const handleDirty = handleInput !== user.username;
+
+  const handleSaveHandle = async () => {
+    const clean = handleInput.trim();
+    if (!clean || clean === user.username) return;
+    setIsSavingHandle(true);
+    setHandleError(null);
+    try {
+      const updated = await userService.updateUsername(clean);
+      setUser(updated);
+      setHandleInput(updated.username);
+    } catch (err) {
+      setHandleError(
+        err instanceof Error ? err.message : 'Could not change your handle. Try another.'
+      );
+    } finally {
+      setIsSavingHandle(false);
+    }
+  };
+
+  // The form is seeded from the store once per account, and then left alone.
+  //
+  // It used to resync on every `user` change, which made a failed save erase
+  // everything the dev had typed. useProfile writes an optimistic copy to the
+  // store and then rolls it back when the request fails, and each of those
+  // writes re-fired the sync. The rollback is the damaging one: it restored the
+  // pre-save values over the fields the dev could still see.
+  //
+  // The seed is therefore keyed on the handle alone. Deliberately not on
+  // updatedAt: the optimistic write sets it to now and the rollback restores
+  // the old value, so a key containing it would change twice per save and
+  // re-seed the form both times — reproducing the original bug. Identity is the
+  // only thing that should replace what is on screen: a different account, or
+  // the real profile replacing the store's placeholder on first render.
+  const [loadedUsername, setLoadedUsername] = useState<string | null>(null);
+
   useEffect(() => {
+    // Only a real profile may seed the form. The store persists, so its
+    // placeholder (empty username) is briefly the current value.
+    if (!user.username || user.username === loadedUsername) return;
+    // An unsaved draft outranks the stored profile, so leave the form to the
+    // restore effect below. Scoped by username, so signing in as someone else
+    // on the same machine does not skip this seed.
+    if (loadedUsername === null && hasStoredDraft(user.username)) return;
+
+    setLoadedUsername(user.username);
     setName(user.name);
     setHeadline(user.headline);
     setBio(user.bio);
     setAvatarUrl(user.avatarUrl || '');
     setGithubUrl(user.githubUrl || '');
-    setEmail(user.email || '');
+    setContactEmail(user.contactEmail || '');
     setPlan(user.plan);
-    // Note: apiKey is write-only; the stored key is never returned to the browser.
-
+    setApiKey('');
     setStatedSkills(user.statedSkills || []);
     setEngineeringTrack(user.engineeringTrack || 'backend-systems');
     setTargetRole(user.targetRole || 'Backend Engineer');
     setExperienceLevel(user.experienceLevel || 'junior');
-    setGithubUsernameInput(user.githubUsername || (user.githubUrl ? user.githubUrl.split('/').pop() || '' : ''));
-  }, [user]);
+    setGithubUsernameInput(
+      user.githubUsername || (user.githubUrl ? user.githubUrl.split('/').pop() || '' : '')
+    );
+    setHandleInput(user.username);
+    setHandleError(null);
+  }, [loadedUsername, user]);
 
-  // The store first holds a placeholder profile; the real one arrives from the
-  // backend after the first render. Reload the form whenever a different
-  // profile (or a newer version of it) lands, so saves never send stale values.
-  const profileKey = `${user.username}|${user.updatedAt ?? ''}`;
-  const [loadedProfileKey, setLoadedProfileKey] = useState(profileKey);
-  if (profileKey !== loadedProfileKey) {
-    setLoadedProfileKey(profileKey);
-    setName(user.name);
-    setHeadline(user.headline);
-    setBio(user.bio);
-    setAvatarUrl(user.avatarUrl || '');
-    setGithubUrl(user.githubUrl || '');
-    setEmail(user.email || '');
-    setPlan(user.plan);
-    setApiKey('');
-    setStatedSkills(user.statedSkills || []);
-  }
+  // Restore an unsaved draft. A dev who lost work to a failed save or a closed
+  // tab should find their edits still here, so the form is treated as a
+  // scratchpad that is only discarded once the backend confirms the write.
+  useEffect(() => {
+    if (loadedUsername !== null || !user.username) return;
+    const draft = readStoredDraft(user.username);
+    if (!draft) return;
+    setLoadedUsername(user.username);
+    setName(draft.name);
+    setHeadline(draft.headline);
+    setBio(draft.bio);
+    setAvatarUrl(draft.avatarUrl);
+    setGithubUrl(draft.githubUrl);
+    setContactEmail(draft.contactEmail);
+    setPlan(draft.plan);
+    setStatedSkills(draft.statedSkills);
+    setEngineeringTrack(draft.engineeringTrack);
+    setTargetRole(draft.targetRole);
+    setExperienceLevel(draft.experienceLevel);
+    setGithubUsernameInput(draft.githubUsernameInput);
+  }, [loadedUsername, user.username]);
+
+  // Mirror the form into the draft on every change. A failed save, a
+  // navigation away or a closed tab then costs nothing.
+  useEffect(() => {
+    if (loadedUsername === null || !user.username) return;
+    writeStoredDraft(
+      {
+        name,
+        headline,
+        bio,
+        avatarUrl,
+        githubUrl,
+        contactEmail,
+        plan,
+        statedSkills,
+        engineeringTrack,
+        targetRole,
+        experienceLevel,
+        githubUsernameInput,
+      },
+      user.username
+    );
+  }, [
+    loadedUsername,
+    user.username,
+    name,
+    headline,
+    bio,
+    avatarUrl,
+    githubUrl,
+    contactEmail,
+    plan,
+    statedSkills,
+    engineeringTrack,
+    targetRole,
+    experienceLevel,
+    githubUsernameInput,
+  ]);
 
   // UI state
   const [showApiKey, setShowApiKey] = useState(false);
@@ -137,6 +246,15 @@ export default function SettingsPage() {
   const [isVerifyingGithub, setIsVerifyingGithub] = useState(false);
   const [githubVerificationError, setGithubVerificationError] = useState<string | null>(null);
   const [githubVerificationSuccess, setGithubVerificationSuccess] = useState<string | null>(null);
+
+  // Provenance, not preference: this is set by the backend from the identity
+  // provider the account was created with, and is why the handle below can be
+  // described as already proven rather than pending verification.
+  const isGithubOAuthUser = user?.authProvider === 'github';
+  // Only a *change* of handle needs the ownership check. Offering to "verify"
+  // the handle the account already proved at sign-in is noise.
+  const githubHandleChanged =
+    githubUsernameInput.replace(/^@/, '').trim() !== (user?.githubUsername || '');
 
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
@@ -248,7 +366,7 @@ export default function SettingsPage() {
     setBio(user.bio);
     setAvatarUrl(user.avatarUrl || '');
     setGithubUrl(user.githubUrl || '');
-    setEmail(user.email || '');
+    setContactEmail(user.contactEmail || '');
     setPlan(user.plan);
     setApiKey('');
     setStatedSkills(user.statedSkills || []);
@@ -297,7 +415,12 @@ export default function SettingsPage() {
     setGithubVerificationError(null);
     setGithubVerificationSuccess(null);
 
-    const userEmail = user.email || email.trim() || '';
+    // Ownership is proven against the address the account is registered with,
+    // and only that one. It used to fall back to the editable field, which meant
+    // a dev could type someone else's address into their contact details and
+    // then pass the check for any handle that address appeared on. The contact
+    // address is dev-authored text and is not evidence of anything.
+    const userEmail = user.email || '';
     if (!userEmail) {
       setIsVerifyingGithub(false);
       setGithubVerificationError('Registered account email is required to verify ownership.');
@@ -340,13 +463,18 @@ export default function SettingsPage() {
     setSavedSuccess(false);
 
     const cleanGithub = githubUsernameInput.replace(/^@/, '').trim();
-    const isGithubOAuth = user.authProvider === 'github';
-    const isCurrentVerified = cleanGithub && cleanGithub === user.githubUsername;
 
-    // Only update GitHub username/connection if verified or already authenticated via OAuth
+    // A typed GitHub handle is only stored if it is already the one on record,
+    // or if the ownership check just passed for it. Typing is not evidence.
+    //
+    // Signing in with GitHub used to be treated as sufficient on its own, which
+    // is backwards: the sign-in proves one specific account, so it should pin
+    // the handle the backend already has, not open the field to any value. That
+    // would have let a dev claim someone else's handle and have their commits
+    // stamped to it, and the handle is what proof-of-work is attributed by.
     const finalGithubUsername =
-      isGithubOAuth || isCurrentVerified || githubVerificationSuccess
-        ? cleanGithub || user.githubUsername
+      cleanGithub && (githubVerificationSuccess || cleanGithub === user.githubUsername)
+        ? cleanGithub
         : user.githubUsername;
     const finalGithubConnected = Boolean(finalGithubUsername);
 
@@ -356,7 +484,7 @@ export default function SettingsPage() {
       bio,
       avatarUrl: avatarUrl.trim() || undefined,
       githubUrl: finalGithubUsername ? `https://github.com/${finalGithubUsername}` : (githubUrl.trim() || undefined),
-      email: email.trim() || undefined,
+      contactEmail: contactEmail.trim() || undefined,
       plan,
       apiKey: apiKey.trim() || undefined,
       statedSkills,
@@ -368,9 +496,13 @@ export default function SettingsPage() {
     });
 
     if (result.success) {
+      // The backend has the values now, so the scratchpad has done its job.
+      clearStoredDraft();
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 2500);
     }
+    // On failure the draft is left in place deliberately: the request was
+    // rejected, so nothing was stored and the form still holds the dev's work.
   };
 
   if (!mounted) {
@@ -650,19 +782,44 @@ export default function SettingsPage() {
                             htmlFor="settings-handle"
                             className="block text-xs font-mono text-text-1 font-semibold"
                           >
-                            HANDLE (IMMUTABLE CANONICAL URL)
+                            HANDLE (YOUR PUBLIC URL)
                           </label>
-                          <Lock className="w-3 h-3 text-text-1" />
+                          {handleDirty ? (
+                            <button
+                              type="button"
+                              onClick={handleSaveHandle}
+                              disabled={isSavingHandle}
+                              className="text-xs font-mono text-emerald-text hover:underline inline-flex items-center gap-1 cursor-pointer disabled:opacity-50 disabled:cursor-default"
+                            >
+                              {isSavingHandle ? (
+                                <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
+                              ) : (
+                                'Save handle'
+                              )}
+                            </button>
+                          ) : (
+                            <Lock className="w-3 h-3 text-text-1" />
+                          )}
                         </div>
                         <input
                           id="settings-handle"
                           type="text"
-                          disabled
-                          value={`@${user.username}`}
-                          className="w-full px-3 py-2 rounded-radius border border-line bg-card/60 text-text-1 cursor-not-allowed font-mono text-xs sm:text-sm"
+                          value={handleInput}
+                          onChange={(e) => setHandleInput(e.target.value.replace(/^@/, '').trim())}
+                          aria-describedby="settings-handle-hint"
+                          aria-invalid={!!handleError}
+                          className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald outline-none font-mono text-xs sm:text-sm"
                         />
-                        <span className="text-xs text-text-1 mt-1 block font-mono">
-                          Permanently anchored to your cryptographic root key.
+                        <span id="settings-handle-hint" className="text-xs text-text-1 mt-1 block font-mono">
+                          {handleError ? (
+                            <span className="text-rose-600 dark:text-rose-400">{handleError}</span>
+                          ) : handleDirty ? (
+                            `Public URL changes to /p/${handleInput || '…'}`
+                          ) : (
+                            'Letters, digits, ".", "_" and "-". Your profile lives at /p/' +
+                              user.username +
+                              '.'
+                          )}
                         </span>
                       </div>
                     </div>
@@ -976,28 +1133,39 @@ export default function SettingsPage() {
                       {/* Contact Email */}
                       <div>
                         <label
-                          htmlFor="settings-email"
+                          htmlFor="settings-contact-email"
                           className="block text-xs font-mono text-text-1 mb-1 font-semibold"
                         >
-                          VERIFIED RECRUITER CONTACT EMAIL
+                          RECRUITER CONTACT EMAIL
                         </label>
                         <div className="relative">
                           <Mail className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-1" />
                           <input
-                            id="settings-email"
+                            id="settings-contact-email"
                             type="email"
-                            placeholder="alex@devledgr.me"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder={user.email || 'alex@devledgr.me'}
+                            value={contactEmail}
+                            onChange={(e) => setContactEmail(e.target.value)}
                             className="w-full pl-9 pr-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald outline-none text-xs sm:text-sm font-mono"
                           />
                         </div>
                         <span className="text-xs text-text-1 mt-1 block">
-                          Used exclusively for receiving high-signal match inquiries from hiring managers.
+                          {contactEmail.trim() ? (
+                            <>
+                              Shown to hiring managers in anything generated for you. Not verified by DevLedgr —
+                              leave it blank to use your registered address instead.
+                            </>
+                          ) : (
+                            <>
+                              Leaving this blank uses your registered address (
+                              <code>{user.email || 'not available'}</code>). That one is managed by your sign-in
+                              provider and cannot be changed here.
+                            </>
+                          )}
                         </span>
-                        {errors.email && (
+                        {errors.contactEmail && (
                           <p className="text-xs text-rose-600 dark:text-rose-400 mt-1 font-mono">
-                            {errors.email}
+                            {errors.contactEmail}
                           </p>
                         )}
                       </div>
@@ -1467,28 +1635,42 @@ export default function SettingsPage() {
                                 className="w-full pl-7 pr-3 py-1.5 rounded-radius border border-line bg-card text-text-0 outline-none focus:border-brass text-xs font-mono"
                               />
                             </div>
-                            <button
-                              type="button"
-                              onClick={handleVerifyAndLinkGitHub}
-                              disabled={!githubUsernameInput.trim() || isVerifyingGithub}
-                              className="btn-brass text-xs py-1.5 px-3 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 shrink-0 font-mono"
-                            >
-                              {isVerifyingGithub ? (
-                                <>
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                  <span>Verifying...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <ShieldCheck className="w-3.5 h-3.5" />
-                                  <span>{user.githubConnected ? 'Verify & Update' : 'Verify & Link'}</span>
-                                </>
-                              )}
-                            </button>
+                            {githubHandleChanged && (
+                              <button
+                                type="button"
+                                onClick={handleVerifyAndLinkGitHub}
+                                disabled={!githubUsernameInput.trim() || isVerifyingGithub}
+                                className="btn-brass text-xs py-1.5 px-3 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 shrink-0 font-mono"
+                              >
+                                {isVerifyingGithub ? (
+                                  <>
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    <span>Verifying...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <ShieldCheck className="w-3.5 h-3.5" />
+                                    <span>{user.githubConnected ? 'Verify & Update' : 'Verify & Link'}</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
                           </div>
 
                           <div className="text-[11px] text-text-1">
-                            Target GitHub account must match your registered account email (<code>{user.email || email}</code>) via public profile, git commit history, or verified alias.
+                            {isGithubOAuthUser ? (
+                              <>
+                                Signed in with GitHub, so <code>@{user.githubUsername || user.username}</code> is
+                                already proven by your sign-in and is what gets stamped. To stamp to a different
+                                account, enter it below and verify it against your registered email (
+                                <code>{user.email || 'not available'}</code>) via public profile, commit history, or alias.
+                              </>
+                            ) : (
+                              <>
+                                Target GitHub account must match your registered account email (
+                                <code>{user.email || 'not available'}</code>) via public profile, git commit history, or verified alias.
+                              </>
+                            )}
                           </div>
 
                           {githubVerificationError && (

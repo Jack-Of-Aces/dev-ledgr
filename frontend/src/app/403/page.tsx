@@ -2,28 +2,16 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { ShieldAlert, ArrowLeft, Terminal } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
-import { ADMIN_USER } from '@/lib/mock-data';
-import { setAuthCookies } from '@/lib/cookies';
 
 export default function AccessDeniedPage() {
-  const router = useRouter();
-  const { user, setUser } = useAppStore();
+  const { user } = useAppStore();
   const [mounted, setMounted] = React.useState(false);
-  const [isSwitching, setIsSwitching] = React.useState(false);
 
   React.useEffect(() => {
     setMounted(true);
   }, []);
-
-  const handleSwitchToAdmin = () => {
-    setIsSwitching(true);
-    setUser({ ...ADMIN_USER });
-    setAuthCookies(`mock_admin_token_${Date.now()}`, 'admin');
-    router.push('/admin');
-  };
 
   if (!mounted) {
     return (
@@ -64,18 +52,13 @@ export default function AccessDeniedPage() {
         <div className="pt-4 border-t border-line text-left font-mono text-xs md:text-sm space-y-2">
           <div className="flex items-center gap-1.5 text-text-0 font-semibold">
             <Terminal className="w-3.5 h-3.5 text-text-0" />
-            <span>Developer Sandbox Action</span>
+            <span>Requesting Clearance</span>
           </div>
           <p className="text-xs md:text-sm text-text-1 leading-relaxed">
-            Evaluating platform administration? You can instantly switch to the <strong>@lead_auditor</strong> persona below to test review stamping and problem seeding.
+            Roles are held on your account and cannot be changed from the browser.
+            A platform administrator grants them from the admin console&rsquo;s Team
+            tab, or the first admin is bootstrapped directly in the database.
           </p>
-          <button
-            onClick={handleSwitchToAdmin}
-            disabled={isSwitching}
-            className="w-full btn-brass text-xs md:text-sm py-2 mt-2 cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
-          >
-            {isSwitching ? 'Switching to @lead_auditor...' : 'Switch to @lead_auditor (Admin Persona)'}
-          </button>
         </div>
 
         <div className="pt-2 flex items-center justify-center gap-4 text-xs md:text-sm font-mono">

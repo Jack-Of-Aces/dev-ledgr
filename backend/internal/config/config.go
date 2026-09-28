@@ -52,6 +52,18 @@ type Config struct {
 func (c *Config) IsProduction() bool { return c.Env == "production" }
 
 // Load reads configuration, first loading a .env file if one exists.
+// DatabaseURL returns just the connection string, loading .env first. Commands
+// that only touch the database use this so they do not have to satisfy the full
+// server configuration, which insists on Supabase and signing secrets.
+func DatabaseURL() (string, error) {
+	loadDotEnv(".env")
+	url := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	if url == "" {
+		return "", errors.New("DATABASE_URL is required")
+	}
+	return url, nil
+}
+
 func Load() (*Config, error) {
 	loadDotEnv(".env")
 

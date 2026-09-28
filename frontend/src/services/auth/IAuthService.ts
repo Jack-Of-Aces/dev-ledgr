@@ -1,10 +1,15 @@
 /**
  * @file IAuthService.ts
- * @description Contract for authentication, session handling, and role elevation.
+ * @description Contract for authentication and session handling.
  * Standardizes OAuth authentication via GitHub and Google.
+ *
+ * There is deliberately no way to change a role here. Roles live in
+ * public.profiles and are owned by the backend, which exposes a single
+ * admin-only endpoint for changing them; a client-side persona switch can
+ * only ever fake the session cookie, never the stored role.
  */
 
-import { UserRole, UserSession } from '@/types/auth';
+import { UserSession } from '@/types/auth';
 import { UserProfile } from '@/types';
 
 export interface IAuthService {
@@ -36,9 +41,4 @@ export interface IAuthService {
    * Returns null when no backend is configured or it cannot be reached.
    */
   fetchDevProfile(accessToken: string): Promise<UserProfile | null>;
-
-  /**
-   * Switches demo persona between user and admin in development mode.
-   */
-  switchRole(role: UserRole): Promise<UserProfile>;
 }

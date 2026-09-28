@@ -26,7 +26,8 @@ export type Permission =
   | 'review_submissions'
   | 'stamp_solution'
   | 'seed_ideas'
-  | 'manage_platform';
+  | 'manage_platform'
+  | 'assign_roles';
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   user: [
@@ -48,6 +49,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'edit_own_profile',
     'review_submissions',
     'stamp_solution',
+    'assign_roles',
   ],
   admin: [
     'view_ideas',
@@ -59,6 +61,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'edit_own_profile',
     'review_submissions',
     'stamp_solution',
+    'assign_roles',
     'seed_ideas',
     'manage_platform',
   ],

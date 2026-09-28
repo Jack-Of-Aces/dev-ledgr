@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { BrandMark } from '@/components/brand/BrandMark';
 import { useAuth } from '@/hooks/useAuth';
 // import { envConfig } from '@/lib/config';
-import { ArrowLeft, Sparkles, AlertCircle } from 'lucide-react';
+import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { LoginSkeleton } from '@/components/ui/skeletons';
 import { useAppStore } from '@/lib/store';
 
@@ -45,7 +45,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
   const authError = searchParams.get('error');
-  const { isLoggedIn, user, loginWithGitHub, loginWithGoogle, switchRole } = useAuth();
+  const { isLoggedIn, user, loginWithGitHub, loginWithGoogle } = useAuth();
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -55,7 +55,6 @@ function LoginForm() {
   }, [isLoggedIn, user.onboardingCompleted, callbackUrl]);
 
   const [loadingProvider, setLoadingProvider] = useState<'github' | 'google' | null>(null);
-  const [showSandbox, setShowSandbox] = useState(false);
 
   const handleGitHubAuth = async () => {
     setLoadingProvider('github');
@@ -81,12 +80,6 @@ function LoginForm() {
     } catch {
       setLoadingProvider(null);
     }
-  };
-
-  const handleQuickPersona = async (role: 'user' | 'admin') => {
-    setLoadingProvider('github');
-    await switchRole(role);
-    window.location.replace(role === 'admin' ? '/admin' : callbackUrl);
   };
 
   return (
@@ -150,50 +143,6 @@ function LoginForm() {
             </Link>
             .
           </p>
-        </div>
-
-        {/* Optional Sandbox Evaluation Accordion */}
-        <div className="pt-3 border-t border-line space-y-2 text-xs md:text-sm">
-          <button
-            type="button"
-            onClick={() => setShowSandbox(!showSandbox)}
-            aria-expanded={showSandbox}
-            aria-controls="sandbox-persona-list"
-            className="w-full min-h-11 flex items-center justify-between text-text-1 hover:text-text-0 font-mono text-xs md:text-sm py-1 cursor-pointer"
-          >
-            <span className="flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3 text-emerald-text" />
-              <span>Sandbox Evaluation Personas</span>
-            </span>
-            <span>{showSandbox ? '▲ Hide' : '▼ View demo accounts'}</span>
-          </button>
-
-          {showSandbox && (
-            <div id="sandbox-persona-list" className="space-y-2 animate-in fade-in duration-150 pt-1 font-mono">
-              <p className="text-xs md:text-sm text-text-1 leading-relaxed">
-                Skip OAuth connection during local evaluation to test candidate or auditor modes:
-              </p>
-              <div className="grid grid-cols-2 gap-2 text-xs md:text-sm">
-                <button
-                  type="button"
-                  onClick={() => handleQuickPersona('user')}
-                  className="p-2 rounded border border-line hover:bg-ink-1 text-left transition-colors cursor-pointer"
-                >
-                  <div className="font-semibold text-text-0">@junior_dev</div>
-                  <div className="text-xs md:text-sm text-text-1">Candidate (User)</div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleQuickPersona('admin')}
-                  className="p-2 rounded border border-line hover:bg-ink-1 text-left transition-colors cursor-pointer"
-                >
-                  <div className="font-semibold text-text-0">@lead_auditor</div>
-                  <div className="text-xs md:text-sm text-text-1 font-medium">Platform Auditor (Admin)</div>
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Footer */}

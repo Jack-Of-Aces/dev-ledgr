@@ -47,7 +47,10 @@ export function useProfile() {
         bio: input.bio,
         avatarUrl: input.avatarUrl || user.avatarUrl,
         githubUrl: input.githubUrl || user.githubUrl,
-        email: input.email || user.email,
+        // The registered address is owned by the auth provider and never comes
+        // back from a profile save, so it is carried over untouched. Only the
+        // separate recruiter contact address is dev-editable.
+        contactEmail: input.contactEmail ?? user.contactEmail,
         plan: input.plan,
         // The key is sent to the backend only; the browser just tracks whether one is stored.
         hasApiKey: input.plan === 'byok' && (Boolean(input.apiKey?.trim()) || Boolean(user.hasApiKey)),
@@ -81,7 +84,12 @@ export function useProfile() {
 
         const errorMessage = err instanceof Error ? err.message : 'Failed to synchronize profile update.';
         showToast({
-          title: 'Sync Failed · Rolled Back',
+          // The store is reverted so no other page shows a profile the backend
+          // never accepted. The settings form is deliberately not reverted, and
+          // the draft is kept, so the dev's edits survive the failure — saying
+          // "rolled back" here reads as "your work is gone", which is the thing
+          // this stopped doing.
+          title: 'Sync Failed · Your Edits Are Kept',
           message: errorMessage,
         });
 

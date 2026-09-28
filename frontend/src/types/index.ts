@@ -1,5 +1,5 @@
-export type Domain = 'fintech' | 'systems' | 'logistics' | 'ai' | 'security' | 'devtools';
-export type Difficulty = 'foundational' | 'intermediate' | 'production-grade';
+export type Domain = 'fintech' | 'systems' | 'logistics' | 'ai' | 'security' | 'devtools' | 'infrastructure';
+export type Difficulty = 'foundational' | 'intermediate' | 'production-grade' | 'hard';
 
 export interface MockEndpoint {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
@@ -20,8 +20,10 @@ export interface IdeaItem {
   id: string;
   title: string;
   tagline: string;
-  domain: Domain;
-  difficulty: Difficulty;
+  /** Free text in the database, so not restricted to the Domain union. */
+  domain: string;
+  /** Free text in the database, so not restricted to the Difficulty union. */
+  difficulty: string;
   estimatedHours: number;
   originStory: string;
   problemStatement: string;
@@ -144,6 +146,12 @@ export interface UserProfile {
   statedSkills: string[];
   role: UserRole;
   email?: string;
+  /**
+   * Where recruiters should reach this dev. Distinct from `email`, which is
+   * the address the account is registered with and is owned by the auth
+   * provider. Empty means "use the registered address".
+   */
+  contactEmail?: string;
   updatedAt?: string;
 
   // Personalized Onboarding & Role Tracking
