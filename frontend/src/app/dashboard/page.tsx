@@ -1259,13 +1259,16 @@ export default function DashboardPage() {
                           Proof-of-Work Verification Analysis:
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                          {match.solvedProofTitles.map((title) => (
+                          {(match.matchedSkills && match.matchedSkills.length > 0
+                            ? match.matchedSkills
+                            : match.solvedProofTitles
+                          ).map((item) => (
                             <span
-                              key={title}
+                              key={item}
                               className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-tint border border-emerald-border text-emerald-text font-medium"
                             >
                               <CheckCircle2 className="w-3 h-3 text-emerald" />
-                              <span>{title}</span>
+                              <span>{item}</span>
                             </span>
                           ))}
 

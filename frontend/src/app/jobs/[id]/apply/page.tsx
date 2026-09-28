@@ -7,6 +7,8 @@ import { useAppStore } from '@/lib/store';
 import { aiService } from '@/services/ai/aiService';
 import { ScrutinyResult } from '@/services/ai/IAIService';
 import { JobApplySkeleton } from '@/components/ui/skeletons';
+import { jobService } from '@/services/jobs/jobService';
+import { JobOpportunity } from '@/types';
 import {
   Sparkles,
   ShieldCheck,
@@ -26,11 +28,25 @@ export default function JobApplyPage() {
   const { jobs, user, submissions, ideas } = useAppStore();
   const [mounted, setMounted] = useState(false);
 
+  const [currentJob, setCurrentJob] = useState<JobOpportunity | undefined>(() => jobs.find((j) => j.id === id));
+
   useEffect(() => {
     setMounted(true);
-  }, []);
+    if (id) {
+      const found = jobs.find((j) => j.id === id);
+      if (found) {
+        setCurrentJob(found);
+      } else {
+        jobService.getJobById(id).then((fetched) => {
+          if (fetched) {
+            setCurrentJob(fetched);
+          }
+        }).catch(() => {});
+      }
+    }
+  }, [id, jobs]);
 
-  const job = jobs.find((j) => j.id === id) || jobs[0];
+  const job = currentJob || jobs.find((j) => j.id === id) || jobs[0];
   const userSubmissions = submissions.filter(
     (s) => s.authorUsername.toLowerCase() === user.username.toLowerCase()
   );

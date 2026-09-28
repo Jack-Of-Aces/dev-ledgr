@@ -54,6 +54,7 @@ interface AppState {
   verifySubmission: (hash: string) => void;
   getSubmissionByHash: (hash: string) => SubmissionEntry | undefined;
   getUserSubmissions: (username: string) => SubmissionEntry[];
+  setJobs: (jobs: JobOpportunity[]) => void;
 
   // Dynamic Job Matcher
   getJobMatchDetails: (job: JobOpportunity) => {
@@ -61,6 +62,9 @@ interface AppState {
     hasGap: boolean;
     solvedProofTitles: string[];
     gapProblem?: IdeaItem;
+    matchedSkills?: string[];
+    missingSkills?: string[];
+    gapSkill?: string;
   };
 
   // CV generation cache
@@ -295,31 +299,120 @@ export const useAppStore = create<AppState>()(
         );
       },
 
+      setJobs: (jobs) => set({ jobs }),
+
       getJobMatchDetails: (job) => {
-        const userSubs = get().getUserSubmissions(get().user.username);
-        const solvedIdeaIds = new Set(userSubs.map((s) => s.ideaId));
+        const { user, submissions, ideas } = get();
+        const userSubs = submissions.filter(
+          (s) => s.authorUsername.toLowerCase() === user.username.toLowerCase()
+        );
 
-        // Check if user solved matched ideas
-        const solvedMatched = job.matchedIdeaIds.filter((id) => solvedIdeaIds.has(id));
-        const hasSolvedGap = job.gapIdeaId ? solvedIdeaIds.has(job.gapIdeaId) : true;
+        // 1. If backend already computed match telemetry
+        if (job.match && typeof job.match.score === 'number') {
+          const gapProblem = job.gapIdeaId
+            ? ideas.find((i) => i.id === job.gapIdeaId)
+            : undefined;
+          return {
+            score: job.match.score,
+            hasGap: job.match.score < 80 || (job.match.missingSkills && job.match.missingSkills.length > 0),
+            solvedProofTitles: userSubs.map((s) => s.ideaTitle),
+            gapProblem,
+            matchedSkills: job.match.matchedSkills,
+            missingSkills: job.match.missingSkills,
+            gapSkill: job.match.missingSkills?.[0],
+          };
+        }
 
-        const gapProblem = job.gapIdeaId
-          ? get().ideas.find((i) => i.id === job.gapIdeaId)
-          : undefined;
+        // 2. Normalization map
+        const normalize = (skill: string) => {
+          const s = skill.toLowerCase().trim();
+          if (s === 'golang' || s === 'go') return 'go';
+          if (s === 'postgres' || s === 'postgresql' || s === 'sql databases') return 'postgres';
+          if (s === 'js' || s === 'javascript') return 'javascript';
+          if (s === 'ts' || s === 'typescript') return 'typescript';
+          if (s === 'react' || s === 'react.js' || s === 'reactjs') return 'react';
+          if (s === 'node' || s === 'node.js' || s === 'nodejs') return 'node';
+          if (s === 'py' || s === 'python') return 'python';
+          if (s === 'k8s' || s === 'kubernetes') return 'kubernetes';
+          if (s === 'aws' || s === 'amazon web services') return 'aws';
+          return s;
+        };
 
-        let score = 50;
-        if (solvedMatched.length > 0) score += 30;
-        if (hasSolvedGap) score += 18;
+        // 3. User's known skills: Stated skills + Proven skills from submissions
+        const statedSkills = (user.statedSkills || ['Go', 'TypeScript', 'PostgreSQL']).map(normalize);
+        const provenSkills: string[] = [];
+        userSubs.forEach((sub) => {
+          const problem = ideas.find((i) => i.id === sub.ideaId);
+          if (problem?.tags) {
+            provenSkills.push(...problem.tags.map(normalize));
+          }
+        });
+        const userSkillSet = new Set([...statedSkills, ...provenSkills]);
 
-        const hasGap = !hasSolvedGap && job.matchScore < 80;
+        // 4. Job required skills: requiredSkills + tags
+        const rawJobSkills = [
+          ...(job.requiredSkills || []),
+          ...(job.tags || []),
+        ];
+        const uniqueJobSkills = Array.from(new Set(rawJobSkills.filter(Boolean)));
+        
+        const matchedSkills: string[] = [];
+        const missingSkills: string[] = [];
+
+        uniqueJobSkills.forEach((skill) => {
+          const norm = normalize(skill);
+          if (userSkillSet.has(norm) || Array.from(userSkillSet).some((us) => norm.includes(us) || us.includes(norm))) {
+            matchedSkills.push(skill);
+          } else {
+            missingSkills.push(skill);
+          }
+        });
+
+        // 5. Calculate percentage score
+        const totalSkills = Math.max(uniqueJobSkills.length, 1);
+        let score = Math.round((matchedSkills.length / totalSkills) * 100);
+
+        // Track and role synergy bonus
+        const userTrack = user.engineeringTrack?.toLowerCase() || '';
+        const userRole = user.targetRole?.toLowerCase() || '';
+        const jobTitle = job.title.toLowerCase();
+        const jobDesc = job.description?.toLowerCase() || '';
+
+        if (userTrack && (jobTitle.includes(userTrack) || jobDesc.includes(userTrack))) {
+          score = Math.min(score + 10, 98);
+        }
+        if (userRole && jobTitle.includes(userRole)) {
+          score = Math.min(score + 15, 98);
+        }
+
+        // Proven ledger proofs boost
+        if (userSubs.length > 0) {
+          score = Math.min(score + 5, 98);
+        }
+
+        // Keep within reasonable range
+        score = Math.max(score, uniqueJobSkills.length === 0 ? 80 : 35);
+        const hasGap = score < 80 || missingSkills.length > 0;
+
+        // Find best gap-closing problem in Idea Bank
+        let gapProblem = job.gapIdeaId ? ideas.find((i) => i.id === job.gapIdeaId) : undefined;
+        if (!gapProblem && missingSkills.length > 0) {
+          const firstMissing = normalize(missingSkills[0]);
+          gapProblem = ideas.find((idea) =>
+            idea.tags.some((t) => normalize(t) === firstMissing || normalize(t).includes(firstMissing))
+          ) || ideas[0];
+        }
 
         return {
-          score: hasGap ? Math.min(score, 72) : Math.max(score, 94),
+          score,
           hasGap,
           solvedProofTitles: userSubs
-            .filter((s) => job.matchedIdeaIds.includes(s.ideaId) || s.ideaId === job.gapIdeaId)
+            .filter((s) => (job.matchedIdeaIds || []).includes(s.ideaId) || s.ideaId === job.gapIdeaId)
             .map((s) => s.ideaTitle),
           gapProblem,
+          matchedSkills,
+          missingSkills,
+          gapSkill: missingSkills[0] || (hasGap ? 'Production Resilience' : undefined),
         };
       },
 

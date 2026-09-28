@@ -61,7 +61,7 @@ export interface JobOpportunity {
   title: string;
   company: string;
   location: string;
-  type: 'Full-time' | 'Contract' | 'Remote';
+  type: string;
   salary: string;
   tags: string[];
   matchScore: number;
@@ -70,6 +70,14 @@ export interface JobOpportunity {
   description: string;
   gapIdeaId?: string; // If not ready, target problem to route user back to
   gapReason?: string;
+  level?: string;
+  applyUrl?: string;
+  sourceUrl?: string;
+  match?: {
+    score: number;
+    matchedSkills: string[];
+    missingSkills: string[];
+  };
 }
 
 export interface CoachingItinerary {
