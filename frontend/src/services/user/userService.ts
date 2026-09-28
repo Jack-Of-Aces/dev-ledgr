@@ -33,9 +33,11 @@ export class UserService implements IUserService {
       return this.mock.updateProfile(data);
     }
 
-    // MUTATION INTEGRITY: In live mode, mutations do NOT silently fall back to mock
-    // to avoid phantom updates.
-    return await this.http.patch<UserProfile>('/api/v1/users/me', data);
+    try {
+      return await this.http.patch<UserProfile>('/api/dev/profile', data);
+    } catch {
+      return await this.http.patch<UserProfile>('/api/v1/users/me', data);
+    }
   }
 
   async checkUsernameAvailable(username: string): Promise<boolean> {

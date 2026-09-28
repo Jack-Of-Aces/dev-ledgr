@@ -8,6 +8,8 @@ import { ShieldCheck, Plus, ExternalLink, X } from "lucide-react";
 import Link from "next/link";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { AdminSkeleton } from "@/components/ui/skeletons";
+import { submissionService } from "@/services/submissions/submissionService";
+import { defaultHttpClient } from "@/services/api/httpClient";
 
 export default function AdminPage() {
   const { submissions, ideas, addIdea, verifySubmission } = useAppStore();
@@ -91,6 +93,12 @@ export default function AdminPage() {
 
     addIdea(newIdea);
     setSeedModalOpen(false);
+
+    // Sync seed problem to backend API (POST /api/v1/ideas)
+    defaultHttpClient.post('/api/v1/ideas', newIdea).catch((err) => {
+      console.warn('Backend idea seed sync note:', err);
+    });
+
     // Reset fields
     setTitle("");
     setTagline("");
@@ -99,6 +107,15 @@ export default function AdminPage() {
     setTechReqs("");
     setEstimatedHours(12);
     setTags("Go, Redis, Distributed");
+  };
+
+  const handleVerify = async (hash: string) => {
+    verifySubmission(hash);
+    try {
+      await submissionService.verifySubmission(hash);
+    } catch (err) {
+      console.warn('Backend verify submission note:', err);
+    }
   };
 
   if (!mounted) {
@@ -171,7 +188,7 @@ export default function AdminPage() {
                   </div>
                   <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
                     <button
-                      onClick={() => verifySubmission(sub.hash)}
+                      onClick={() => handleVerify(sub.hash)}
                       className={`font-medium flex items-center gap-1 cursor-pointer hover:underline ${
                         sub.status === 'verified'
                           ? 'text-green-700 dark:text-green-400'

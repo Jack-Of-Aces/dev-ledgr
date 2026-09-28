@@ -9,6 +9,7 @@ import { coachingService } from '@/services/coaching/coachingService';
 import { CoachingItinerary } from '@/types';
 import { aiService } from '@/services/ai/aiService';
 import { CoachingSkeleton } from '@/components/ui/skeletons';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import {
   ArrowLeft,
   Terminal,
@@ -117,7 +118,8 @@ export default function CoachingDetailPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 md:py-12 space-y-8 font-sans">
+    <AuthGuard fallbackMessage="Access to structured career coaching curriculums and the interactive Socratic architecture console requires an active developer account.">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 md:py-12 space-y-8 font-sans">
       {/* ========================================================= */}
       {/* 1. BREADCRUMBS & EXECUTIVE HEADER                         */}
       {/* ========================================================= */}
@@ -532,5 +534,6 @@ export default function CoachingDetailPage() {
         </div>
       </div>
     </div>
+  </AuthGuard>
   );
 }

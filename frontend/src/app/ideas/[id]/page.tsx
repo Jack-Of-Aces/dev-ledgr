@@ -11,12 +11,13 @@ import { ArrowLeft, Clock, ExternalLink, GitBranch, ShieldCheck, Flame, Loader2 
 import { getDomainStyle, getDifficultyStyle } from '@/lib/colors';
 import { IdeaDetailSkeleton } from '@/components/ui/skeletons';
 import { launchpadService } from '@/services/launchpad/launchpadService';
-import { ProblemClaimStatus } from '@/types';
+import { ProblemClaimStatus, IdeaItem } from '@/types';
 
 export default function IdeaDetailPage() {
   const params = useParams();
   const id = params?.id as string;
-  const { ideas, submissions, isLoggedIn, showToast } = useAppStore();
+  const { ideas, submissions, isLoggedIn, showToast, openAuthModal } = useAppStore();
+  const [currentIdea, setCurrentIdea] = useState<IdeaItem | undefined>(() => ideas.find((i) => i.id === id));
   const [modalOpen, setModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [claimStatus, setClaimStatus] = useState<ProblemClaimStatus | null>(null);
@@ -25,13 +26,23 @@ export default function IdeaDetailPage() {
   useEffect(() => {
     setMounted(true);
     let active = true;
-    launchpadService.getStatus(id).then((status) => {
-      if (active && status) setClaimStatus(status);
-    });
+    if (id) {
+      const found = ideas.find((i) => i.id === id);
+      if (found) {
+        setCurrentIdea(found);
+      } else {
+        launchpadService.getProblemById(id).then((p) => {
+          if (active && p) setCurrentIdea(p);
+        }).catch(() => {});
+      }
+      launchpadService.getStatus(id).then((status) => {
+        if (active && status) setClaimStatus(status);
+      }).catch(() => {});
+    }
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, ideas]);
 
   const handleClaim = async () => {
     if (!isLoggedIn) {
@@ -39,6 +50,7 @@ export default function IdeaDetailPage() {
         title: 'Authentication Required',
         message: 'Sign in to claim this Launchpad challenge and register as builder.',
       });
+      openAuthModal();
       return;
     }
 
@@ -60,7 +72,19 @@ export default function IdeaDetailPage() {
     }
   };
 
-  const idea = ideas.find((i) => i.id === id) || ideas[0];
+  const handleSubmitSolutionClick = () => {
+    if (!isLoggedIn) {
+      showToast({
+        title: 'Authentication Required',
+        message: 'Please sign in with your developer account to submit solutions and seal your cryptographic proof.',
+      });
+      openAuthModal();
+      return;
+    }
+    setModalOpen(true);
+  };
+
+  const idea = currentIdea || ideas.find((i) => i.id === id) || ideas[0];
 
   if (!mounted || !idea) {
     return <IdeaDetailSkeleton />;
@@ -148,7 +172,7 @@ export default function IdeaDetailPage() {
           )}
 
           <button
-            onClick={() => setModalOpen(true)}
+            onClick={handleSubmitSolutionClick}
             className="btn-brass text-xs md:text-sm py-2 px-4 cursor-pointer"
           >
             <ShieldCheck className="w-4 h-4" />
