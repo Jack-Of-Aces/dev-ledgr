@@ -9,7 +9,7 @@ import {
   getTrackById,
   InferredTrackResult,
 } from '@/lib/tracks';
-import { EngineeringTrack, ExperienceLevel } from '@/types';
+import { EngineeringTrack, ExperienceLevel, ProblemRecommendation } from '@/types';
 import {
   Sparkles,
   ShieldCheck,
@@ -102,6 +102,10 @@ export default function OnboardingPage() {
   const [inferredResult, setInferredResult] = useState<InferredTrackResult | null>(null);
   const hasUserSelectedTrackRef = useRef(false);
 
+  // Personalized first-challenge ranking for the Step 4 card.
+  const [recommendation, setRecommendation] = useState<ProblemRecommendation | null>(null);
+  const [isRankingChallenges, setIsRankingChallenges] = useState(false);
+
   useEffect(() => {
     setMounted(true);
     let active = true;
@@ -181,6 +185,30 @@ export default function OnboardingPage() {
       active = false;
     };
   }, [isGithubOAuthUser, user.githubUsername, user.username, user.engineeringTrack, githubVerified, githubUsernameInput]);
+
+  // Re-rank the challenge list as the dev tunes their stack and seniority, so
+  // the Step 4 card always reflects the profile they are actually submitting.
+  useEffect(() => {
+    if (!mounted) return;
+
+    let active = true;
+    setIsRankingChallenges(true);
+    launchpadService
+      .getRecommendedProblems({ skills, level: experienceLevel, limit: 5 })
+      .then((res) => {
+        if (active) setRecommendation(res);
+      })
+      .catch(() => {
+        if (active) setRecommendation(null);
+      })
+      .finally(() => {
+        if (active) setIsRankingChallenges(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [mounted, skills, experienceLevel]);
 
   const handleToggleSkill = (skill: string) => {
     if (skills.includes(skill)) {
@@ -279,12 +307,18 @@ export default function OnboardingPage() {
   }
 
   const currentTrackDef = getTrackById(selectedTrack);
-  const tailoredProblem =
+  const candidateDisplayName = user.name || user.username || 'Developer';
+
+  // The backend ranks the problem bank against the draft skills and seniority
+  // the dev has picked so far. Until it answers (or if it cannot), fall back to
+  // the track's editorial picks so the card is never empty.
+  const fallbackProblem =
     ideas.find((i) => currentTrackDef.recommendedIdeaIds.includes(i.id)) || ideas[0];
+  const topPick = recommendation?.problems[0];
+  const tailoredProblem = topPick ?? fallbackProblem;
+  const tailoredMatch = topPick?.match;
   const tailoredJob =
     jobs.find((j) => j.tags.some((t) => currentTrackDef.defaultSkills.includes(t))) || jobs[0];
-
-  const candidateDisplayName = user.name || user.username || 'Developer';
 
   return (
     <div className="min-h-screen w-full flex flex-col justify-between px-3 sm:px-6 md:px-8 py-4 sm:py-8 font-sans max-w-7xl mx-auto">
@@ -311,7 +345,7 @@ export default function OnboardingPage() {
             {/* Candidate Identity Pill */}
             <div className="flex items-center gap-2 self-start sm:self-auto px-2.5 py-1 rounded-full border border-line bg-ink-0 text-[11px] sm:text-xs font-mono text-text-1">
               <div className="w-2 h-2 rounded-full bg-emerald animate-pulse shrink-0" />
-              <span className="text-text-0 font-medium truncate max-w-[140px] sm:max-w-none">{candidateDisplayName}</span>
+              <span className="text-text-0 font-medium truncate max-w-35 sm:max-w-none">{candidateDisplayName}</span>
               {user.email && (
                 <span className="hidden md:inline text-text-1">({user.email})</span>
               )}
@@ -430,7 +464,7 @@ export default function OnboardingPage() {
                       </div>
                       {isSelected ? (
                         <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-brass flex items-center justify-center text-ink-0 shrink-0">
-                          <Check className="w-3 h-3 stroke-[3]" />
+                          <Check className="w-3 h-3 stroke-3" />
                         </div>
                       ) : (
                         <span className="w-2 h-2 rounded-full bg-line shrink-0" />
@@ -827,33 +861,68 @@ export default function OnboardingPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs font-mono uppercase text-text-1">
               <span>Recommended First Challenge:</span>
-              <span className="text-brass font-bold">Priority Dispatch</span>
+              {isRankingChallenges ? (
+                <span className="text-text-1 font-bold">Ranking…</span>
+              ) : tailoredMatch ? (
+                // Coverage of the problem's stated stack, not an ATS-style
+                // percentage: seeded tags mix technologies with editorial
+                // topics, so "2 of 5 skills" is the honest framing.
+                <span className="text-brass font-bold">
+                  {tailoredMatch.matchedSkills.length}/
+                  {tailoredMatch.matchedSkills.length + tailoredMatch.missingSkills.length} skills
+                </span>
+              ) : (
+                <span className="text-text-1 font-bold">Track Pick</span>
+              )}
             </div>
             <div className="p-3.5 sm:p-4 rounded-radius border border-brass/30 bg-ink-0/20 space-y-2">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                <span className="text-[11px] font-mono text-emerald-text uppercase font-semibold">
-                  {tailoredProblem.domain} · {tailoredProblem.difficulty} · ~{tailoredProblem.estimatedHours} hrs
-                </span>
-                <span className="text-xs text-text-1 font-mono">
-                  {tailoredProblem.submissionCount} proofs stamped
-                </span>
-              </div>
-              <h3 className="text-sm sm:text-base font-semibold text-text-0">
-                {tailoredProblem.title}
-              </h3>
-              <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
-                {tailoredProblem.tagline}
-              </p>
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {tailoredProblem.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-2 py-0.5 rounded text-[11px] font-mono bg-ink-0 text-text-1 border border-line"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
+              {tailoredProblem ? (
+                <>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                    <span className="text-[11px] font-mono text-emerald-text uppercase font-semibold">
+                      {tailoredProblem.domain} · {tailoredProblem.difficulty} · ~
+                      {tailoredProblem.estimatedHours} hrs
+                    </span>
+                    <span className="text-xs text-text-1 font-mono">
+                      {tailoredProblem.submissionCount} proofs stamped
+                    </span>
+                  </div>
+                  <h3 className="text-sm sm:text-base font-semibold text-text-0">
+                    {tailoredProblem.title}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
+                    {tailoredProblem.tagline}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {(tailoredProblem.tags ?? []).map((tag) => {
+                      const matched = tailoredMatch?.matchedSkills.includes(tag);
+                      return (
+                        <span
+                          key={tag}
+                          className={`px-2 py-0.5 rounded text-[11px] font-mono border ${
+                            matched === true
+                              ? 'bg-emerald-tint text-emerald-text border-emerald/30'
+                              : matched === false
+                                ? 'bg-ink-0 text-text-1 border-line border-dashed'
+                                : 'bg-ink-0 text-text-1 border-line'
+                          }`}
+                        >
+                          {tag}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  {tailoredMatch && tailoredMatch.missingSkills.length > 0 && (
+                    <p className="text-[11px] font-mono text-text-1 pt-1">
+                      Stretch: {tailoredMatch.missingSkills.join(', ')}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
+                  No open challenges match your profile yet. Publish one from the Launchpad.
+                </p>
+              )}
             </div>
           </div>
 
