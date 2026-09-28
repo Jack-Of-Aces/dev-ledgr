@@ -23,29 +23,43 @@ import {
   Download,
 } from 'lucide-react';
 
+import { launchpadService } from '@/services/launchpad/launchpadService';
+
 export default function JobApplyPage() {
   const params = useParams();
   const id = params?.id as string;
-  const { jobs, user, submissions, ideas } = useAppStore();
+  const { jobs, user, submissions, ideas, setIdeas } = useAppStore();
   const [mounted, setMounted] = useState(false);
 
   const [currentJob, setCurrentJob] = useState<JobOpportunity | undefined>(() => jobs.find((j) => j.id === id));
 
   useEffect(() => {
     setMounted(true);
+    let active = true;
+
     if (id) {
       const found = jobs.find((j) => j.id === id);
       if (found) {
         setCurrentJob(found);
       } else {
         jobService.getJobById(id).then((fetched) => {
-          if (fetched) {
+          if (active && fetched) {
             setCurrentJob(fetched);
           }
         }).catch(() => {});
       }
     }
-  }, [id, jobs]);
+
+    launchpadService.getProblems().then((problems) => {
+      if (active && problems && problems.length > 0) {
+        setIdeas(problems);
+      }
+    }).catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [id, jobs, setIdeas]);
 
   const job = currentJob || jobs.find((j) => j.id === id) || jobs[0];
   const userSubmissions = submissions.filter(

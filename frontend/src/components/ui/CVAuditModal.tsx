@@ -21,8 +21,6 @@ import {
   Copy,
   Download,
   Check,
-  FileText,
-  Edit3,
 } from 'lucide-react';
 import { jobService } from '@/services/jobs/jobService';
 import { JobOpportunity, CVAudit } from '@/types';

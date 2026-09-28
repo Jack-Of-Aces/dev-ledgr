@@ -48,8 +48,10 @@ interface NotificationItem {
   read: boolean;
 }
 
+import { launchpadService } from '@/services/launchpad/launchpadService';
+
 export default function DashboardPage() {
-  const { user, submissions, jobs, ideas, getJobMatchDetails, setJobs, setSubmissions } = useAppStore();
+  const { user, submissions, jobs, ideas, getJobMatchDetails, setJobs, setIdeas, setSubmissions } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<DashboardTab>('ledger');
   const [mounted, setMounted] = useState(false);
@@ -98,10 +100,17 @@ export default function DashboardPage() {
       }).catch(() => {});
     }
 
+    // Fetch live problems/ideas for skill gap recommendations
+    launchpadService.getProblems().then((problems) => {
+      if (active && problems && problems.length > 0) {
+        setIdeas(problems);
+      }
+    }).catch(() => {});
+
     return () => {
       active = false;
     };
-  }, [setJobs, setSubmissions, user.username]);
+  }, [setJobs, setIdeas, setSubmissions, user.username]);
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
