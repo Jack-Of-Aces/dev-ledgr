@@ -276,6 +276,20 @@ type JobMatch struct {
 	MissingSkills []string `json:"missingSkills"`
 }
 
+// IdeaMatch explains how well a problem fits a developer's skills. Score is
+// the skill overlap, on the same 0-100 scale as JobMatch; DifficultyFit adds a
+// small seniority-vs-difficulty adjustment (0-10) used for ranking only.
+type IdeaMatch struct {
+	Score         int      `json:"score"`
+	MatchedSkills []string `json:"matchedSkills"`
+	MissingSkills []string `json:"missingSkills"`
+	DifficultyFit int      `json:"difficultyFit"`
+}
+
+// ExperienceLevels are the onboarding seniority levels, mirroring
+// ExperienceLevel in frontend/src/types/index.ts.
+var ExperienceLevels = []string{"junior", "mid", "senior", "lead"}
+
 // ATSBreakdownItem scores one dimension of a CV.
 type ATSBreakdownItem struct {
 	Category string `json:"category"`

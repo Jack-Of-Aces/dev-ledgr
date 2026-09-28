@@ -6,7 +6,13 @@
 
 import { ILaunchpadService, LaunchpadFilters } from './ILaunchpadService';
 import { mockLaunchpadService } from './mockLaunchpadService';
-import { LaunchpadProblem, ProblemStatus, ProblemClaimStatus } from '@/types';
+import {
+  LaunchpadProblem,
+  ProblemStatus,
+  ProblemClaimStatus,
+  ProblemRecommendation,
+  ExperienceLevel,
+} from '@/types';
 import { envConfig } from '@/lib/config';
 import { defaultHttpClient } from '../api/httpClient';
 
@@ -38,6 +44,37 @@ export class LaunchpadService implements ILaunchpadService {
       return res;
     } catch {
       return this.mock.getProblems(filters);
+    }
+  }
+
+  /**
+   * Fetches the backend's ranked problem bank. Unlike getProblems this has no
+   * mock fallback: a null return tells the caller the ranking is unavailable so
+   * it can show an honest unranked pick instead of a fabricated match score.
+   */
+  async getRecommendedProblems(input?: {
+    skills?: string[];
+    level?: ExperienceLevel;
+    limit?: number;
+  }): Promise<ProblemRecommendation | null> {
+    if (envConfig.useMocks) {
+      return this.mock.getRecommendedProblems(input);
+    }
+
+    try {
+      const res = await this.http.get<ProblemRecommendation>(
+        '/api/launchpad/problems/recommended',
+        {
+          params: {
+            skills: input?.skills?.length ? input.skills.join(',') : undefined,
+            level: input?.level,
+            limit: input?.limit,
+          },
+        }
+      );
+      return Array.isArray(res?.problems) ? res : null;
+    } catch {
+      return null;
     }
   }
 

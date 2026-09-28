@@ -72,6 +72,7 @@ func (s *Server) Handler() http.Handler {
 
 	// Launchpad: the problem bank and who is building what.
 	route("GET /api/launchpad/problems", s.listProblems)
+	route("GET /api/launchpad/problems/recommended", requireAuth(s.recommendedProblems))
 	route("GET /api/launchpad/problems/{id}", s.getProblem)
 	route("POST /api/launchpad/problems/{id}/approve", requirePermission(model.PermSeedIdeas, s.approveProblem))
 	route("POST /api/launchpad/claim", requirePermission(model.PermSubmitSolution, s.claimProblem))

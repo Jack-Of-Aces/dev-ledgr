@@ -18,6 +18,10 @@ const nextConfig: NextConfig = {
 
     return [
       {
+        source: '/api/launchpad/:path*',
+        destination: `${backendUrl}/api/launchpad/:path*`,
+      },
+      {
         source: '/api/jobBoard/:path*',
         destination: `${backendUrl}/api/jobBoard/:path*`,
       },

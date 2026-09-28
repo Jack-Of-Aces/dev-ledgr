@@ -4,8 +4,15 @@
  */
 
 import { ILaunchpadService, LaunchpadFilters } from './ILaunchpadService';
-import { LaunchpadProblem, ProblemStatus, ProblemClaimStatus } from '@/types';
+import {
+  LaunchpadProblem,
+  ProblemStatus,
+  ProblemClaimStatus,
+  ProblemRecommendation,
+  ExperienceLevel,
+} from '@/types';
 import { INITIAL_IDEAS, DEFAULT_USER } from '@/lib/mock-data';
+import { rankLocally } from './localRanking';
 
 export class MockLaunchpadService implements ILaunchpadService {
   private problems: LaunchpadProblem[] = INITIAL_IDEAS.map((idea, idx) => ({
@@ -45,6 +52,13 @@ export class MockLaunchpadService implements ILaunchpadService {
     }
 
     return result;
+  }
+
+  async getRecommendedProblems(input?: {
+    skills?: string[];
+    level?: ExperienceLevel;
+  }): Promise<ProblemRecommendation> {
+    return rankLocally(this.problems, input?.skills, input?.level);
   }
 
   async getProblemById(id: string): Promise<LaunchpadProblem | undefined> {
