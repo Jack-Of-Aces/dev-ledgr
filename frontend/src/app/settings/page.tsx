@@ -97,7 +97,8 @@ export default function SettingsPage() {
     setGithubUrl(user.githubUrl || '');
     setEmail(user.email || '');
     setPlan(user.plan);
-    setApiKey(user.apiKey || '');
+    // Note: apiKey is write-only; the stored key is never returned to the browser.
+
     setStatedSkills(user.statedSkills || []);
     setEngineeringTrack(user.engineeringTrack || 'backend-systems');
     setTargetRole(user.targetRole || 'Backend Engineer');

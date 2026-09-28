@@ -151,11 +151,7 @@ export class AuthService implements IAuthService {
             }
           }
 
-          // The role comes from the backend dev record, never from
-          // user_metadata, which users can edit themselves.
-          const dev = await this.fetchDevProfile(session.access_token);
-          const role: UserRole = dev?.role ?? 'user';
-
+          // Use the authoritative role from /api/auth/me (already in `role` var above).
           setAuthCookies(session.access_token, role);
 
           return {
@@ -164,10 +160,6 @@ export class AuthService implements IAuthService {
             name: devName,
             role,
             avatarUrl: devAvatar,
-            username: dev?.username ?? username,
-            name: dev?.name ?? name,
-            role,
-            avatarUrl: dev?.avatarUrl || avatarUrl,
             expiresAt: new Date(session.expires_at ? session.expires_at * 1000 : Date.now() + 3600000).toISOString(),
           };
         }

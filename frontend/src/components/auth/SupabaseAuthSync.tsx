@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 /**
  * @file SupabaseAuthSync.tsx
  * @description Client-side synchronization bridge between Supabase Auth and DevLedgr Zustand store.
@@ -8,6 +7,8 @@ import { useEffect, useRef } from 'react';
  * The dev record (including role) is owned by the backend; Supabase metadata is only used
  * as a placeholder until the backend profile loads.
  */
+
+import { useEffect, useRef } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabase';
 import { useAppStore } from '@/lib/store';
@@ -15,6 +16,7 @@ import { setAuthCookies, clearAuthCookies, getClientCookie, AUTH_COOKIE_NAME } f
 import { DEFAULT_USER } from '@/lib/mock-data';
 import { UserRole } from '@/types/auth';
 import { EngineeringTrack, ExperienceLevel } from '@/types';
+import { authService } from '@/services/auth/authService';
 
 interface JwtPayload {
   email?: string;
@@ -56,17 +58,14 @@ function parseJwt(token: string): JwtPayload | null {
   }
 }
 
-export const SupabaseAuthSync: React.FC = () => {
-  const hasHandledOAuthRef = useRef(false);
-import { authService } from '@/services/auth/authService';
-
 async function applySession(session: Session): Promise<void> {
   const u = session.user;
   const meta = u.user_metadata || {};
-  const username = meta.user_name || meta.preferred_username || u.email?.split('@')[0] || 'developer';
+  const username =
+    meta.user_name || meta.preferred_username || u.email?.split('@')[0] || 'developer';
 
-  // Placeholder from Supabase metadata so the UI responds immediately. The
-  // role is always 'user' here: user_metadata is editable by the user.
+  // Seed the store with Supabase metadata immediately so the UI responds.
+  // role is always 'user' here — user_metadata is user-editable, not trusted.
   useAppStore.setState({
     isLoggedIn: true,
     user: {
@@ -84,7 +83,7 @@ async function applySession(session: Session): Promise<void> {
   });
   setAuthCookies(session.access_token, 'user');
 
-  // Replace it with the authoritative dev record from the backend.
+  // Overwrite with the authoritative dev record from the backend.
   const dev = await authService.fetchDevProfile(session.access_token);
   if (dev) {
     useAppStore.setState({ user: dev });
@@ -93,10 +92,12 @@ async function applySession(session: Session): Promise<void> {
 }
 
 export const SupabaseAuthSync: React.FC = () => {
+  const hasHandledOAuthRef = useRef(false);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // 1. Check for OAuth hash errors (e.g. #error=access_denied)
+    // 1. OAuth error in hash (e.g. #error=access_denied)
     if (window.location.hash.includes('error=')) {
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const errorMsg =
@@ -107,7 +108,7 @@ export const SupabaseAuthSync: React.FC = () => {
       return;
     }
 
-    // 2. Synchronous ingestion and immediate redirection when OAuth hash is present
+    // 2. Implicit OAuth flow: access_token in hash
     const hash = window.location.hash;
     if (hash.includes('access_token=') && !hasHandledOAuthRef.current) {
       hasHandledOAuthRef.current = true;
@@ -125,23 +126,17 @@ export const SupabaseAuthSync: React.FC = () => {
           payload?.email?.split('@')[0] ||
           'developer';
         const name = meta.full_name || meta.name || username;
-        const avatarUrl =
-          meta.avatar_url || meta.picture || DEFAULT_USER.avatarUrl;
+        const avatarUrl = meta.avatar_url || meta.picture || DEFAULT_USER.avatarUrl;
         const role: UserRole = meta.role === 'admin' ? 'admin' : 'user';
         const isOnboarded = Boolean(meta.onboarding_completed);
         const shouldOnboard = !isOnboarded || (isGoogle && !meta.github_connected);
-
-        const githubConnected = isGoogle
-          ? Boolean(meta.github_connected)
-          : true;
+        const githubConnected = isGoogle ? Boolean(meta.github_connected) : true;
         const githubUsername = isGoogle
-          ? (meta.github_username || undefined)
-          : (meta.user_name || username);
+          ? meta.github_username || undefined
+          : meta.user_name || username;
 
-        // Immediately stamp cookies so edge middleware authorizes navigation
         setAuthCookies(accessToken, role);
 
-        // Seed store state
         useAppStore.setState({
           isLoggedIn: true,
           user: {
@@ -151,14 +146,10 @@ export const SupabaseAuthSync: React.FC = () => {
             role,
             headline:
               meta.headline ||
-              (isGoogle
-                ? 'Engineering Candidate'
-                : 'Software Engineer · Verified Ledger'),
+              (isGoogle ? 'Engineering Candidate' : 'Software Engineer · Verified Ledger'),
             bio: meta.bio || 'Verified developer on DevLedgr.',
             avatarUrl,
-            githubUrl: githubUsername
-              ? `https://github.com/${githubUsername}`
-              : '',
+            githubUrl: githubUsername ? `https://github.com/${githubUsername}` : '',
             githubConnected,
             githubUsername,
             authProvider: isGoogle ? 'google' : 'github',
@@ -171,115 +162,27 @@ export const SupabaseAuthSync: React.FC = () => {
           },
         });
 
-        // Set session in Supabase client instance if available
         const supabase = getSupabase();
         if (supabase && refreshToken) {
           supabase.auth
-            .setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            })
-            .catch((err) =>
-              console.warn('[SupabaseAuthSync] setSession notice:', err)
-            );
+            .setSession({ access_token: accessToken, refresh_token: refreshToken })
+            .catch((err) => console.warn('[SupabaseAuthSync] setSession notice:', err));
         }
 
-        // Hard browser replacement: removes the hash from history and lands on onboarding or dashboard
-        const destination = shouldOnboard ? '/onboarding' : '/dashboard';
-        window.location.replace(destination);
+        window.location.replace(shouldOnboard ? '/onboarding' : '/dashboard');
         return;
       }
     }
 
-    // 3. Regular session sync on mount and auth state change
+    // 3. Regular session sync via Supabase client
     const supabase = getSupabase();
     if (!supabase) return;
 
-    const handleSessionSync = (session: Session | null) => {
-      if (!session?.user) return;
-
-      const u = session.user;
-      const meta = u.user_metadata || {};
-      const isGoogle = u.app_metadata?.provider === 'google';
-      const username =
-        meta.user_name ||
-        meta.preferred_username ||
-        u.email?.split('@')[0] ||
-        'developer';
-      const name = meta.full_name || meta.name || username;
-      const avatarUrl =
-        meta.avatar_url || meta.picture || DEFAULT_USER.avatarUrl;
-      const role: UserRole = meta.role === 'admin' ? 'admin' : 'user';
-
-      const isOnboarded = Boolean(meta.onboarding_completed);
-      const shouldOnboard = !isOnboarded || (isGoogle && !meta.github_connected);
-
-      const githubConnected = isGoogle
-        ? Boolean(meta.github_connected)
-        : true;
-      const githubUsername = isGoogle
-        ? (meta.github_username || undefined)
-        : (meta.user_name || username);
-
-      useAppStore.setState({
-        isLoggedIn: true,
-        user: {
-          ...DEFAULT_USER,
-          username,
-          name,
-          role,
-          headline:
-            meta.headline ||
-            (isGoogle
-              ? 'Engineering Candidate'
-              : 'Software Engineer · Verified Ledger'),
-          bio: meta.bio || 'Verified developer on DevLedgr.',
-          avatarUrl,
-          githubUrl: githubUsername
-            ? `https://github.com/${githubUsername}`
-            : '',
-          githubConnected,
-          githubUsername,
-          authProvider: isGoogle ? 'google' : 'github',
-          onboardingCompleted: !shouldOnboard,
-          engineeringTrack: (meta.engineering_track as EngineeringTrack) || undefined,
-          targetRole: meta.target_role || undefined,
-          experienceLevel: (meta.experience_level as ExperienceLevel) || undefined,
-          statedSkills: meta.skills || ['Go', 'TypeScript', 'PostgreSQL'],
-          email: u.email,
-        },
-      });
-
-      setAuthCookies(session.access_token, role);
-
-      // If sitting on /login while already logged in, redirect away
-      if (
-        typeof window !== 'undefined' &&
-        window.location.pathname === '/login' &&
-        !hasHandledOAuthRef.current
-      ) {
-        hasHandledOAuthRef.current = true;
-        window.location.replace(shouldOnboard ? '/onboarding' : '/dashboard');
-      }
-    };
-
-    // Check active session on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        handleSessionSync(session);
-      } else {
-        const hasSessionCookie =
-          document.cookie.includes('devledgr_session') ||
-          document.cookie.includes('devledgr_token');
-        if (!hasSessionCookie) {
-          useAppStore.setState({ isLoggedIn: false });
-        }
     // Check active session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         void applySession(session);
       } else if (!getClientCookie(AUTH_COOKIE_NAME)) {
-        // No real session and no sandbox cookie: ensure not logged in
         useAppStore.setState({ isLoggedIn: false });
       }
     });
@@ -294,18 +197,9 @@ export const SupabaseAuthSync: React.FC = () => {
           event === 'TOKEN_REFRESHED') &&
         session?.user
       ) {
-        handleSessionSync(session);
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
         void applySession(session);
-      } else if (event === 'TOKEN_REFRESHED' && session) {
-        // Keep API calls authenticated with the fresh access token.
-        setAuthCookies(session.access_token, useAppStore.getState().user.role);
       } else if (event === 'SIGNED_OUT') {
-        useAppStore.setState({
-          isLoggedIn: false,
-          user: DEFAULT_USER,
-        });
+        useAppStore.setState({ isLoggedIn: false, user: DEFAULT_USER });
         clearAuthCookies();
       }
     });

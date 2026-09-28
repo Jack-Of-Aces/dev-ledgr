@@ -453,10 +453,10 @@ export const useAppStore = create<AppState>()(
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);
         state?.refreshData();
-      name: 'devledgr_storage_v1',
+      },
+
       // v1: BYOK API keys are no longer kept in the browser. Strip any key an
       // earlier version persisted to localStorage.
-      version: 1,
       migrate: (persisted) => {
         const state = persisted as { user?: Record<string, unknown> } | undefined;
         if (state?.user) {

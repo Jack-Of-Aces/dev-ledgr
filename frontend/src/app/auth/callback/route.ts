@@ -67,6 +67,10 @@ export async function GET(request: Request) {
         console.warn('[AuthCallback] Profile upsert notice:', upsertErr);
       }
 
+      // Fetch backend dev record for authoritative role
+      const dev = await authService.fetchDevProfile(data.session.access_token);
+      const role = dev?.role ?? 'user';
+
       // Check if user has completed onboarding
       const isGoogle = user.app_metadata?.provider === 'google';
       const isOnboarded = Boolean(meta.onboarding_completed);
@@ -74,51 +78,22 @@ export async function GET(request: Request) {
 
       const response = NextResponse.redirect(destination);
 
+      const cookieOptions = {
+        path: '/',
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax' as const,
+        maxAge: 60 * 60 * 24 * 7,
+      };
+
       // Set DevLedgr session cookies (both devledgr_session and devledgr_token for compatibility)
-      response.cookies.set('devledgr_session', data.session.access_token, {
-        path: '/',
-        httpOnly: false,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7,
-      });
-
-      response.cookies.set('devledgr_token', data.session.access_token, {
-        path: '/',
-        httpOnly: false,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7,
-      });
-
-      response.cookies.set('devledgr_role', 'user', {
-        path: '/',
-        httpOnly: false,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7,
-      });
+      response.cookies.set('devledgr_session', data.session.access_token, cookieOptions);
+      response.cookies.set(AUTH_COOKIE_NAME, data.session.access_token, cookieOptions);
+      response.cookies.set(ROLE_COOKIE_NAME, role, cookieOptions);
 
       return response;
     }
   }
-  // The backend owns dev records: GET /api/auth/me creates one on first
-  // sign-in and returns the authoritative role. Without a backend (sandbox),
-  // fall back to the default 'user' role.
-  const dev = await authService.fetchDevProfile(data.session.access_token);
-
-  const response = NextResponse.redirect(`${origin}/dashboard`);
-  const cookieOptions = {
-    path: '/',
-    httpOnly: false,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax' as const,
-    maxAge: 60 * 60 * 24 * 7,
-  };
-
-  // Set DevLedgr session cookies (read by proxy.ts and the API http client)
-  response.cookies.set(AUTH_COOKIE_NAME, data.session.access_token, cookieOptions);
-  response.cookies.set(ROLE_COOKIE_NAME, dev?.role ?? 'user', cookieOptions);
 
   // Fallback if code exchange fails or is missing
   return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`);
