@@ -139,7 +139,8 @@ export interface UserProfile {
   githubUrl: string;
   portfolioValidUntil: string;
   plan: 'free' | 'full-service' | 'byok';
-  apiKey?: string;
+  /** True when a BYOK key is stored (encrypted) on the backend. The key itself never reaches the browser. */
+  hasApiKey?: boolean;
   statedSkills: string[];
   role: UserRole;
   email?: string;

@@ -8,12 +8,12 @@
 import { NextResponse } from 'next/server';
 import { checkRateLimit } from '@/lib/rate-limiter';
 import { runAIMesh } from '@/lib/ai-mesh';
+import { resolveProviderKey } from '@/lib/provider-key';
 
 interface CoachRequestBody {
   itineraryTitle: string;
   milestoneTitle: string;
   prompt: string;
-  apiKey?: string;
   candidateContext?: {
     username: string;
     name: string;
@@ -50,7 +50,9 @@ export async function POST(req: Request) {
 
   try {
     const body: CoachRequestBody = await req.json();
-    const { itineraryTitle, milestoneTitle, prompt, apiKey: userKey, candidateContext } = body;
+    const { itineraryTitle, milestoneTitle, prompt, candidateContext } = body;
+    // BYOK key comes from the backend, never from the browser.
+    const userKey = await resolveProviderKey(req);
 
     const candidateSummary = candidateContext
       ? `You are mentoring @${candidateContext.username} (${candidateContext.name}), who has ${

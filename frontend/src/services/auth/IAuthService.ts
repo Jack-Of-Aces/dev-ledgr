@@ -31,6 +31,13 @@ export interface IAuthService {
   getCurrentSession(): Promise<UserSession | null>;
 
   /**
+   * Loads the dev record for a Supabase access token from the backend, which
+   * creates the record on first sign-in and owns the authoritative role.
+   * Returns null when no backend is configured or it cannot be reached.
+   */
+  fetchDevProfile(accessToken: string): Promise<UserProfile | null>;
+
+  /**
    * Switches demo persona between user and admin in development mode.
    */
   switchRole(role: UserRole): Promise<UserProfile>;

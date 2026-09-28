@@ -49,7 +49,8 @@ export function useProfile() {
         githubUrl: input.githubUrl || user.githubUrl,
         email: input.email || user.email,
         plan: input.plan,
-        apiKey: input.apiKey || undefined,
+        // The key is sent to the backend only; the browser just tracks whether one is stored.
+        hasApiKey: input.plan === 'byok' && (Boolean(input.apiKey?.trim()) || Boolean(user.hasApiKey)),
         statedSkills: input.statedSkills,
         engineeringTrack: input.engineeringTrack || user.engineeringTrack,
         targetRole: input.targetRole || user.targetRole,

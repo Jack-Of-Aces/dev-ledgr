@@ -2,13 +2,16 @@
  * @file route.ts
  * @description Next.js Route Handler for Supabase Auth PKCE code exchange.
  * Exchanging authorization code for user session, storing session cookies,
- * and seamlessly redirecting to the requested destination.
+ * and seamlessly redirecting to the requested destination. Dev records are
+ * created by the Go backend, not written to Supabase tables from here.
  */
 
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { envConfig } from '@/lib/config';
+import { AUTH_COOKIE_NAME, ROLE_COOKIE_NAME } from '@/lib/cookies';
+import { authService } from '@/services/auth/authService';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -99,6 +102,23 @@ export async function GET(request: Request) {
       return response;
     }
   }
+  // The backend owns dev records: GET /api/auth/me creates one on first
+  // sign-in and returns the authoritative role. Without a backend (sandbox),
+  // fall back to the default 'user' role.
+  const dev = await authService.fetchDevProfile(data.session.access_token);
+
+  const response = NextResponse.redirect(`${origin}/dashboard`);
+  const cookieOptions = {
+    path: '/',
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    maxAge: 60 * 60 * 24 * 7,
+  };
+
+  // Set DevLedgr session cookies (read by proxy.ts and the API http client)
+  response.cookies.set(AUTH_COOKIE_NAME, data.session.access_token, cookieOptions);
+  response.cookies.set(ROLE_COOKIE_NAME, dev?.role ?? 'user', cookieOptions);
 
   // Fallback if code exchange fails or is missing
   return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`);
