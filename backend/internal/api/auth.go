@@ -50,15 +50,18 @@ func metaString(m map[string]any, keys ...string) string {
 // identityFromClaims maps Supabase user metadata (email sign-up fields or the
 // GitHub OAuth profile) onto a dev identity.
 func identityFromClaims(id, email string, userMeta, appMeta map[string]any) store.AuthIdentity {
+	provider := metaString(appMeta, "provider")
 	ident := store.AuthIdentity{
 		ID:        id,
 		Email:     email,
+		Provider:  provider,
 		Username:  metaString(userMeta, "username", "user_name", "preferred_username"),
 		Name:      metaString(userMeta, "full_name", "name"),
 		AvatarURL: metaString(userMeta, "avatar_url", "picture"),
 	}
-	if metaString(appMeta, "provider") == "github" {
+	if provider == "github" {
 		if login := metaString(userMeta, "user_name", "preferred_username"); login != "" {
+			ident.GitHubUsername = login
 			ident.GitHubURL = "https://github.com/" + login
 		}
 	}

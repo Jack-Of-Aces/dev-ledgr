@@ -841,7 +841,12 @@ export const DEFAULT_USER: UserProfile = {
   username: '',
   name: '',
   avatarUrl: '',
-  headline: 'Software Engineer · DevLedgr',
+  // No invented content. This is spread as the base of a signed-in profile in
+  // several places, so a headline here would be inherited by anything that did
+  // not set its own and could be saved to the backend as if the dev wrote it.
+  // Pages that want a placeholder render it with `user.headline || '...'`, which
+  // stays on screen without ever becoming stored data.
+  headline: '',
   bio: '',
   githubUrl: '',
   portfolioValidUntil: '2027-09-26T20:00:00Z',

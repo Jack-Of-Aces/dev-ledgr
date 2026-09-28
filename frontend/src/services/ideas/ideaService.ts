@@ -3,7 +3,7 @@
  * @description Primary Idea Bank service with fallback support.
  */
 
-import { IIdeaService, IdeaFilters } from './IIdeaService';
+import { IIdeaService, IdeaFilters, IdeaDraft } from './IIdeaService';
 import { mockIdeaService } from './mockIdeaService';
 import { IdeaItem } from '@/types';
 import { envConfig } from '@/lib/config';
@@ -43,12 +43,16 @@ export class IdeaService implements IIdeaService {
     }
   }
 
-  async seedIdea(idea: Omit<IdeaItem, 'submissionCount'>): Promise<IdeaItem> {
+  /**
+   * Publishes a problem. Sends exactly the fields the endpoint accepts: the
+   * backend decodes with DisallowUnknownFields, so any extra key is a 400.
+   */
+  async publishIdea(draft: IdeaDraft): Promise<IdeaItem> {
     if (envConfig.useMocks) {
-      return this.mock.seedIdea(idea);
+      return this.mock.publishIdea(draft);
     }
 
-    return await this.http.post<IdeaItem>('/api/v1/ideas', idea);
+    return await this.http.post<IdeaItem>('/api/v1/ideas', draft);
   }
 }
 

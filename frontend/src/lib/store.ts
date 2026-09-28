@@ -18,6 +18,26 @@ interface AppState {
   user: UserProfile;
   setUser: (user: Partial<UserProfile>) => void;
   isLoggedIn: boolean;
+
+  /**
+   * authReady reports that the backend has been consulted about the session and
+   * the store holds the authoritative dev record, or that there is no session
+   * to resolve.
+   *
+   * It exists because the record arrives asynchronously and several pages used
+   * to read it on their first render, which happens before the fetch lands. The
+   * store persists, so what is there at that moment is the previous session's
+   * profile or an empty placeholder — and a page that branches on
+   * authProvider or email would decide from that. Onboarding took it as "this
+   * is not a GitHub user" and blocked a GitHub OAuth account at a verification
+   * gate it did not need, and never re-checked.
+   *
+   * Every terminal path in SupabaseAuthSync must set this, including the ones
+   * with no session, or consumers waiting on it hang.
+   */
+  authReady: boolean;
+  setAuthReady: (ready: boolean) => void;
+
   loginAsGitHub: (username?: string, name?: string) => void;
   logout: () => void;
 
@@ -145,6 +165,8 @@ export const useAppStore = create<AppState>()(
       user: DEFAULT_USER,
       setUser: (updates) => set((state) => ({ user: { ...state.user, ...updates } })),
       isLoggedIn: false,
+      authReady: false,
+      setAuthReady: (authReady) => set({ authReady }),
 
       loginAsGitHub: (username = 'developer', name = 'Candidate Engineer') => {
         setAuthCookies(`mock_token_${username}`, 'user');

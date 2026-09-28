@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -61,6 +62,68 @@ func (s *Server) usernameAvailable(w http.ResponseWriter, r *http.Request) error
 	return nil
 }
 
+// usernameUpdateRequest is the body of PATCH /api/v1/users/me/username.
+type usernameUpdateRequest struct {
+	Username string `json:"username"`
+}
+
+// PATCH /api/v1/users/me/username changes the caller's handle.
+//
+// createUser derives a first handle from the Supabase metadata or the email
+// local part, and appends a random suffix when that is already taken, so an
+// OAuth sign-in can land on "michojekunle_1a3f". Until this endpoint the only
+// place that handle could change was the sign-up path, which is unreachable for
+// an account that already exists.
+func (s *Server) updateUsername(w http.ResponseWriter, r *http.Request) error {
+	var req usernameUpdateRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		return err
+	}
+
+	v := validationErrors{}
+	name := strings.TrimSpace(req.Username)
+	switch {
+	case name == "":
+		v.add("username", "Username is required")
+	case !usernamePattern.MatchString(name):
+		v.add("username", "Username must be 3-30 characters of letters, digits, '.', '_' or '-'")
+	case slices.Contains(reservedUsernames, strings.ToLower(name)):
+		v.add("username", "That username is reserved")
+	default:
+		free, err := s.store.UsernameAvailable(r.Context(), name)
+		if err != nil {
+			return err
+		}
+		if !free {
+			v.add("username", "That username is taken")
+		}
+	}
+	if err := v.err(); err != nil {
+		return err
+	}
+
+	caller := devFrom(r.Context())
+	// Re-submitting the current handle is a no-op rather than a conflict: the
+	// availability check above cannot see the caller's own row as free.
+	if strings.EqualFold(caller.Username, name) {
+		writeJSON(w, http.StatusOK, caller)
+		return nil
+	}
+	if err := s.store.SetUsername(r.Context(), caller.ID, name); err != nil {
+		if errors.Is(err, store.ErrConflict) {
+			return errConflict("That username is taken")
+		}
+		return err
+	}
+	updated, err := s.store.GetUserByID(r.Context(), caller.ID)
+	if err != nil {
+		return err
+	}
+	slog.InfoContext(r.Context(), "username changed", "actor", caller.Username, "to", updated.Username)
+	writeJSON(w, http.StatusOK, updated)
+	return nil
+}
+
 // profileUpdateRequest mirrors UserProfileUpdateSchema in lib/schemas/profile.ts.
 // Optional fields that are omitted keep their stored value.
 type profileUpdateRequest struct {
@@ -70,17 +133,48 @@ type profileUpdateRequest struct {
 	AvatarURL    *string `json:"avatarUrl"`
 	GitHubURL    *string `json:"githubUrl"`
 	PortfolioURL *string `json:"portfolioUrl"`
-	// Email is accepted for compatibility with the settings form but not
-	// stored here: it belongs to Supabase Auth (auth.users).
-	Email        *string  `json:"email"`
+	// ContactEmail is where the dev wants recruiters to reach them. It used to
+	// arrive as "email" and was accepted but never stored, so the settings save
+	// reported success and discarded the edit. The auth address itself is not
+	// settable here: it belongs to Supabase Auth (auth.users) and is read via a
+	// join, and it doubles as the identity that verifies GitHub ownership.
+	ContactEmail *string  `json:"contactEmail"`
 	Plan         string   `json:"plan"`
 	APIKey       *string  `json:"apiKey"`
 	StatedSkills []string `json:"statedSkills"`
+
+	// Onboarding fields, all optional. decodeJSON runs with
+	// DisallowUnknownFields, so a field the form sends but this struct lacks is
+	// a hard 400 for the whole save — which is how engineeringTrack, targetRole
+	// and experienceLevel used to make the settings form unsaveable. Keeping
+	// them here is what makes the form, the API and the schema agree.
+	EngineeringTrack    *string `json:"engineeringTrack"`
+	TargetRole          *string `json:"targetRole"`
+	ExperienceLevel     *string `json:"experienceLevel"`
+	GitHubUsername      *string `json:"githubUsername"`
+	GitHubConnected     *bool   `json:"githubConnected"`
+	OnboardingCompleted *bool   `json:"onboardingCompleted"`
 }
 
 func isHTTPURL(s string) bool {
 	u, err := url.Parse(s)
 	return err == nil && (u.Scheme == "https" || u.Scheme == "http") && u.Host != ""
+}
+
+// isEmail is a deliberately loose shape check: one @, no spaces, and a dotted
+// domain. Anything stricter starts rejecting real addresses, and the only
+// addresses that matter here are ones the dev will receive mail at.
+func isEmail(s string) bool {
+	at := strings.LastIndex(s, "@")
+	if at <= 0 || at == len(s)-1 {
+		return false
+	}
+	local, domain := s[:at], s[at+1:]
+	if strings.ContainsAny(local, " @") || strings.ContainsAny(domain, " @") {
+		return false
+	}
+	dot := strings.LastIndex(domain, ".")
+	return dot > 0 && dot < len(domain)-1
 }
 
 func runeLen(s string) int { return utf8.RuneCountInString(s) }
@@ -119,6 +213,9 @@ func (req *profileUpdateRequest) validate() error {
 	if req.AvatarURL != nil && *req.AvatarURL != "" && !isHTTPURL(*req.AvatarURL) {
 		v.add("avatarUrl", "Must be a valid URL")
 	}
+	if req.ContactEmail != nil && *req.ContactEmail != "" && !isEmail(*req.ContactEmail) {
+		v.add("contactEmail", "Must be a valid email address")
+	}
 	if req.GitHubURL != nil && *req.GitHubURL != "" && !isHTTPURL(*req.GitHubURL) {
 		v.add("githubUrl", "Must be a valid GitHub URL")
 	}
@@ -144,7 +241,43 @@ func (req *profileUpdateRequest) validate() error {
 			break
 		}
 	}
+	validateProfileTracks(&v, req)
 	return v.err()
+}
+
+// validateProfileTracks checks the onboarding fields against the same
+// vocabularies the frontend renders. An empty string is allowed and means "not
+// chosen yet": the form sends defaults for a profile that has never onboarded,
+// and rejecting those would make the first save impossible.
+func validateProfileTracks(v *validationErrors, req *profileUpdateRequest) {
+	if t := req.EngineeringTrack; t != nil {
+		track := strings.TrimSpace(*t)
+		if track != "" && !slices.Contains(model.EngineeringTracks, track) {
+			v.add("engineeringTrack", "Engineering track must be one of "+strings.Join(model.EngineeringTracks, ", "))
+		}
+		*t = track
+	}
+	if r := req.TargetRole; r != nil {
+		role := strings.TrimSpace(*r)
+		if runeLen(role) > 80 {
+			v.add("targetRole", "Target role must be under 80 characters")
+		}
+		*r = role
+	}
+	if l := req.ExperienceLevel; l != nil {
+		level := strings.TrimSpace(*l)
+		if level != "" && !slices.Contains(model.ExperienceLevels, level) {
+			v.add("experienceLevel", "Experience level must be one of "+strings.Join(model.ExperienceLevels, ", "))
+		}
+		*l = level
+	}
+	if g := req.GitHubUsername; g != nil {
+		handle := strings.TrimPrefix(strings.TrimSpace(*g), "@")
+		if handle != "" && !usernamePattern.MatchString(handle) {
+			v.add("githubUsername", "GitHub username must be 3-30 characters of letters, digits, '.', '_' or '-'")
+		}
+		*g = handle
+	}
 }
 
 // PATCH|PUT /api/v1/users/me updates the caller's profile. Writes never fall
@@ -161,7 +294,11 @@ func (s *Server) updateMe(w http.ResponseWriter, r *http.Request) error {
 	upd := store.ProfileUpdate{
 		Name: req.Name, Headline: req.Headline, Bio: req.Bio,
 		AvatarURL: req.AvatarURL, GitHubURL: req.GitHubURL, Portfolio: req.PortfolioURL,
-		Plan: req.Plan, StatedSkills: dedupe(req.StatedSkills),
+		ContactEmail: req.ContactEmail,
+		Plan:         req.Plan, StatedSkills: dedupe(req.StatedSkills),
+		EngineeringTrack: req.EngineeringTrack, TargetRole: req.TargetRole,
+		ExperienceLevel: req.ExperienceLevel, GitHubUsername: req.GitHubUsername,
+		GitHubConnected: req.GitHubConnected, OnboardingCompleted: req.OnboardingCompleted,
 	}
 	switch {
 	case req.Plan != "byok":
@@ -179,6 +316,89 @@ func (s *Server) updateMe(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	writeJSON(w, http.StatusOK, u)
+	return nil
+}
+
+// GET /api/v1/admin/users?q= lists devs for role management. Admin-only: the
+// roster carries email addresses, which no public profile exposes.
+func (s *Server) listPlatformUsers(w http.ResponseWriter, r *http.Request) error {
+	users, err := s.store.ListPlatformUsers(r.Context(), strings.TrimSpace(r.URL.Query().Get("q")), 50)
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, users)
+	return nil
+}
+
+// roleUpdateRequest is the body of PATCH /api/v1/admin/users/{id}/role.
+type roleUpdateRequest struct {
+	Role string `json:"role"`
+}
+
+// PATCH /api/v1/admin/users/{id}/role grants or revokes a reviewer/admin role.
+//
+// public.profiles.role has no other writer: migration 0003 revoked the column
+// from the anon and authenticated Supabase roles so that no dev can promote
+// themselves, and the profile update path deliberately omits it. Before this
+// endpoint the only way to make a reviewer was a hand-written SQL UPDATE.
+//
+// Callers need PermAssignRoles, which both reviewer and admin hold, so staff can
+// staff the queue without an admin. The rules below keep that from collapsing
+// the two roles into one.
+func (s *Server) setUserRole(w http.ResponseWriter, r *http.Request) error {
+	var req roleUpdateRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		return err
+	}
+
+	role := model.Role(strings.TrimSpace(req.Role))
+	if !role.Valid() {
+		v := validationErrors{}
+		v.add("role", "Role must be one of user, reviewer, admin")
+		return v.err()
+	}
+
+	targetID := r.PathValue("id")
+	caller := devFrom(r.Context())
+
+	// A dev may not change their own role. The bootstrap admin is created with
+	// `api promote`, so a self-demotion that leaves nobody holding
+	// manage_platform is recoverable, but it is never what the caller meant.
+	if targetID == caller.ID {
+		return errBadRequest("You cannot change your own role; ask another admin")
+	}
+
+	target, err := s.store.GetUserByID(r.Context(), targetID)
+	if errors.Is(err, store.ErrNotFound) {
+		return errNotFound("User not found")
+	}
+	if err != nil {
+		return err
+	}
+
+	// Privilege ordering: you may only act on accounts that do not outrank you,
+	// and you may only hand out roles you yourself hold. Without this, a
+	// reviewer could mint an admin, or demote the admins and leave the platform
+	// with nobody able to grant clearance.
+	if !model.HasPermission(caller.Role, model.PermManagePlatform) {
+		if target.Role == model.RoleAdmin {
+			return errForbidden("Only an admin can change an admin's role")
+		}
+		if role == model.RoleAdmin {
+			return errForbidden("Only an admin can grant the admin role")
+		}
+	}
+
+	if err := s.store.SetRole(r.Context(), targetID, role); err != nil {
+		return err
+	}
+
+	slog.InfoContext(r.Context(), "role changed", "actor", caller.Username, "target", target.Username,
+		"from", string(target.Role), "to", string(role))
+	// Reflect the role just written rather than the one read a moment ago, so
+	// the response agrees with the row the caller is about to reload.
+	target.Role = role
+	writeJSON(w, http.StatusOK, target.Public())
 	return nil
 }
 

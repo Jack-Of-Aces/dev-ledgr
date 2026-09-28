@@ -18,6 +18,13 @@ export interface CreateSubmissionInput {
 
 export interface ISubmissionService {
   getSubmissions(username?: string): Promise<SubmissionEntry[]>;
+  /**
+   * Reads the whole queue for the review console, with no mock fallback. An
+   * empty live queue must read as empty: backfilling it with sample proofs
+   * would put invented rows in front of a reviewer, who would then be stamping
+   * or rejecting things that were never submitted.
+   */
+  getReviewQueue(): Promise<SubmissionEntry[]>;
   getSubmissionByHash(hash: string): Promise<SubmissionEntry | undefined>;
   submitSolution(input: CreateSubmissionInput): Promise<SubmissionEntry>;
   verifySubmission(hash: string): Promise<SubmissionEntry>;

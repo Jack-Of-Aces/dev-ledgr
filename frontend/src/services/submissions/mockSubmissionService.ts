@@ -26,6 +26,10 @@ export class MockSubmissionService implements ISubmissionService {
     );
   }
 
+  async getReviewQueue(): Promise<SubmissionEntry[]> {
+    return this.submissions;
+  }
+
   async getSubmissionByHash(hash: string): Promise<SubmissionEntry | undefined> {
     return this.submissions.find(
       (s) => s.hash.toLowerCase() === hash.toLowerCase()

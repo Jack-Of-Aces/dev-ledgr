@@ -103,7 +103,15 @@ func (s *Server) Handler() http.Handler {
 	route("PATCH /api/v1/users/me", requirePermission(model.PermEditOwnProfile, s.updateMe))
 	route("PUT /api/v1/users/me", requirePermission(model.PermEditOwnProfile, s.updateMe))
 	route("GET /api/v1/users/available", s.usernameAvailable)
+	route("PATCH /api/v1/users/me/username", requirePermission(model.PermEditOwnProfile, s.updateUsername))
 	route("GET /api/v1/users/{username}", s.getUser)
+
+	// Role management. public.profiles.role is otherwise unreachable: the
+	// Supabase roles cannot write the column and no profile path includes it.
+	// assign_roles, not manage_platform, so a reviewer can staff the queue
+	// without also gaining job ingestion and problem seeding.
+	route("GET /api/v1/admin/users", requirePermission(model.PermAssignRoles, s.listPlatformUsers))
+	route("PATCH /api/v1/admin/users/{id}/role", requirePermission(model.PermAssignRoles, s.setUserRole))
 	route("GET /api/v1/ideas", s.listIdeas)
 	route("GET /api/v1/ideas/{id}", s.getIdea)
 	route("POST /api/v1/ideas", requirePermission(model.PermSeedIdeas, s.createIdea))

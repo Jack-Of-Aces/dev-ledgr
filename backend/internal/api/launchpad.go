@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"slices"
 	"strconv"
@@ -45,12 +46,19 @@ type recommendationPage struct {
 }
 
 // difficultyRanks and levelRanks give problem difficulty and developer
-// seniority a common scale so the two can be compared. Unrecognised labels
-// are absent from the maps and score neutrally, so admin-authored problems
-// with a bespoke difficulty neither win nor lose on this term.
+// seniority a common scale so the two can be compared. Scraped problems use
+// the plain easy/medium/hard scale while the curated bank uses
+// foundational/intermediate/production-grade, so both vocabularies are
+// mapped. Unrecognised labels are absent from the map and score neutrally, so
+// an admin-authored problem with a bespoke difficulty neither wins nor loses
+// on this term.
 var (
-	difficultyRanks = map[string]int{"foundational": 1, "beginner": 1, "intermediate": 2, "advanced": 3, "production-grade": 3, "expert": 3}
-	levelRanks      = map[string]int{"junior": 1, "mid": 2, "senior": 3, "lead": 3}
+	difficultyRanks = map[string]int{
+		"foundational": 1, "beginner": 1, "easy": 1,
+		"intermediate": 2, "medium": 2,
+		"advanced": 3, "production-grade": 3, "hard": 3, "expert": 3,
+	}
+	levelRanks = map[string]int{"junior": 1, "mid": 2, "senior": 3, "lead": 3}
 )
 
 // difficultyFit scores 0-10 how well a problem's difficulty suits a seniority
@@ -76,22 +84,48 @@ func difficultyFit(difficulty, level string) int {
 	return 10 - gap*5
 }
 
+// problemSkills is the skill vocabulary a problem is matched against: its
+// editorial tags plus the stack it suggests. Scraped problems routinely carry
+// a stack and no tags, so both are needed for the score to mean anything.
+func problemSkills(p *model.Idea) []string {
+	if len(p.Tags) == 0 {
+		return p.SuggestedStack
+	}
+	if len(p.SuggestedStack) == 0 {
+		return p.Tags
+	}
+	return append(slices.Clone(p.Tags), p.SuggestedStack...)
+}
+
 // rankProblems scores each problem against the dev's skill set and returns
 // them best-first. The score combines skill overlap with the seniority fit;
 // ties keep the store's newest-first order.
+//
+// A problem with no stated requirements at all cannot be scored, so it is
+// reported as unmatchable rather than being handed a misleading zero and
+// sorted by seniority alone.
 func rankProblems(problems []model.Idea, have map[string]string, level string) []problemRecommendation {
 	out := make([]problemRecommendation, len(problems))
 	rank := make([]int, len(problems))
+	// Unscorable problems sort after every scored one, so rank stays
+	// meaningful; a stable sort keeps their relative order.
+	lowest := math.MinInt
 	for i, p := range problems {
-		// A problem's required stack is matched alongside its tags: tags are
-		// editorial, suggested_stack is what the dev is asked to build with.
-		score, matched, missing := skills.Match(have, append(slices.Clone(p.Tags), p.SuggestedStack...))
+		score, matched, missing := skills.Match(have, problemSkills(&p))
 		fit := difficultyFit(p.Difficulty, level)
 		out[i] = problemRecommendation{
 			Idea:  p,
 			Match: &model.IdeaMatch{Score: score, MatchedSkills: matched, MissingSkills: missing, DifficultyFit: fit},
 		}
-		rank[i] = score + fit
+		switch {
+		case len(problemSkills(&p)) == 0:
+			rank[i] = lowest
+		default:
+			rank[i] = score + fit
+			if rank[i] < lowest {
+				lowest = rank[i]
+			}
+		}
 	}
 	idx := make([]int, len(problems))
 	for i := range idx {
@@ -170,17 +204,23 @@ func (s *Server) recommendedProblems(w http.ResponseWriter, r *http.Request) err
 		have = skills.Set(draft, proven)
 	}
 
-	approved := true
-	f := store.IdeaFilters{Approved: &approved, Status: model.StatusOpen}
-	problems, err := s.store.ListIdeas(r.Context(), f)
+	// Visibility matches the public list: approved only, unless the caller
+	// moderates. Recommending a problem the list hides would be exactly the
+	// fetched-vs-displayed mismatch this endpoint is meant to remove.
+	var approved *bool
+	if !canModerate(r) {
+		t := true
+		approved = &t
+	}
+	status := model.StatusOpen
+	problems, err := s.store.ListIdeas(r.Context(), store.IdeaFilters{Approved: approved, Status: status})
 	if err != nil {
 		return err
 	}
 	// A first challenge has to be claimable, but an empty card helps nobody:
 	// if every problem is being built, fall back to the rest of the bank.
 	if len(problems) == 0 {
-		f.Status = ""
-		if problems, err = s.store.ListIdeas(r.Context(), f); err != nil {
+		if problems, err = s.store.ListIdeas(r.Context(), store.IdeaFilters{Approved: approved}); err != nil {
 			return err
 		}
 	}
@@ -196,19 +236,60 @@ func (s *Server) recommendedProblems(w http.ResponseWriter, r *http.Request) err
 	return nil
 }
 
+// GET /api/launchpad/problems?status=
+//
+// Only admin-approved problems are public. Moderators see every problem by
+// default and may narrow with ?approved=true|false, matching /api/v1/ideas.
 func (s *Server) listProblems(w http.ResponseWriter, r *http.Request) error {
+	approved, err := approvedFilter(r)
+	if err != nil {
+		return err
+	}
+	return s.listProblemsWith(w, r, approved)
+}
+
+// approvedFilter resolves ?approved= into a store filter. A nil result means
+// both approved and unapproved problems, which is what a moderator gets by
+// default. Everyone else is pinned to approved-only: the drafts are not public,
+// and a non-moderator cannot opt into them with the query parameter.
+func approvedFilter(r *http.Request) (*bool, error) {
+	approved := true
+	if canModerate(r) {
+		switch q := r.URL.Query().Get("approved"); q {
+		case "", "all":
+			return nil, nil
+		case "true":
+		case "false":
+			approved = false
+		default:
+			v := validationErrors{}
+			v.add("approved", "approved must be true, false or all")
+			return nil, v.err()
+		}
+	}
+	return &approved, nil
+}
+
+// listProblemsWith lists Launchpad problems. approved nil means both approved
+// and unapproved problems.
+func (s *Server) listProblemsWith(w http.ResponseWriter, r *http.Request, approved *bool) error {
 	status := r.URL.Query().Get("status")
 	if status != "" && !slices.Contains(model.ProblemStatuses, status) {
 		v := validationErrors{}
 		v.add("status", "Status must be one of "+strings.Join(model.ProblemStatuses, ", "))
 		return v.err()
 	}
-	// Build filters directly; do not enforce approved flag for launchpad
-	f := store.IdeaFilters{Domain: r.URL.Query().Get("domain"), Difficulty: r.URL.Query().Get("difficulty"), Search: r.URL.Query().Get("search"), Status: status}
 	// Validate length constraints similar to catalog version
 	v := validationErrors{}
-	if len(f.Search) > 100 || len(f.Domain) > 40 || len(f.Difficulty) > 40 {
+	if len(r.URL.Query().Get("search")) > 100 || len(r.URL.Query().Get("domain")) > 40 || len(r.URL.Query().Get("difficulty")) > 40 {
 		v.add("search", "search must be under 100 characters; domain and difficulty under 40")
+	}
+	f := store.IdeaFilters{
+		Domain:     r.URL.Query().Get("domain"),
+		Difficulty: r.URL.Query().Get("difficulty"),
+		Search:     r.URL.Query().Get("search"),
+		Status:     status,
+		Approved:   approved,
 	}
 	if err := v.err(); err != nil {
 		return err

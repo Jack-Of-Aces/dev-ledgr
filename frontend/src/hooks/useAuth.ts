@@ -12,11 +12,11 @@ import { useAppStore } from '@/lib/store';
 import { authService } from '@/services/auth/authService';
 import { UserRole, Permission, hasPermission as checkRolePermission } from '@/types/auth';
 import { setAuthCookies, clearAuthCookies } from '@/lib/cookies';
-import { ADMIN_USER, DEFAULT_USER } from '@/lib/mock-data';
+import { DEFAULT_USER } from '@/lib/mock-data';
 
 export function useAuth() {
   const router = useRouter();
-  const { user, setUser, isLoggedIn, showToast } = useAppStore();
+  const { user, isLoggedIn } = useAppStore();
 
 
   const loginWithGitHub = useCallback(
@@ -28,17 +28,22 @@ export function useAuth() {
 
       const uname = username || session.username || 'developer';
       const rname = name || session.name || uname || 'Developer';
-      const isNewUser = uname !== 'junior_dev' && uname !== 'lead_auditor';
-      const profile = session.role === 'admin' ? ADMIN_USER : {
+      // Never substitute a sample identity for a real one. The role comes from
+      // the session, which the backend populates from public.profiles; reading
+      // it from a shared constant here would both rename a real admin after a
+      // demo persona and pin every sign-in to the base role.
+      const profile = {
         ...DEFAULT_USER,
         username: uname,
         name: rname,
+        role: session.role,
+        avatarUrl: session.avatarUrl || DEFAULT_USER.avatarUrl,
         authProvider: 'github' as const,
         githubConnected: true,
         githubUsername: uname,
         githubUrl: `https://github.com/${uname}`,
         githubVerifiedAt: new Date().toISOString(),
-        onboardingCompleted: !isNewUser,
+        onboardingCompleted: false,
       };
 
       useAppStore.setState({
@@ -69,6 +74,8 @@ export function useAuth() {
         ...DEFAULT_USER,
         username: uname,
         name: rname,
+        role: session.role,
+        avatarUrl: session.avatarUrl || DEFAULT_USER.avatarUrl,
         email: email || `${uname}@gmail.com`,
         authProvider: 'google' as const,
         githubConnected: false,
@@ -117,23 +124,6 @@ export function useAuth() {
     router.push('/');
   }, [router]);
 
-  const switchRole = useCallback(
-    async (targetRole: UserRole) => {
-      const updatedProfile = await authService.switchRole(targetRole);
-
-      setUser({ ...updatedProfile });
-      setAuthCookies(`mock_token_${Date.now()}_${targetRole}`, targetRole);
-
-      showToast({
-        title: `Switched Persona: @${updatedProfile.username}`,
-        message: `Now viewing DevLedgr as ${targetRole.toUpperCase()}.`,
-      });
-
-      return updatedProfile;
-    },
-    [setUser, showToast]
-  );
-
   const can = useCallback(
     (permission: Permission): boolean => {
       const currentRole: UserRole = user.role || 'user';
@@ -151,7 +141,6 @@ export function useAuth() {
     loginWithGoogle,
     connectGitHub,
     logout,
-    switchRole,
     can,
   };
 }

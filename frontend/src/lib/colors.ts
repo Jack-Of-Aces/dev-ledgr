@@ -44,6 +44,12 @@ export const DOMAIN_COLOR_MAP: Record<Domain, ColorBadgeStyle> = {
     border: 'border-indigo-500/30',
     name: 'DevTools',
   },
+  infrastructure: {
+    badge: 'text-slate-700 dark:text-slate-300 bg-slate-500/10 border-slate-500/25',
+    dot: 'bg-slate-600 dark:bg-slate-400',
+    border: 'border-slate-500/30',
+    name: 'Infrastructure',
+  },
 };
 
 export const DIFFICULTY_COLOR_MAP: Record<Difficulty, { badge: string; name: string }> = {
@@ -59,12 +65,35 @@ export const DIFFICULTY_COLOR_MAP: Record<Difficulty, { badge: string; name: str
     badge: 'text-amber-800 dark:text-amber-300 bg-amber-500/20 border-amber-500/30',
     name: 'Production-Grade',
   },
+  hard: {
+    badge: 'text-amber-800 dark:text-amber-300 bg-amber-500/20 border-amber-500/30',
+    name: 'Hard',
+  },
 };
 
-export function getDomainStyle(domain: Domain): ColorBadgeStyle {
-  return DOMAIN_COLOR_MAP[domain] || DOMAIN_COLOR_MAP.fintech;
+// problems.domain and problems.difficulty are free text in the database, so
+// these take a plain string and fall back for values the maps do not carry
+// rather than rendering a wrong-but-confident badge.
+export function getDomainStyle(domain: string): ColorBadgeStyle {
+  return DOMAIN_COLOR_MAP[domain as Domain] || DOMAIN_COLOR_MAP.systems;
 }
 
-export function getDifficultyStyle(difficulty: Difficulty): { badge: string; name: string } {
-  return DIFFICULTY_COLOR_MAP[difficulty] || DIFFICULTY_COLOR_MAP.intermediate;
+export function getDifficultyStyle(difficulty: string): { badge: string; name: string } {
+  return (
+    DIFFICULTY_COLOR_MAP[difficulty as Difficulty] || {
+      badge: 'text-slate-700 dark:text-slate-300 bg-slate-500/10 border-slate-500/20',
+      name: titleCase(difficulty),
+    }
+  );
+}
+
+/** 'production-grade' -> 'Production Grade'; blank stays blank. */
+function titleCase(value: string): string {
+  const clean = value.trim();
+  if (!clean) return 'Unrated';
+  return clean
+    .split(/[\s-_]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
 }

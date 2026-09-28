@@ -34,6 +34,20 @@ export class SubmissionService implements ISubmissionService {
     }
   }
 
+  /**
+   * Reads the queue for the review console. Unlike getSubmissions this never
+   * substitutes sample data: an empty live queue reads as empty so a reviewer
+   * is never handed invented proofs to stamp or reject.
+   */
+  async getReviewQueue(): Promise<SubmissionEntry[]> {
+    if (envConfig.useMocks) {
+      return this.mock.getSubmissions();
+    }
+
+    const subs = await this.http.get<SubmissionEntry[]>('/api/v1/submissions');
+    return Array.isArray(subs) ? subs : [];
+  }
+
   async getSubmissionByHash(hash: string): Promise<SubmissionEntry | undefined> {
     if (envConfig.useMocks) {
       return this.mock.getSubmissionByHash(hash);

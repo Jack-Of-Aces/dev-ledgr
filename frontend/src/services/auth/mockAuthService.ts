@@ -1,18 +1,22 @@
 /**
  * @file mockAuthService.ts
- * @description High-fidelity sandbox authentication service.
- * Manages simulated GitHub and Google OAuth logins and dev role switching.
+ * @description Sandbox authentication service used when no backend is configured.
+ * Simulates GitHub and Google OAuth logins. Roles are not mocked: every sandbox
+ * session is a plain developer, so the sandbox cannot hand out an elevated one.
  */
 
 import { IAuthService } from './IAuthService';
 import { UserRole, UserSession } from '@/types/auth';
 import { UserProfile } from '@/types';
-import { DEFAULT_USER, ADMIN_USER, DEMO_CANDIDATE_USER } from '@/lib/mock-data';
-import { setAuthCookies, clearAuthCookies, getClientCookie, AUTH_COOKIE_NAME, ROLE_COOKIE_NAME } from '@/lib/cookies';
+import { DEFAULT_USER, DEMO_CANDIDATE_USER } from '@/lib/mock-data';
+import { setAuthCookies, clearAuthCookies, getClientCookie, AUTH_COOKIE_NAME } from '@/lib/cookies';
 
 export class MockAuthService implements IAuthService {
+  // The sandbox signs everyone in as a plain developer. There is no handle that
+  // mints an elevated session: roles are not mocked, so there is no way for the
+  // sandbox to hand out a reviewer or admin session.
   async loginWithGitHub(username = 'developer', name = 'Candidate Engineer'): Promise<UserSession> {
-    const role: UserRole = username === 'lead_auditor' ? 'admin' : 'user';
+    const role: UserRole = 'user';
     const token = `mock_gh_token_${Date.now()}_${username}`;
 
     setAuthCookies(token, role);
@@ -22,7 +26,7 @@ export class MockAuthService implements IAuthService {
       username,
       name,
       role,
-      avatarUrl: username === 'lead_auditor' ? ADMIN_USER.avatarUrl : DEFAULT_USER.avatarUrl,
+      avatarUrl: DEFAULT_USER.avatarUrl,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     };
   }
@@ -50,19 +54,17 @@ export class MockAuthService implements IAuthService {
 
   async getCurrentSession(): Promise<UserSession | null> {
     const token = getClientCookie(AUTH_COOKIE_NAME);
-    const role = (getClientCookie(ROLE_COOKIE_NAME) as UserRole) || 'user';
-
     if (!token) return null;
 
-    const isAdmin = role === 'admin';
-    const profile = isAdmin ? ADMIN_USER : DEMO_CANDIDATE_USER;
-
+    // The role is fixed rather than read back from the cookie. A cookie is
+    // user-writable, so trusting it here is what let a sandbox session claim
+    // admin without any account holding that role.
     return {
       token,
-      username: profile.username,
-      name: profile.name,
-      role,
-      avatarUrl: profile.avatarUrl,
+      username: DEMO_CANDIDATE_USER.username,
+      name: DEMO_CANDIDATE_USER.name,
+      role: 'user',
+      avatarUrl: DEMO_CANDIDATE_USER.avatarUrl,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     };
   }
@@ -70,13 +72,6 @@ export class MockAuthService implements IAuthService {
   async fetchDevProfile(): Promise<UserProfile | null> {
     // The sandbox has no backend; callers keep their locally derived profile.
     return null;
-  }
-
-  async switchRole(role: UserRole): Promise<UserProfile> {
-    const profile = role === 'admin' ? ADMIN_USER : DEMO_CANDIDATE_USER;
-    const token = `mock_switched_token_${Date.now()}_${role}`;
-    setAuthCookies(token, role);
-    return profile;
   }
 }
 

@@ -7,7 +7,6 @@ import { BrandFooter } from '@/components/layout/BrandFooter';
 import { ToastOverlay } from '@/components/ui/ToastOverlay';
 import { AuthModal } from '@/components/ui/AuthModal';
 import { SupabaseAuthSync } from '@/components/auth/SupabaseAuthSync';
-import { RoleSwitcher } from '@/components/auth/RoleSwitcher';
 
 
 export const viewport: Viewport = {
@@ -171,7 +170,6 @@ export default function RootLayout({
         <ToastOverlay />
         <AuthModal />
         <SupabaseAuthSync />
-        {process.env.NEXT_PUBLIC_SHOW_DEV_PERSONAS === 'true' && <RoleSwitcher />}
       </body>
     </html>
   );

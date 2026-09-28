@@ -25,26 +25,59 @@ export class LaunchpadService implements ILaunchpadService {
       return this.mock.getProblems(filters);
     }
 
+    // A moderation view must not be backfilled with mock problems: showing
+    // sample rows next to real drafts would misreport what is actually in the
+    // bank, and an admin cannot approve a problem they cannot see.
+    if (filters?.approved) {
+      return await this.http.get<LaunchpadProblem[]>('/api/launchpad/problems', {
+        params: { ...this.listParams(filters), approved: filters.approved },
+      });
+    }
+
     try {
       const res = await this.http.get<LaunchpadProblem[]>('/api/launchpad/problems', {
-        params: {
-          status: filters?.status,
-          domain: filters?.domain,
-          difficulty: filters?.difficulty,
-          search: filters?.search,
-        },
+        params: this.listParams(filters),
       });
 
-      // If backend returns empty array because database has not been seeded yet,
-      // fallback to mock items so the UI is never completely blank.
-      if (Array.isArray(res) && res.length === 0) {
+      // Anything that is not a problem array is not the problem bank: an
+      // auth or gate redirect answers with an HTML page, and returning that
+      // would put a string into the store where callers expect problems.
+      if (!Array.isArray(res)) {
         return this.mock.getProblems(filters);
       }
 
-      return res;
+      // If backend returns empty array because the database has not been
+      // seeded or nothing is approved yet, fallback to mock items so the UI
+      // is never completely blank.
+      return res.length === 0 ? this.mock.getProblems(filters) : res;
     } catch {
       return this.mock.getProblems(filters);
     }
+  }
+
+  private listParams(filters?: LaunchpadFilters): Record<string, string | undefined> {
+    return {
+      status: filters?.status,
+      domain: filters?.domain,
+      difficulty: filters?.difficulty,
+      search: filters?.search,
+    };
+  }
+
+  /**
+   * Publishes or unpublishes a problem. Per ADR-001 a mutation never falls
+   * back to a mock: a failed approval must reach the admin rather than
+   * leaving a row that looks published but is still a draft.
+   */
+  async setProblemApproval(id: string, approved: boolean): Promise<LaunchpadProblem> {
+    if (envConfig.useMocks) {
+      return this.mock.setProblemApproval(id, approved);
+    }
+
+    return await this.http.post<LaunchpadProblem>(
+      `/api/launchpad/problems/${encodeURIComponent(id)}/approve`,
+      { approved }
+    );
   }
 
   /**

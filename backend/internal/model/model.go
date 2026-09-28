@@ -33,6 +33,11 @@ const (
 	PermStampSolution     Permission = "stamp_solution"
 	PermSeedIdeas         Permission = "seed_ideas"
 	PermManagePlatform    Permission = "manage_platform"
+	// PermAssignRoles grants or revokes reviewer clearance. It is separate from
+	// PermManagePlatform on purpose: the latter also guards job ingestion and
+	// problem seeding, neither of which a reviewer should inherit by being able
+	// to staff the review queue.
+	PermAssignRoles Permission = "assign_roles"
 )
 
 var userPerms = []Permission{
@@ -40,11 +45,13 @@ var userPerms = []Permission{
 	PermViewCoaching, PermRunAICoach, PermEditOwnProfile,
 }
 
+var reviewerPerms = append(slices.Clone(userPerms), PermReviewSubmissions, PermStampSolution, PermAssignRoles)
+
 // RolePermissions mirrors ROLE_PERMISSIONS in frontend/src/types/auth.ts.
 var RolePermissions = map[Role][]Permission{
 	RoleUser:     userPerms,
-	RoleReviewer: append(slices.Clone(userPerms), PermReviewSubmissions, PermStampSolution),
-	RoleAdmin:    append(slices.Clone(userPerms), PermReviewSubmissions, PermStampSolution, PermSeedIdeas, PermManagePlatform),
+	RoleReviewer: reviewerPerms,
+	RoleAdmin:    append(slices.Clone(reviewerPerms), PermSeedIdeas, PermManagePlatform),
 }
 
 func HasPermission(r Role, p Permission) bool {
@@ -79,13 +86,49 @@ type UserProfile struct {
 	Role                Role       `json:"role"`
 	Email               string     `json:"email,omitempty"`
 	UpdatedAt           time.Time  `json:"updatedAt"`
+
+	// Onboarding fields. The settings form and the onboarding wizard both send
+	// these; before migration 0005 they were accepted by neither the API nor the
+	// schema, so a save failed outright and the choices were lost on reload.
+	EngineeringTrack    string `json:"engineeringTrack,omitempty"`
+	TargetRole          string `json:"targetRole,omitempty"`
+	ExperienceLevel     string `json:"experienceLevel,omitempty"`
+	GitHubUsername      string `json:"githubUsername,omitempty"`
+	GitHubConnected     bool   `json:"githubConnected"`
+	OnboardingCompleted bool   `json:"onboardingCompleted"`
+
+	// ContactEmail is the address a dev wants recruiters to use, if not the one
+	// they registered with. Empty means "use Email". Never surfaced publicly.
+	ContactEmail string `json:"contactEmail"`
+
+	// AuthProvider is the identity provider the account was created with:
+	// "github", "google" or "". It is server-derived and not settable through
+	// the profile update endpoint. Distinct from GitHubConnected, which tracks
+	// a linked GitHub account and is user-settable.
+	AuthProvider string `json:"authProvider"`
 }
 
 // Public strips fields that only the profile owner should see.
 func (u UserProfile) Public() UserProfile {
 	u.Email = ""
+	// An address the dev chose for recruiter contact is still their address;
+	// the public portfolio does not need to publish it.
+	u.ContactEmail = ""
 	u.HasAPIKey = false
 	return u
+}
+
+// PlatformUser is the admin roster view of a dev. It carries the profile id,
+// which UserProfile deliberately omits from every payload, because managing a
+// role is addressed by id. Nothing else from the full profile is included.
+type PlatformUser struct {
+	ID        string    `json:"id"`
+	Username  string    `json:"username"`
+	Name      string    `json:"name"`
+	Email     string    `json:"email"`
+	AvatarURL string    `json:"avatarUrl"`
+	Role      Role      `json:"role"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 type MockEndpoint struct {
@@ -289,6 +332,21 @@ type IdeaMatch struct {
 // ExperienceLevels are the onboarding seniority levels, mirroring
 // ExperienceLevel in frontend/src/types/index.ts.
 var ExperienceLevels = []string{"junior", "mid", "senior", "lead"}
+
+// EngineeringTracks are the onboarding specializations, mirroring the keys of
+// ENGINEERING_TRACKS in frontend/src/lib/tracks.ts and the EngineeringTrack
+// union in frontend/src/types/index.ts. The API validates against this list
+// rather than accepting any string, so a typo in the form is reported instead
+// of stored.
+var EngineeringTracks = []string{
+	"devops-infra",
+	"backend-systems",
+	"frontend-ui",
+	"fullstack",
+	"product-design",
+	"ai-ml",
+	"mobile",
+}
 
 // ATSBreakdownItem scores one dimension of a CV.
 type ATSBreakdownItem struct {

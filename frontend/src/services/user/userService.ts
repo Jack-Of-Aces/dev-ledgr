@@ -4,9 +4,11 @@
  * Handles profile fetching, updates, and username availability.
  */
 
-import { IUserService } from './IUserService';
+import { IUserService, PlatformUser } from './IUserService';
 import { mockUserService } from './mockUserService';
 import { UserProfile } from '@/types';
+import { UserRole } from '@/types/auth';
+import { ApiError } from '@/types/api';
 import { UserProfileUpdateInput } from '@/lib/schemas/profile';
 import { envConfig } from '@/lib/config';
 import { defaultHttpClient } from '../api/httpClient';
@@ -45,8 +47,8 @@ export class UserService implements IUserService {
     if (sanitizedData.githubUrl === '') {
       delete sanitizedData.githubUrl;
     }
-    if (sanitizedData.email === '') {
-      delete sanitizedData.email;
+    if (sanitizedData.contactEmail === '') {
+      delete sanitizedData.contactEmail;
     }
 
     // 3. Omit empty statedSkills
@@ -71,6 +73,48 @@ export class UserService implements IUserService {
     } catch {
       return this.mock.checkUsernameAvailable(username);
     }
+  }
+
+  /**
+   * updateUsername changes the dev's handle. The backend derives the first one
+   * from the OAuth metadata or the email local part and appends a random suffix
+   * on conflict, so an account created that way is stuck with e.g.
+   * "michojekunle_1a3f" until it sets a handle here.
+   */
+  async updateUsername(username: string): Promise<UserProfile> {
+    const clean = username.replace(/^@/, '').trim();
+    if (envConfig.useMocks) {
+      return this.mock.updateUsername(clean);
+    }
+    return this.http.patch<UserProfile>('/api/v1/users/me/username', { username: clean });
+  }
+
+  // Role management deliberately has no mock path. The persona switcher that
+  // used to stand in for it only rewrote a cookie, so a fallback here would
+  // show an admin a roster of reviewers who hold no real role.
+  async listPlatformUsers(query = ''): Promise<PlatformUser[]> {
+    if (envConfig.useMocks) {
+      throw new ApiError({
+        message: 'Role management needs a connected backend',
+        statusCode: 0,
+        code: 'MOCK_MODE_UNSUPPORTED',
+      });
+    }
+    return this.http.get<PlatformUser[]>('/api/v1/admin/users', { params: { q: query } });
+  }
+
+  async setUserRole(userId: string, role: UserRole): Promise<UserProfile> {
+    if (envConfig.useMocks) {
+      throw new ApiError({
+        message: 'Role management needs a connected backend',
+        statusCode: 0,
+        code: 'MOCK_MODE_UNSUPPORTED',
+      });
+    }
+    return this.http.patch<UserProfile>(
+      `/api/v1/admin/users/${encodeURIComponent(userId)}/role`,
+      { role }
+    );
   }
 }
 

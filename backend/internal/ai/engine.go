@@ -173,7 +173,16 @@ func metricOr(m *model.Metrics, pick func(*model.Metrics) string, def string) st
 func p99(m *model.Metrics) string        { return m.LatencyP99 }
 func throughput(m *model.Metrics) string { return m.Throughput }
 
+// contactEmail is the address to put in a generated document.
+//
+// The dev's explicit choice comes first, then the address they registered with,
+// and only then a synthetic one. Reaching for the auth address by default meant
+// a dev who had set a separate contact address in settings was still having
+// their login identity published to recruiters, because nothing read the field.
 func contactEmail(u model.UserProfile) string {
+	if u.ContactEmail != "" {
+		return u.ContactEmail
+	}
 	if u.Email != "" {
 		return u.Email
 	}

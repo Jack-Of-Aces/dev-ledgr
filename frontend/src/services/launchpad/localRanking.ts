@@ -18,9 +18,12 @@ const LEVEL_RANKS: Record<ExperienceLevel, number> = {
 const DIFFICULTY_RANKS: Record<string, number> = {
   foundational: 1,
   beginner: 1,
+  easy: 1,
   intermediate: 2,
+  medium: 2,
   advanced: 3,
   'production-grade': 3,
+  hard: 3,
   expert: 3,
 };
 

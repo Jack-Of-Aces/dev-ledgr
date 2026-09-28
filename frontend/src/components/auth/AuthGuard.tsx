@@ -26,7 +26,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
   allowedRoles,
   fallbackMessage,
 }) => {
-  const { isLoggedIn, role, switchRole } = useAuth();
+  const { isLoggedIn, role } = useAuth();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -76,8 +76,6 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
       ? allowedRoles.map((r) => r.toUpperCase()).join(' or ')
       : requireRole?.toUpperCase() || 'ELEVATED';
 
-    const switchTargetRole = allowedRoles ? allowedRoles[0] : requireRole;
-
     return (
       <div className="max-w-md mx-auto my-12 p-6 rounded-radius border border-rose-500/30 bg-card text-center space-y-4 font-mono text-xs md:text-sm">
         <ShieldAlert className="w-8 h-8 text-rose-700 dark:text-rose-400 mx-auto" />
@@ -87,14 +85,6 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
         <p className="text-text-1 leading-relaxed">
           This feature requires <strong>{requiredDisplay}</strong> clearance. You are currently signed in as <strong>{role.toUpperCase()}</strong>.
         </p>
-        {switchTargetRole && (
-          <button
-            onClick={() => switchRole(switchTargetRole)}
-            className="btn-brass text-xs md:text-sm py-2 px-4 cursor-pointer"
-          >
-            Switch to {switchTargetRole.toUpperCase()} Persona (Sandbox)
-          </button>
-        )}
       </div>
     );
   }

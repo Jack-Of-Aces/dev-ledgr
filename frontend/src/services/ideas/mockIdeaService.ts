@@ -3,7 +3,7 @@
  * @description Mock service for querying and seeding problems in the Idea Bank.
  */
 
-import { IIdeaService, IdeaFilters } from './IIdeaService';
+import { IIdeaService, IdeaFilters, IdeaDraft } from './IIdeaService';
 import { IdeaItem } from '@/types';
 import { INITIAL_IDEAS } from '@/lib/mock-data';
 
@@ -36,9 +36,13 @@ export class MockIdeaService implements IIdeaService {
     return this.ideas.find((i) => i.id === id);
   }
 
-  async seedIdea(idea: Omit<IdeaItem, 'submissionCount'>): Promise<IdeaItem> {
+  async publishIdea(draft: IdeaDraft): Promise<IdeaItem> {
+    // The live backend mints a UUID and discards any client id, so the mock
+    // does the same: handing back a slug would let the console display an id
+    // that does not exist server-side.
     const newIdea: IdeaItem = {
-      ...idea,
+      ...draft,
+      id: crypto.randomUUID(),
       submissionCount: 0,
     };
     this.ideas = [newIdea, ...this.ideas];

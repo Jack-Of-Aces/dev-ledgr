@@ -10,6 +10,8 @@ import {
   InferredTrackResult,
 } from '@/lib/tracks';
 import { EngineeringTrack, ExperienceLevel, ProblemRecommendation } from '@/types';
+import { userService } from '@/services/user/userService';
+import { clearStoredDraft } from '@/lib/profileDraft';
 import {
   Sparkles,
   ShieldCheck,
@@ -58,7 +60,23 @@ const STEP_LABELS = [
   { step: 4, title: 'Launch', subtitle: 'Console Ready' },
 ];
 
-export default function OnboardingPage() {
+/**
+ * OnboardingWizard holds the wizard's own state.
+ *
+ * It is deliberately a separate component from the page that renders it, because
+ * the useState initializers below run once, on the first render, and this page
+ * has to be withheld until the authoritative dev record has arrived. Gating the
+ * JSX with an early return would not achieve that: React still runs every hook
+ * in the component, so the initializers would capture whatever the persisted
+ * store happened to hold — the previous account's profile, or the empty
+ * placeholder — and never re-run.
+ *
+ * Reading a placeholder is not cosmetic. authProvider decides whether the dev
+ * is asked to verify a GitHub account they already proved at sign-in, and it is
+ * absent from the placeholder, so a GitHub OAuth user would be blocked on step 3
+ * by a gate that does not apply to them.
+ */
+function OnboardingWizard() {
   const { user, completeOnboarding, ideas, jobs, setJobs, setIdeas } = useAppStore();
 
   const [mounted, setMounted] = useState(false);
@@ -90,6 +108,12 @@ export default function OnboardingPage() {
   );
   const [isVerifyingGithub, setIsVerifyingGithub] = useState(false);
   const [githubVerified, setGithubVerified] = useState<boolean>(isGithubOAuthUser);
+
+  // Persisting the wizard's answers is a network call, so the button reports
+  // progress and a failure keeps the dev on the last step with their choices
+  // intact rather than navigating into a half-saved profile.
+  const [isFinishing, setIsFinishing] = useState(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
   const [githubVerificationError, setGithubVerificationError] = useState<string | null>(null);
   const [githubMatchDetails, setGithubMatchDetails] = useState<{
     source?: string;
@@ -271,7 +295,7 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleFinishOnboarding = () => {
+  const handleFinishOnboarding = async () => {
     const cleanGithub =
       githubUsernameInput.replace(/^@/, '').trim() ||
       (isGithubOAuthUser ? (user.githubUsername || user.username) : '');
@@ -286,11 +310,16 @@ export default function OnboardingPage() {
     }
 
     const displayName = user.name || user.username || 'Developer';
+    const headline = `${experienceLevel.charAt(0).toUpperCase() + experienceLevel.slice(1)} ${targetRole} · Verified Ledger`;
 
+    // Update the store first so the dashboard is correct even if the write
+    // below is slow, then persist. These answers used to live only in the
+    // store, so a reload sent the dev back through onboarding with the track
+    // and seniority they had just chosen gone.
     completeOnboarding({
       username: user.username || cleanGithub || 'developer',
       name: displayName,
-      headline: `${experienceLevel.charAt(0).toUpperCase() + experienceLevel.slice(1)} ${targetRole} · Verified Ledger`,
+      headline,
       skills,
       engineeringTrack: selectedTrack,
       targetRole,
@@ -299,6 +328,39 @@ export default function OnboardingPage() {
       githubUsername: cleanGithub || user.username,
     });
 
+    setIsFinishing(true);
+    setFinishError(null);
+    try {
+      await userService.updateProfile({
+        name: displayName,
+        headline,
+        // Whatever the dev already has, or nothing. Inventing a bio here wrote
+        // a sentence they never wrote to their permanent profile, which is the
+        // thing this flow is supposed to avoid. The bio is optional server-side.
+        bio: user.bio || '',
+        plan: user.plan || 'free',
+        statedSkills: skills,
+        engineeringTrack: selectedTrack,
+        targetRole,
+        experienceLevel,
+        githubConnected: true,
+        githubUsername: cleanGithub || user.username,
+        onboardingCompleted: true,
+      });
+    } catch (err) {
+      // The store already reflects the choices, so the dev is not sent back to
+      // the wizard. Say what failed rather than navigating into a profile that
+      // silently disagrees with the dashboard.
+      setFinishError(
+        err instanceof Error
+          ? `Your choices could not be saved: ${err.message}`
+          : 'Your choices could not be saved. You can retry from Settings.'
+      );
+      setIsFinishing(false);
+      return;
+    }
+
+    clearStoredDraft();
     window.location.replace('/dashboard');
   };
 
@@ -954,16 +1016,58 @@ export default function OnboardingPage() {
               <button
                 type="button"
                 onClick={handleFinishOnboarding}
-                className="btn-brass text-xs md:text-sm py-2.5 px-6 flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto font-semibold font-mono"
+                disabled={isFinishing}
+                className="btn-brass text-xs md:text-sm py-2.5 px-6 flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto font-semibold font-mono disabled:opacity-60 disabled:cursor-default"
               >
-                <span>Launch DevLedgr Console</span>
-                <ArrowRight className="w-4 h-4" />
+                <span>
+                  {isFinishing ? 'Saving your profile…' : 'Launch DevLedgr Console'}
+                </span>
+                {isFinishing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <ArrowRight className="w-4 h-4" />
+                )}
               </button>
             </div>
+
+            {finishError && (
+              <p
+                role="alert"
+                className="text-xs font-mono text-rose-600 dark:text-rose-400 flex items-start gap-2 mt-3"
+              >
+                <AlertCircle className="w-3.5 h-3.5 mt-px shrink-0" aria-hidden="true" />
+                {finishError}
+              </p>
+            )}
           </div>
         )}
 
       </div>
     </div>
   );
+}
+
+/**
+ * OnboardingPage withholds the wizard until the session has been resolved.
+ *
+ * The backend provisions the dev record on the first authenticated request and
+ * owns every field the wizard branches on, but that record arrives after the
+ * first paint. Until it does, the store holds either a provisional profile
+ * built from the JWT or, on a hard reload, the previous session's persisted one.
+ */
+export default function OnboardingPage() {
+  const authReady = useAppStore((state) => state.authReady);
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center px-6">
+        <div className="flex items-center gap-3 text-text-1 text-sm font-mono">
+          <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+          <span>Loading your profile…</span>
+        </div>
+      </div>
+    );
+  }
+
+  return <OnboardingWizard />;
 }

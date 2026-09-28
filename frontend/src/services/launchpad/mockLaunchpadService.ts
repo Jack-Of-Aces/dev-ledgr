@@ -18,6 +18,9 @@ export class MockLaunchpadService implements ILaunchpadService {
   private problems: LaunchpadProblem[] = INITIAL_IDEAS.map((idea, idx) => ({
     ...idea,
     status: idx === 0 ? 'in_progress' : idx === 1 ? 'seeking_contributors' : 'open',
+    // One draft, so the moderation view has something to publish or unpublish
+    // without needing a live backend.
+    adminApproved: idx !== 2,
     claimedBy:
       idx === 0
         ? {
@@ -31,6 +34,16 @@ export class MockLaunchpadService implements ILaunchpadService {
 
   async getProblems(filters?: LaunchpadFilters): Promise<LaunchpadProblem[]> {
     let result = [...this.problems];
+
+    // Mirrors the backend: 'all' returns drafts and published problems,
+    // otherwise the response is pinned to what is published.
+    if (filters?.approved === 'all') {
+      // no narrowing
+    } else if (filters?.approved === 'true' || !filters?.approved) {
+      result = result.filter((p) => p.adminApproved);
+    } else if (filters?.approved === 'false') {
+      result = result.filter((p) => !p.adminApproved);
+    }
 
     if (filters?.status) {
       result = result.filter((p) => p.status === filters.status);
@@ -127,6 +140,15 @@ export class MockLaunchpadService implements ILaunchpadService {
       claimedBy: p?.claimedBy,
       statusUpdatedAt: p?.statusUpdatedAt || new Date().toISOString(),
     };
+  }
+
+  async setProblemApproval(id: string, approved: boolean): Promise<LaunchpadProblem> {
+    const problem = this.problems.find((item) => item.id === id);
+    if (!problem) {
+      throw new Error(`Problem ${id} not found`);
+    }
+    problem.adminApproved = approved;
+    return problem;
   }
 }
 

@@ -19,23 +19,28 @@ export const UserProfileUpdateSchema = z.object({
     .optional()
     .or(z.literal('')),
   githubUrl: z.string().url('Must be a valid GitHub URL').optional().or(z.literal('')),
-  email: z.string().email('Must be a valid email').optional().or(z.literal('')),
+  // The recruiter contact address. The account's own address is not editable
+  // here: it belongs to the auth provider and is what verifies GitHub ownership.
+  contactEmail: z.string().email('Must be a valid email').optional().or(z.literal('')),
   plan: z.enum(['free', 'full-service', 'byok']),
   apiKey: z.string().optional(),
   statedSkills: z.array(z.string()).min(1, 'Please select at least one skill tag'),
-  engineeringTrack: z.enum([
-    'devops-infra',
-    'backend-systems',
-    'frontend-ui',
-    'fullstack',
-    'product-design',
-    'ai-ml',
-    'mobile',
-  ]).optional(),
+  engineeringTrack: z
+    .enum([
+      'devops-infra',
+      'backend-systems',
+      'frontend-ui',
+      'fullstack',
+      'product-design',
+      'ai-ml',
+      'mobile',
+    ])
+    .optional(),
   targetRole: z.string().max(80).optional(),
   experienceLevel: z.enum(['junior', 'mid', 'senior', 'lead']).optional(),
   githubConnected: z.boolean().optional(),
   githubUsername: z.string().optional(),
+  onboardingCompleted: z.boolean().optional(),
 });
 
 export type UserProfileUpdateInput = z.infer<typeof UserProfileUpdateSchema>;

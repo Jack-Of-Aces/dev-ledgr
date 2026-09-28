@@ -1,7 +1,10 @@
 package api
 
 import (
+	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -20,6 +23,10 @@ func TestDifficultyFit(t *testing.T) {
 		{"junior gets the foundational build", "foundational", "junior", 10},
 		{"mid gets the intermediate build", "intermediate", "mid", 10},
 		{"senior gets the production build", "production-grade", "senior", 10},
+		{"scraped hard suits a senior", "hard", "senior", 10},
+		{"scraped hard is one step over a mid", "hard", "mid", 5},
+		{"scraped easy suits a junior", "easy", "junior", 10},
+		{"scraped medium suits a mid", "medium", "mid", 10},
 		{"one step up costs five points", "intermediate", "junior", 5},
 		{"one step down costs five points", "foundational", "mid", 5},
 		{"two steps apart is a wash", "production-grade", "junior", 0},
@@ -151,10 +158,43 @@ func TestRankProblems(t *testing.T) {
 
 	t.Run("does not mutate the caller's problems", func(t *testing.T) {
 		t.Parallel()
-		in := []model.Idea{{ID: "1", Tags: []string{"Go", "Redis"}}}
+		in := []model.Idea{{ID: "1", Tags: []string{"Go", "Redis"}, SuggestedStack: []string{"Kafka"}}}
 		rankProblems(in, skills.Set([]string{"Go"}), "mid")
-		if len(in[0].Tags) != 2 {
-			t.Errorf("tags = %v, want the original two entries", in[0].Tags)
+		if len(in[0].Tags) != 2 || len(in[0].SuggestedStack) != 1 {
+			t.Errorf("tags/stack = %v/%v, want the original entries", in[0].Tags, in[0].SuggestedStack)
+		}
+	})
+
+	t.Run("matches a scraped problem that has a stack but no tags", func(t *testing.T) {
+		t.Parallel()
+		// Scraped rows land with an empty tags array and everything in
+		// suggestedStack; without this the ranker had nothing to match on.
+		scraped := []model.Idea{{ID: "31a4d382", Tags: []string{}, SuggestedStack: []string{"React", "Node.js"}}}
+		got := rankProblems(scraped, skills.Set([]string{"react"}), "mid")
+		m := got[0].Match
+		if m.Score != 50 {
+			t.Fatalf("score = %d, want 50 (1 of 2 stack entries)", m.Score)
+		}
+		if len(m.MatchedSkills) != 1 || m.MatchedSkills[0] != "React" {
+			t.Errorf("matchedSkills = %v, want [React]", m.MatchedSkills)
+		}
+		if len(m.MissingSkills) != 1 || m.MissingSkills[0] != "Node.js" {
+			t.Errorf("missingSkills = %v, want [Node.js]", m.MissingSkills)
+		}
+	})
+
+	t.Run("an unscorable problem sorts after every scored one", func(t *testing.T) {
+		t.Parallel()
+		// A difficulty fit alone must not lift a problem with no stated
+		// requirements above a genuine match.
+		mixed := []model.Idea{
+			{ID: "no-requirements", Difficulty: "foundational", Tags: []string{}, SuggestedStack: []string{}},
+			{ID: "partial", Difficulty: "intermediate", Tags: []string{"Go", "Kafka"}},
+		}
+		got := rankProblems(mixed, skills.Set([]string{"Go"}), "junior")
+		assertOrder(t, got, []string{"partial", "no-requirements"})
+		if m := got[1].Match; m.Score != 0 || len(m.MatchedSkills) != 0 {
+			t.Errorf("unscorable match = %+v, want an empty zero score", m)
 		}
 	})
 
@@ -237,6 +277,62 @@ func TestParseDraftSkillsBoundaries(t *testing.T) {
 		t.Errorf("parseDraftSkills returned %d entries, want 4", len(got))
 	}
 }
+
+func TestApprovedFilter(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name    string
+		role    model.Role
+		authed  bool
+		query   string
+		want    *bool
+		wantErr bool
+	}{
+		{"anonymous sees only approved", model.RoleUser, false, "", boolPtr(true), false},
+		{"anonymous cannot ask for drafts", model.RoleUser, false, "?approved=false", boolPtr(true), false},
+		{"anonymous cannot ask for all", model.RoleUser, false, "?approved=all", boolPtr(true), false},
+		{"anonymous cannot smuggle a bad value", model.RoleUser, false, "?approved=maybe", boolPtr(true), false},
+		{"moderator sees everything by default", model.RoleAdmin, true, "", nil, false},
+		{"moderator sees everything for all", model.RoleAdmin, true, "?approved=all", nil, false},
+		{"moderator can narrow to approved", model.RoleAdmin, true, "?approved=true", boolPtr(true), false},
+		{"moderator can narrow to drafts", model.RoleAdmin, true, "?approved=false", boolPtr(false), false},
+		{"a bad value is rejected for a moderator", model.RoleAdmin, true, "?approved=maybe", nil, true},
+		{"a reviewer may review proofs but not seed problems", model.RoleReviewer, true, "", boolPtr(true), false},
+		{"a reviewer cannot reach the drafts either", model.RoleReviewer, true, "?approved=false", boolPtr(true), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			r := httptest.NewRequest(http.MethodGet, "/api/launchpad/problems"+tc.query, nil)
+			if tc.authed {
+				r = r.WithContext(context.WithValue(r.Context(), principalKey, &principal{
+					User: &model.UserProfile{ID: "u1", Role: tc.role},
+				}))
+			}
+			got, err := approvedFilter(r)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("approvedFilter(%q) = %v, want an error", tc.query, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("approvedFilter(%q): %v", tc.query, err)
+			}
+			if got == nil || tc.want == nil {
+				if got != tc.want {
+					t.Fatalf("approvedFilter(%q) = %v, want %v", tc.query, got, tc.want)
+				}
+				return
+			}
+			if *got != *tc.want {
+				t.Errorf("approvedFilter(%q) = %v, want %v", tc.query, *got, *tc.want)
+			}
+		})
+	}
+}
+
+func boolPtr(b bool) *bool { return &b }
 
 func assertOrder(t *testing.T, got []problemRecommendation, want []string) {
 	t.Helper()
