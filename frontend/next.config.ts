@@ -33,6 +33,14 @@ const nextConfig: NextConfig = {
         source: '/api/auth/me',
         destination: `${backendUrl}/api/auth/me`,
       },
+      {
+        source: '/api/auth/:path*',
+        destination: `${backendUrl}/api/auth/:path*`,
+      },
+      {
+        source: '/api/dev/:path*',
+        destination: `${backendUrl}/api/dev/:path*`,
+      },
     ];
   },
 };
