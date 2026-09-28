@@ -28,6 +28,9 @@ import {
   Lock,
 } from 'lucide-react';
 
+import { jobService } from '@/services/jobs/jobService';
+import { launchpadService } from '@/services/launchpad/launchpadService';
+
 const GithubIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <path
@@ -56,7 +59,7 @@ const STEP_LABELS = [
 ];
 
 export default function OnboardingPage() {
-  const { user, completeOnboarding, ideas, jobs } = useAppStore();
+  const { user, completeOnboarding, ideas, jobs, setJobs, setIdeas } = useAppStore();
 
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
@@ -101,7 +104,26 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    let active = true;
+
+    // Fetch live jobs from backend API
+    jobService.getJobs().then((fetched) => {
+      if (active && fetched && fetched.length > 0) {
+        setJobs(fetched);
+      }
+    }).catch(() => {});
+
+    // Fetch live launchpad problems from backend API
+    launchpadService.getProblems().then((problems) => {
+      if (active && problems && problems.length > 0) {
+        setIdeas(problems);
+      }
+    }).catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [setJobs, setIdeas]);
 
   // When track changes, update available roles and default skills
   const handleSelectTrack = (trackId: EngineeringTrack) => {

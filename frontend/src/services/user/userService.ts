@@ -33,13 +33,34 @@ export class UserService implements IUserService {
       return this.mock.updateProfile(data);
     }
 
+    // Sanitize payload for backend compatibility
+    const sanitizedData: Record<string, unknown> = { ...data };
+
+    // 1. Omit avatarUrl if it's a data URI (backend requires http/https URL)
+    if (typeof sanitizedData.avatarUrl === 'string' && sanitizedData.avatarUrl.startsWith('data:')) {
+      delete sanitizedData.avatarUrl;
+    }
+
+    // 2. Omit empty string URLs (backend rejects "" for http URL fields)
+    if (sanitizedData.githubUrl === '') {
+      delete sanitizedData.githubUrl;
+    }
+    if (sanitizedData.email === '') {
+      delete sanitizedData.email;
+    }
+
+    // 3. Omit empty statedSkills
+    if (Array.isArray(sanitizedData.statedSkills) && sanitizedData.statedSkills.length === 0) {
+      delete sanitizedData.statedSkills;
+    }
+
     // Per ADR-001: mutations never silently fall back. Try primary endpoint; if it fails,
     // attempt the alternate endpoint. If both fail, the error propagates to the caller.
     try {
-      return await this.http.patch<UserProfile>('/api/dev/profile', data);
+      return await this.http.patch<UserProfile>('/api/dev/profile', sanitizedData as UserProfileUpdateInput);
     } catch {
       // Attempt alternate endpoint — error propagates if this also fails
-      return await this.http.patch<UserProfile>('/api/v1/users/me', data);
+      return await this.http.patch<UserProfile>('/api/v1/users/me', sanitizedData as UserProfileUpdateInput);
     }
   }
 
