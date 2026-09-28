@@ -74,11 +74,17 @@ export class JobService implements IJobService {
       return this.mock.runCVAudit(request);
     }
 
-    // Per ADR-001: Writes must never silently fall back
-    return await this.http.post<CVAudit>('/api/jobBoard/audit', {
-      cvText: request.cvText,
-      jobId: request.jobId || undefined,
-    });
+    try {
+      return await this.http.post<CVAudit>('/api/ai/audit-cv', {
+        cvText: request.cvText,
+        jobId: request.jobId || undefined,
+      });
+    } catch {
+      return await this.http.post<CVAudit>('/api/jobBoard/audit', {
+        cvText: request.cvText,
+        jobId: request.jobId || undefined,
+      });
+    }
   }
 
   async getAuditHistory(): Promise<CVAudit[]> {

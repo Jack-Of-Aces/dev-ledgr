@@ -39,6 +39,7 @@ export interface CVAudit {
   engine: 'claude' | 'heuristic';
   model?: string;
   cvChars: number;
+  curatedCvMarkdown?: string;
   createdAt: string;
 }
 
