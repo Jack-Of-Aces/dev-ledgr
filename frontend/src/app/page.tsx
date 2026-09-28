@@ -158,7 +158,7 @@ export default function HomePage() {
               <span>
                 Permanent Verification URL:{' '}
                 <Link href="/p/junior_dev" className="text-emerald-text font-semibold hover:underline">
-                  alex.devledgr.io
+                  alex.devledgr.xyz
                 </Link>
               </span>
               <span className="text-[11px]">Valid through Sep 2027</span>
@@ -242,7 +242,7 @@ export default function HomePage() {
                 3. Verifiable Public Portfolio
               </h3>
               <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
-                Your permanent domain (<code className="text-text-0 font-mono">you.devledgr.io</code>) featuring cryptographic certs, telemetry cards, and interactive architecture diffs.
+                Your permanent domain (<code className="text-text-0 font-mono">you.devledgr.xyz</code>) featuring cryptographic certs, telemetry cards, and interactive architecture diffs.
               </p>
             </div>
             <div className="pt-2">
