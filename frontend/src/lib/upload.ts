@@ -21,8 +21,8 @@ export async function uploadImageToCloudinary(file: File): Promise<string> {
 
   const data = await res.json();
 
-  if (!res.ok) {
-    throw new Error(data.error || 'Failed to upload image. Please try again.');
+  if (!res.ok || data.unconfigured || !data.url) {
+    throw new Error(data.error || 'Cloudinary upload unconfigured or unavailable.');
   }
 
   return data.url;

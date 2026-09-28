@@ -18,23 +18,13 @@ export async function POST(req: Request) {
       process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY;
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
-    if (!cloudName) {
+    if (!cloudName || !apiKey || !apiSecret) {
       return NextResponse.json(
         {
-          error:
-            'CLOUDINARY_CLOUD_NAME is not configured in environment variables.',
+          error: 'Cloudinary environment variables not configured on server.',
+          unconfigured: true,
         },
-        { status: 500 }
-      );
-    }
-
-    if (!apiKey || !apiSecret) {
-      return NextResponse.json(
-        {
-          error:
-            'Cloudinary API Key or Secret is missing in environment variables.',
-        },
-        { status: 500 }
+        { status: 200 }
       );
     }
 

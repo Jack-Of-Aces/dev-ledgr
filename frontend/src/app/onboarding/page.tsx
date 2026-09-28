@@ -265,19 +265,19 @@ export default function OnboardingPage() {
   const candidateDisplayName = user.name || user.username || 'Developer';
 
   return (
-    <div className="min-h-[88vh] flex items-center justify-center px-4 py-8 sm:py-12 font-sans">
-      <div className="w-full max-w-4xl rounded-radius border border-line bg-card/80 backdrop-blur-md shadow-xl p-5 sm:p-8 md:p-10 space-y-8">
+    <div className="min-h-screen w-full flex flex-col justify-between px-3 sm:px-6 md:px-8 py-4 sm:py-8 font-sans max-w-7xl mx-auto">
+      <div className="w-full space-y-6 sm:space-y-8 flex-1">
         
         {/* ─── Minimal Tactile Header & Stepper ─────────────────────────── */}
-        <div className="space-y-4 pb-6 border-b border-line">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <BrandMark size={36} className="shrink-0" />
+        <div className="space-y-4 pb-4 sm:pb-6 border-b border-line">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <BrandMark size={32} className="shrink-0 sm:w-9 sm:h-9" />
               <div>
-                <span className="text-[11px] font-mono uppercase tracking-widest text-brass font-bold">
+                <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-widest text-brass font-bold block">
                   Developer Calibration · Step {currentStep} of 4
                 </span>
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-text-0">
+                <h1 className="text-lg sm:text-2xl md:text-3xl font-bold tracking-tight text-text-0">
                   {currentStep === 1 && 'Select Your Discipline'}
                   {currentStep === 2 && 'Experience & Tech Stack'}
                   {currentStep === 3 && 'GitHub Identity Anchor'}
@@ -287,9 +287,9 @@ export default function OnboardingPage() {
             </div>
 
             {/* Candidate Identity Pill */}
-            <div className="flex items-center gap-2 self-start sm:self-auto px-3 py-1.5 rounded-full border border-line bg-ink-0 text-xs font-mono text-text-1">
-              <div className="w-2 h-2 rounded-full bg-emerald animate-pulse" />
-              <span className="text-text-0 font-medium">{candidateDisplayName}</span>
+            <div className="flex items-center gap-2 self-start sm:self-auto px-2.5 py-1 rounded-full border border-line bg-ink-0 text-[11px] sm:text-xs font-mono text-text-1">
+              <div className="w-2 h-2 rounded-full bg-emerald animate-pulse shrink-0" />
+              <span className="text-text-0 font-medium truncate max-w-[140px] sm:max-w-none">{candidateDisplayName}</span>
               {user.email && (
                 <span className="hidden md:inline text-text-1">({user.email})</span>
               )}
@@ -297,7 +297,7 @@ export default function OnboardingPage() {
           </div>
 
           {/* Stepper Navigation Strip */}
-          <div className="grid grid-cols-4 gap-2 pt-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 pt-2">
             {STEP_LABELS.map(({ step, title, subtitle }) => {
               const isPast = currentStep > step;
               const isCurrent = currentStep === step;
@@ -321,7 +321,7 @@ export default function OnboardingPage() {
                 >
                   <div className="flex items-center gap-1.5 text-xs font-mono">
                     <span
-                      className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                      className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
                         isPast
                           ? 'bg-emerald text-ink-0'
                           : isCurrent
@@ -331,11 +331,11 @@ export default function OnboardingPage() {
                     >
                       {isPast ? '✓' : step}
                     </span>
-                    <span className={`font-semibold ${isCurrent ? 'text-text-0' : 'text-text-1'}`}>
+                    <span className={`font-semibold text-[11px] sm:text-xs truncate ${isCurrent ? 'text-text-0' : 'text-text-1'}`}>
                       {title}
                     </span>
                   </div>
-                  <div className="text-[10px] text-text-1 hidden sm:block pl-5 truncate">
+                  <div className="text-[10px] text-text-1 hidden md:block pl-5 truncate">
                     {subtitle}
                   </div>
                 </button>
@@ -382,8 +382,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* Responsive Track Selection Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {/* Responsive Track Selection List */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
               {getAllTracks().map((track) => {
                 const isSelected = selectedTrack === track.id;
                 return (
@@ -391,28 +391,30 @@ export default function OnboardingPage() {
                     key={track.id}
                     type="button"
                     onClick={() => handleSelectTrack(track.id)}
-                    className={`text-left p-3.5 rounded-radius border transition-all cursor-pointer flex flex-col justify-between space-y-2.5 relative ${
+                    className={`text-left p-3 sm:p-4 rounded-radius border transition-all cursor-pointer flex flex-col justify-between space-y-2 relative ${
                       isSelected
-                        ? 'border-brass bg-ink-1 shadow-xs ring-1 ring-brass/30'
-                        : 'border-line bg-card/60 hover:border-text-1/30 hover:bg-card'
+                        ? 'border-brass bg-ink-1 ring-1 ring-brass/40'
+                        : 'border-line/70 bg-ink-0/30 hover:border-text-1/30 hover:bg-ink-1/30'
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
                         <div className="p-1.5 rounded bg-ink-0 border border-line shrink-0">
                           {TRACK_ICONS[track.id]}
                         </div>
-                        <span className="font-semibold text-text-0 text-sm">
+                        <span className="font-semibold text-text-0 text-xs sm:text-sm truncate">
                           {track.title}
                         </span>
                       </div>
-                      {isSelected && (
-                        <div className="w-5 h-5 rounded-full bg-brass flex items-center justify-center text-ink-0 shrink-0">
+                      {isSelected ? (
+                        <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-brass flex items-center justify-center text-ink-0 shrink-0">
                           <Check className="w-3 h-3 stroke-[3]" />
                         </div>
+                      ) : (
+                        <span className="w-2 h-2 rounded-full bg-line shrink-0" />
                       )}
                     </div>
-                    <p className="text-xs text-text-1 line-clamp-2 leading-relaxed">
+                    <p className="text-[11px] sm:text-xs text-text-1 leading-relaxed">
                       {track.tagline}
                     </p>
                   </button>
@@ -625,229 +627,228 @@ export default function OnboardingPage() {
                 </p>
               </div>
             ) : (
-              /* Google / Email Account: Ownership Verification Form */
-              <div className="p-5 rounded-radius border border-line bg-card/60 space-y-4">
-                {/* Registered Email Banner */}
-                <div className="p-3 rounded-radius border border-line bg-ink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="space-y-0.5">
-                    <div className="text-[10px] font-mono uppercase tracking-wider text-text-1 font-semibold">
-                      Registered DevLedgr Email:
-                    </div>
-                    <div className="font-mono text-xs sm:text-sm font-semibold text-text-0 flex items-center gap-1.5">
-                      <span>{user.email || 'Email missing'}</span>
-                    </div>
+              <div className="space-y-4 pt-2">
+              {/* Registered Email Banner */}
+              <div className="p-3 rounded-radius border border-line/80 bg-ink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                <div className="space-y-0.5">
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-text-1 font-semibold">
+                    Registered DevLedgr Email:
                   </div>
-                  <div className="text-[11px] font-mono text-brass border border-brass/30 bg-brass/10 px-2.5 py-1 rounded inline-flex items-center gap-1 shrink-0">
-                    <Lock className="w-3 h-3" />
-                    <span>Ownership check required</span>
+                  <div className="font-mono text-xs sm:text-sm font-semibold text-text-0 truncate max-w-full">
+                    {user.email || 'Email missing'}
                   </div>
                 </div>
-
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="github-username-input"
-                    className="block text-xs font-mono uppercase tracking-wider text-text-1 font-semibold"
-                  >
-                    GitHub Username or Handle:
-                  </label>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <div className="relative flex-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-1 font-mono text-xs">
-                        @
-                      </span>
-                      <input
-                        id="github-username-input"
-                        type="text"
-                        value={githubUsernameInput}
-                        onChange={(e) => {
-                          setGithubUsernameInput(e.target.value);
-                          setGithubVerified(false);
-                          setGithubVerificationError(null);
-                        }}
-                        placeholder="your-github-username"
-                        className="w-full pl-7 pr-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 text-xs sm:text-sm font-mono focus:border-brass outline-none"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleVerifyGitHubAccount}
-                      disabled={!githubUsernameInput.trim() || isVerifyingGithub}
-                      className="btn-brass text-xs py-2 px-4 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 font-mono"
-                    >
-                      {isVerifyingGithub ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Verifying Ownership...</span>
-                        </>
-                      ) : (
-                        <>
-                          <GithubIcon className="w-3.5 h-3.5" />
-                          <span>Verify &amp; Link</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-text-1">
-                    We match the GitHub account against your registered email (<code>{user.email}</code>) via public profile, git commit author history, or verified alias.
-                  </p>
+                <div className="text-[11px] font-mono text-brass border border-brass/30 bg-brass/10 px-2 py-0.5 rounded inline-flex items-center gap-1 self-start sm:self-auto shrink-0">
+                  <Lock className="w-3 h-3" />
+                  <span>Ownership check required</span>
                 </div>
-
-                {/* Status Banners */}
-                {githubVerificationError && (
-                  <div className="p-3 rounded border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs flex items-start gap-2.5 font-mono">
-                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                    <div>
-                      <div className="font-semibold">Identity Verification Failed</div>
-                      <div className="text-[11px] mt-0.5 leading-relaxed">{githubVerificationError}</div>
-                    </div>
-                  </div>
-                )}
-
-                {githubVerified ? (
-                  <div className="p-3.5 rounded border border-emerald/30 bg-emerald-tint text-emerald-text text-xs space-y-1 font-mono">
-                    <div className="flex items-center gap-2 font-semibold text-sm">
-                      <CheckCircle2 className="w-4 h-4 shrink-0" />
-                      <span>Verified GitHub Identity: @{githubUsernameInput.replace(/^@/, '')}</span>
-                    </div>
-                    <div className="text-[11px] pl-6 text-emerald-text/80 space-y-0.5">
-                      <div>
-                        ✓ Proof: {githubMatchDetails?.source === 'profile' ? 'Public Profile Match' : githubMatchDetails?.source === 'commits' ? `Commit Author History (${githubMatchDetails.repo ? `repo: ${githubMatchDetails.repo}` : 'public commits'})` : 'GitHub Verified Alias'}
-                      </div>
-                      <div>✓ Matched Email: {githubMatchDetails?.email || user.email}</div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-xs text-text-1 font-mono flex items-center gap-1.5 p-2 rounded bg-ink-0 border border-line">
-                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
-                    <span>Verification required before entering the dashboard.</span>
-                  </div>
-                )}
               </div>
-            )}
 
-            {/* Navigation Bar */}
-            <div className="flex items-center justify-between pt-4 border-t border-line">
-              <button
-                type="button"
-                onClick={() => setCurrentStep(2)}
-                className="btn-outline text-xs md:text-sm py-2 px-4 flex items-center gap-1.5 cursor-pointer text-text-1"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (!isGithubOAuthUser && !githubVerified) {
-                    setGithubVerificationError(`Please verify ownership of your GitHub account matching ${user.email} before continuing.`);
-                    return;
-                  }
-                  setCurrentStep(4);
-                }}
-                disabled={!isGithubOAuthUser && !githubVerified}
-                className="btn-brass text-xs md:text-sm py-2 px-5 flex items-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <span>Continue to Readiness Summary</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ─── STEP 4: Readiness & First Challenge Preview ─────────────── */}
-        {currentStep === 4 && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            {/* Header */}
-            <div className="text-center space-y-2 py-1">
-              <div className="w-12 h-12 rounded-full bg-emerald-tint border border-emerald/30 mx-auto flex items-center justify-center text-emerald-text">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-text-0">
-                Ready to Build, {candidateDisplayName}!
-              </h2>
-              <p className="text-xs md:text-sm text-text-1 max-w-md mx-auto leading-relaxed">
-                Your workspace is calibrated for <strong className="text-text-0">{targetRole}</strong> in the{' '}
-                <strong className="text-text-0">{currentTrackDef.title}</strong> track.
-              </p>
-            </div>
-
-            {/* Overview Matrix */}
-            <div className="p-4 rounded-radius border border-line bg-card/60 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
-              <div>
-                <span className="text-text-1 uppercase block text-[10px]">Track</span>
-                <span className="font-semibold text-text-0 truncate block mt-0.5">
-                  {currentTrackDef.shortTitle}
-                </span>
-              </div>
-              <div>
-                <span className="text-text-1 uppercase block text-[10px]">Target Role</span>
-                <span className="font-semibold text-text-0 truncate block mt-0.5">
-                  {targetRole}
-                </span>
-              </div>
-              <div>
-                <span className="text-text-1 uppercase block text-[10px]">Seniority</span>
-                <span className="font-semibold text-text-0 capitalize block mt-0.5">
-                  {experienceLevel}
-                </span>
-              </div>
-              <div>
-                <span className="text-text-1 uppercase block text-[10px]">GitHub Identity</span>
-                <span className="font-semibold text-emerald-text block mt-0.5 truncate">
-                  @{githubUsernameInput.replace(/^@/, '') || user.username || 'Linked'}
-                </span>
-              </div>
-            </div>
-
-            {/* Recommended Challenge Preview */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs font-mono uppercase text-text-1">
-                <span>Recommended First Challenge:</span>
-                <span className="text-brass font-bold">Priority Dispatch</span>
-              </div>
-              <div className="p-4 rounded-radius border border-brass/30 bg-card/60 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-mono text-emerald-text uppercase font-semibold">
-                    {tailoredProblem.domain} · {tailoredProblem.difficulty} · ~{tailoredProblem.estimatedHours} hrs
-                  </span>
-                  <span className="text-xs text-text-1 font-mono">
-                    {tailoredProblem.submissionCount} proofs stamped
-                  </span>
-                </div>
-                <h3 className="text-sm sm:text-base font-semibold text-text-0">
-                  {tailoredProblem.title}
-                </h3>
-                <p className="text-xs md:text-sm text-text-1 leading-relaxed">
-                  {tailoredProblem.tagline}
-                </p>
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {tailoredProblem.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-2 py-0.5 rounded text-[11px] font-mono bg-ink-0 text-text-1 border border-line"
-                    >
-                      {tag}
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="github-username-input"
+                  className="block text-xs font-mono uppercase tracking-wider text-text-1 font-semibold"
+                >
+                  GitHub Username or Handle:
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-1 font-mono text-xs">
+                      @
                     </span>
-                  ))}
+                    <input
+                      id="github-username-input"
+                      type="text"
+                      value={githubUsernameInput}
+                      onChange={(e) => {
+                        setGithubUsernameInput(e.target.value);
+                        setGithubVerified(false);
+                        setGithubVerificationError(null);
+                      }}
+                      placeholder="your-github-username"
+                      className="w-full pl-7 pr-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 text-xs sm:text-sm font-mono focus:border-brass outline-none"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleVerifyGitHubAccount}
+                    disabled={!githubUsernameInput.trim() || isVerifyingGithub}
+                    className="btn-brass text-xs py-2 px-4 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 font-mono w-full sm:w-auto"
+                  >
+                    {isVerifyingGithub ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Verifying...</span>
+                      </>
+                    ) : (
+                      <>
+                        <GithubIcon className="w-3.5 h-3.5" />
+                        <span>Verify &amp; Link</span>
+                      </>
+                    )}
+                  </button>
                 </div>
-              </div>
-            </div>
-
-            {/* Matched Job Opportunity */}
-            <div className="p-3.5 rounded-radius border border-line bg-card/60 flex items-center justify-between gap-3 text-xs md:text-sm">
-              <div className="space-y-0.5">
-                <span className="font-semibold text-text-0">
-                  Target Match: {tailoredJob.title} at {tailoredJob.company}
-                </span>
-                <p className="text-text-1 text-xs font-mono">
-                  Comp: {tailoredJob.salary} · Verified Proofs Bypass Resume Filters
+                <p className="text-[11px] text-text-1 leading-relaxed">
+                  We match the GitHub account against your registered email (<code>{user.email}</code>) via public profile, git commit author history, or verified alias.
                 </p>
               </div>
-              <span className="text-emerald-text font-bold font-mono shrink-0">
-                {tailoredJob.matchScore}% Match
+
+              {/* Status Banners */}
+              {githubVerificationError && (
+                <div className="p-3 rounded border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs flex items-start gap-2.5 font-mono">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <div className="font-semibold">Identity Verification Failed</div>
+                    <div className="text-[11px] mt-0.5 leading-relaxed break-words">{githubVerificationError}</div>
+                  </div>
+                </div>
+              )}
+
+              {githubVerified ? (
+                <div className="p-3 sm:p-3.5 rounded border border-emerald/30 bg-emerald-tint text-emerald-text text-xs space-y-1 font-mono">
+                  <div className="flex items-center gap-2 font-semibold text-xs sm:text-sm">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span className="truncate">Verified GitHub Identity: @{githubUsernameInput.replace(/^@/, '')}</span>
+                  </div>
+                  <div className="text-[11px] pl-6 text-emerald-text/80 space-y-0.5">
+                    <div>
+                      ✓ Proof: {githubMatchDetails?.source === 'profile' ? 'Public Profile Match' : githubMatchDetails?.source === 'commits' ? `Commit Author History (${githubMatchDetails.repo ? `repo: ${githubMatchDetails.repo}` : 'public commits'})` : 'GitHub Verified Alias'}
+                    </div>
+                    <div>✓ Matched Email: {githubMatchDetails?.email || user.email}</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-xs text-text-1 font-mono flex items-center gap-1.5 p-2 rounded bg-ink-0 border border-line">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                  <span>Verification required before entering the dashboard.</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Navigation Bar */}
+          <div className="flex items-center justify-between pt-4 border-t border-line">
+            <button
+              type="button"
+              onClick={() => setCurrentStep(2)}
+              className="btn-outline text-xs sm:text-sm py-2 px-3.5 sm:px-4 flex items-center gap-1.5 cursor-pointer text-text-1"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!isGithubOAuthUser && !githubVerified) {
+                  setGithubVerificationError(`Please verify ownership of your GitHub account matching ${user.email} before continuing.`);
+                  return;
+                }
+                setCurrentStep(4);
+              }}
+              disabled={!isGithubOAuthUser && !githubVerified}
+              className="btn-brass text-xs sm:text-sm py-2 px-4 sm:px-5 flex items-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <span>Continue to Summary</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── STEP 4: Readiness & First Challenge Preview ─────────────── */}
+      {currentStep === 4 && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Header */}
+          <div className="text-center space-y-2 py-1">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-emerald-tint border border-emerald/30 mx-auto flex items-center justify-center text-emerald-text">
+              <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            <h2 className="text-lg sm:text-2xl font-bold tracking-tight text-text-0">
+              Ready to Build, {candidateDisplayName}!
+            </h2>
+            <p className="text-xs sm:text-sm text-text-1 max-w-md mx-auto leading-relaxed">
+              Your workspace is calibrated for <strong className="text-text-0">{targetRole}</strong> in the{' '}
+              <strong className="text-text-0">{currentTrackDef.title}</strong> track.
+            </p>
+          </div>
+
+          {/* Overview Matrix */}
+          <div className="p-3.5 sm:p-4 rounded-radius border border-line bg-ink-0/30 grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 text-xs font-mono">
+            <div>
+              <span className="text-text-1 uppercase block text-[10px]">Track</span>
+              <span className="font-semibold text-text-0 truncate block mt-0.5">
+                {currentTrackDef.shortTitle}
               </span>
             </div>
+            <div>
+              <span className="text-text-1 uppercase block text-[10px]">Target Role</span>
+              <span className="font-semibold text-text-0 truncate block mt-0.5">
+                {targetRole}
+              </span>
+            </div>
+            <div>
+              <span className="text-text-1 uppercase block text-[10px]">Seniority</span>
+              <span className="font-semibold text-text-0 capitalize block mt-0.5">
+                {experienceLevel}
+              </span>
+            </div>
+            <div>
+              <span className="text-text-1 uppercase block text-[10px]">GitHub Identity</span>
+              <span className="font-semibold text-emerald-text block mt-0.5 truncate">
+                @{githubUsernameInput.replace(/^@/, '') || user.username || 'Linked'}
+              </span>
+            </div>
+          </div>
+
+          {/* Recommended Challenge Preview */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs font-mono uppercase text-text-1">
+              <span>Recommended First Challenge:</span>
+              <span className="text-brass font-bold">Priority Dispatch</span>
+            </div>
+            <div className="p-3.5 sm:p-4 rounded-radius border border-brass/30 bg-ink-0/20 space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                <span className="text-[11px] font-mono text-emerald-text uppercase font-semibold">
+                  {tailoredProblem.domain} · {tailoredProblem.difficulty} · ~{tailoredProblem.estimatedHours} hrs
+                </span>
+                <span className="text-xs text-text-1 font-mono">
+                  {tailoredProblem.submissionCount} proofs stamped
+                </span>
+              </div>
+              <h3 className="text-sm sm:text-base font-semibold text-text-0">
+                {tailoredProblem.title}
+              </h3>
+              <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
+                {tailoredProblem.tagline}
+              </p>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {tailoredProblem.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-2 py-0.5 rounded text-[11px] font-mono bg-ink-0 text-text-1 border border-line"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Matched Job Opportunity */}
+          <div className="p-3.5 rounded-radius border border-line bg-ink-0/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs sm:text-sm">
+            <div className="space-y-0.5">
+              <span className="font-semibold text-text-0 block sm:inline">
+                Target Match: {tailoredJob.title} at {tailoredJob.company}
+              </span>
+              <p className="text-text-1 text-xs font-mono">
+                Comp: {tailoredJob.salary} · Verified Proofs Bypass Resume Filters
+              </p>
+            </div>
+            <span className="text-emerald-text font-bold font-mono shrink-0">
+              {tailoredJob.matchScore}% Match
+            </span>
+          </div>
 
             {/* Action Strip */}
             <div className="pt-4 border-t border-line flex flex-col sm:flex-row items-center justify-between gap-3">
