@@ -1,9 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { INITIAL_COACHING } from '@/lib/mock-data';
+import { coachingService } from '@/services/coaching/coachingService';
+import { CoachingItinerary } from '@/types';
+import { CoachingSkeleton } from '@/components/ui/skeletons';
 import {
   ArrowRight,
   CheckCircle2,
@@ -17,12 +20,24 @@ import {
   ChevronUp,
   Code,
   Zap,
+  Check,
 } from 'lucide-react';
 
 export default function CoachingListPage() {
   const { user, submissions, jobs, getJobMatchDetails } = useAppStore();
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'fintech' | 'systems' | 'devtools'>('all');
+  const [mounted, setMounted] = useState(false);
+  const [itineraries, setItineraries] = useState<CoachingItinerary[]>(INITIAL_COACHING);
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [expandedTrackId, setExpandedTrackId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    coachingService.getItineraries().then((data) => {
+      if (data && data.length > 0) {
+        setItineraries(data);
+      }
+    }).catch(() => {});
+  }, []);
 
   const userSubmissions = submissions.filter(
     (s) => s.authorUsername.toLowerCase() === user.username.toLowerCase()
@@ -40,29 +55,47 @@ export default function CoachingListPage() {
     return null;
   })();
 
-  // Match best recommendation track
-  const recommendedTrackId = primaryJobWithGap?.gapProblem?.domain === 'devtools'
-    ? 'devtools-infrastructure'
-    : primaryJobWithGap?.gapProblem?.domain === 'fintech'
-    ? 'fintech-reliability'
-    : 'backend-fundamentals';
+  // Match best recommendation track based on user's calibrated track & job gaps
+  const recommendedTrackId = (() => {
+    if (user.engineeringTrack === 'devops-infra') return 'devtools-infrastructure';
+    if (primaryJobWithGap?.gapProblem?.domain === 'devtools') return 'devtools-infrastructure';
+    if (primaryJobWithGap?.gapProblem?.domain === 'fintech') return 'fintech-reliability';
+    return 'backend-fundamentals';
+  })();
 
   // Calculate cumulative coaching metrics
-  const totalCurriculumMilestones = INITIAL_COACHING.reduce((acc, t) => acc + t.milestones.length, 0);
-  const totalSolvedInCurriculum = INITIAL_COACHING.reduce(
+  const totalCurriculumMilestones = itineraries.reduce((acc, t) => acc + t.milestones.length, 0);
+  const totalSolvedInCurriculum = itineraries.reduce(
     (acc, t) => acc + t.milestones.filter((m) => m.ideaIdRef && solvedIdeaIds.has(m.ideaIdRef)).length,
     0
   );
-  const overallReadinessPct = Math.round((totalSolvedInCurriculum / totalCurriculumMilestones) * 100);
+  const overallReadinessPct = totalCurriculumMilestones > 0 ? Math.round((totalSolvedInCurriculum / totalCurriculumMilestones) * 100) : 0;
 
-  // Filtered tracks
-  const filteredTracks = INITIAL_COACHING.filter((track) => {
-    if (selectedFilter === 'all') return true;
-    if (selectedFilter === 'fintech') return track.id.includes('fintech') || track.id === 'backend-fundamentals';
-    if (selectedFilter === 'systems') return track.id === 'backend-fundamentals';
-    if (selectedFilter === 'devtools') return track.id.includes('devtools');
-    return true;
+  // Multi-select toggle helper
+  const toggleFilter = (id: string) => {
+    if (id === 'all') {
+      setSelectedFilters([]);
+      return;
+    }
+    setSelectedFilters((prev) =>
+      prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
+    );
+  };
+
+  // Filtered tracks with multi-selection support
+  const filteredTracks = itineraries.filter((track) => {
+    if (selectedFilters.length === 0) return true;
+    return selectedFilters.some((f) => {
+      if (f === 'fintech') return track.id.includes('fintech') || track.id === 'backend-fundamentals';
+      if (f === 'systems') return track.id === 'backend-fundamentals';
+      if (f === 'devtools') return track.id === 'devtools-infrastructure';
+      return false;
+    });
   });
+
+  if (!mounted) {
+    return <CoachingSkeleton />;
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 md:py-12 space-y-8 font-sans">
@@ -83,8 +116,16 @@ export default function CoachingListPage() {
             <span className="text-emerald-text">Milestone-Sealed</span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <span>Candidate: <strong className="text-text-0 font-medium">@{user.username}</strong></span>
+            {user.targetRole && (
+              <>
+                <span className="text-line">/</span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-tint border border-emerald-border text-emerald-text font-mono text-[11px] font-semibold">
+                  {user.targetRole}
+                </span>
+              </>
+            )}
             <span className="text-line">/</span>
             <Link href="/dashboard" className="text-emerald-text hover:underline">
               Dashboard View →
@@ -104,7 +145,7 @@ export default function CoachingListPage() {
 
           <Link
             href={`/coaching/${recommendedTrackId}`}
-            className="btn-brass text-xs md:text-sm py-2 px-4 self-start md:self-auto shrink-0 inline-flex items-center gap-1.5"
+            className="btn-brass text-xs md:text-sm py-2 px-4 w-full md:w-auto shrink-0 inline-flex items-center justify-center gap-1.5"
           >
             <Zap className="w-3.5 h-3.5" />
             <span>Resume Target Track</span>
@@ -173,22 +214,22 @@ export default function CoachingListPage() {
       {/* 3. TARGET GAP ACCELERATOR BANNER                          */}
       {/* ========================================================= */}
       {primaryJobWithGap && (
-        <section className="p-4.5 rounded-radius border border-emerald-border bg-emerald-tint/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
+        <section className="p-4 sm:p-4.5 rounded-radius border border-emerald-border bg-emerald-tint/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0">
             <div className="p-2 rounded bg-emerald/15 text-emerald-text shrink-0 mt-0.5">
               <Sparkles className="w-4 h-4" />
             </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
+            <div className="space-y-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-mono uppercase tracking-wider font-semibold text-emerald-text">
                   Direct Career Accelerator
                 </span>
-                <span className="text-xs px-2 py-0.2 rounded-full bg-emerald text-white font-mono font-bold">
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald text-white font-mono font-bold shrink-0">
                   Recommended Track
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-text-0 font-medium">
-                Enrolling in <span className="font-bold underline">{INITIAL_COACHING.find((t) => t.id === recommendedTrackId)?.title}</span> covers the missing proof required for <span className="font-bold">{primaryJobWithGap.job.company}</span>.
+              <p className="text-xs sm:text-sm text-text-0 font-medium break-words">
+                Enrolling in <span className="font-bold underline">{itineraries.find((t) => t.id === recommendedTrackId)?.title}</span> covers the missing proof required for <span className="font-bold">{primaryJobWithGap.job.company}</span>.
               </p>
               <p className="text-xs text-text-1">
                 {primaryJobWithGap.job.gapReason}
@@ -198,7 +239,7 @@ export default function CoachingListPage() {
 
           <Link
             href={`/coaching/${recommendedTrackId}`}
-            className="btn-brass text-xs py-2 px-3.5 self-start md:self-center shrink-0 inline-flex items-center gap-1.5"
+            className="btn-brass text-xs py-2.5 px-4 w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-1.5 font-medium"
           >
             <span>Open Recommended Track</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -210,31 +251,48 @@ export default function CoachingListPage() {
       {/* 4. IA WORKSPACE: DOMAIN FILTERS & TRACK DIRECTORY         */}
       {/* ========================================================= */}
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-line">
-          <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-line">
+          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 py-1">
             {[
-              { id: 'all', label: 'All Curriculums', count: INITIAL_COACHING.length },
+              { id: 'all', label: 'All Curriculums', count: itineraries.length },
               { id: 'fintech', label: 'Fintech & Payments', count: 2 },
               { id: 'systems', label: 'Distributed Systems', count: 1 },
               { id: 'devtools', label: 'DevTools & Reliability', count: 1 },
-            ].map((f) => (
-              <button
-                key={f.id}
-                onClick={() => setSelectedFilter(f.id as typeof selectedFilter)}
-                className={`px-3 py-1.5 rounded-radius font-medium transition-colors cursor-pointer text-xs ${
-                  selectedFilter === f.id
-                    ? 'bg-text-0 text-ink-0 font-semibold'
-                    : 'bg-card border border-line text-text-1 hover:text-text-0 hover:border-text-1'
-                }`}
-              >
-                <span>{f.label}</span>
-                <span className="ml-1.5 opacity-60 font-mono">({f.count})</span>
-              </button>
-            ))}
+            ].map((f) => {
+              const isSelected = f.id === 'all' ? selectedFilters.length === 0 : selectedFilters.includes(f.id);
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => toggleFilter(f.id)}
+                  className={`px-3 py-1.5 rounded-radius font-medium transition-colors cursor-pointer text-xs shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 border ${
+                    isSelected
+                      ? 'bg-text-0 text-ink-0 font-semibold border-text-0 shadow-xs'
+                      : 'bg-card border-line text-text-1 hover:text-text-0 hover:border-text-1'
+                  }`}
+                  aria-pressed={isSelected}
+                >
+                  {isSelected && f.id !== 'all' && <Check className="w-3 h-3 shrink-0" />}
+                  <span>{f.label}</span>
+                  <span className={`font-mono ${isSelected ? 'opacity-80' : 'opacity-60'}`}>
+                    ({f.count})
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          <div className="text-xs font-mono text-text-1">
-            Showing <span className="text-text-0 font-medium">{filteredTracks.length}</span> verified tracks
+          <div className="text-xs font-mono text-text-1 shrink-0 flex items-center gap-2">
+            <span>
+              Showing <span className="text-text-0 font-medium">{filteredTracks.length}</span> verified tracks
+            </span>
+            {selectedFilters.length > 0 && (
+              <button
+                onClick={() => setSelectedFilters([])}
+                className="text-emerald-text hover:underline cursor-pointer"
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
         </div>
 
@@ -288,25 +346,25 @@ export default function CoachingListPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
+                  <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-3 shrink-0 w-full sm:w-auto">
                     <button
                       onClick={() => setExpandedTrackId(isExpanded ? null : track.id)}
-                      className="btn-outline text-xs py-2 px-3 inline-flex items-center gap-1.5 cursor-pointer font-mono"
+                      className="btn-outline text-xs py-2 px-3 inline-flex items-center justify-center gap-1.5 cursor-pointer font-mono"
                     >
                       <span>{isExpanded ? 'Hide Syllabus' : 'View Syllabus'}</span>
                       {isExpanded ? (
-                        <ChevronUp className="w-3.5 h-3.5" />
+                        <ChevronUp className="w-3.5 h-3.5 shrink-0" />
                       ) : (
-                        <ChevronDown className="w-3.5 h-3.5" />
+                        <ChevronDown className="w-3.5 h-3.5 shrink-0" />
                       )}
                     </button>
 
                     <Link
                       href={`/coaching/${track.id}`}
-                      className="btn-brass text-xs py-2 px-4 inline-flex items-center gap-1.5"
+                      className="btn-brass text-xs py-2 px-4 inline-flex items-center justify-center gap-1.5 font-medium"
                     >
                       <span>{solvedMilestones > 0 ? 'Resume Track' : 'Start Track'}</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                     </Link>
                   </div>
                 </div>

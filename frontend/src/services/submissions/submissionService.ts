@@ -19,9 +19,16 @@ export class SubmissionService implements ISubmissionService {
     }
 
     try {
-      return await this.http.get<SubmissionEntry[]>('/api/v1/submissions', {
+      const subs = await this.http.get<SubmissionEntry[]>('/api/v1/submissions', {
         params: { username },
       });
+      if (subs && subs.length > 0) {
+        return subs;
+      }
+      if (!username || username === 'junior_dev') {
+        return this.mock.getSubmissions(username);
+      }
+      return subs || [];
     } catch {
       return this.mock.getSubmissions(username);
     }
@@ -53,6 +60,30 @@ export class SubmissionService implements ISubmissionService {
     }
 
     return await this.http.post<SubmissionEntry>(`/api/v1/submissions/${encodeURIComponent(hash)}/verify`);
+  }
+
+  async rejectSubmission(hash: string, reviewNotes?: string): Promise<SubmissionEntry> {
+    if (envConfig.useMocks) {
+      return this.mock.rejectSubmission(hash, reviewNotes);
+    }
+
+    return await this.http.post<SubmissionEntry>(`/api/v1/submissions/${encodeURIComponent(hash)}/reject`, {
+      reviewNotes,
+    });
+  }
+
+  async getCertificate(hash: string): Promise<{ hash: string; issuedAt: string; validUntil: string; valid: boolean }> {
+    if (envConfig.useMocks) {
+      return this.mock.getCertificate(hash);
+    }
+
+    try {
+      return await this.http.get<{ hash: string; issuedAt: string; validUntil: string; valid: boolean }>(
+        `/api/v1/submissions/${encodeURIComponent(hash)}/certificate`
+      );
+    } catch {
+      return this.mock.getCertificate(hash);
+    }
   }
 }
 

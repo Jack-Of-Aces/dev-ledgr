@@ -52,6 +52,11 @@ export function useProfile() {
         // The key is sent to the backend only; the browser just tracks whether one is stored.
         hasApiKey: input.plan === 'byok' && (Boolean(input.apiKey?.trim()) || Boolean(user.hasApiKey)),
         statedSkills: input.statedSkills,
+        engineeringTrack: input.engineeringTrack || user.engineeringTrack,
+        targetRole: input.targetRole || user.targetRole,
+        experienceLevel: input.experienceLevel || user.experienceLevel,
+        githubConnected: input.githubConnected ?? user.githubConnected,
+        githubUsername: input.githubUsername || user.githubUsername,
         updatedAt: new Date().toISOString(),
       });
 

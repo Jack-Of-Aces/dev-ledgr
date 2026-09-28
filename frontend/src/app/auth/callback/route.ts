@@ -16,74 +16,85 @@ import { authService } from '@/services/auth/authService';
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  const errorDescription = searchParams.get('error_description');
+  const next = searchParams.get('next') || '/dashboard';
 
-  // If Supabase itself returned an error in the query params, surface it
-  if (errorDescription) {
-    console.error('[AuthCallback] Supabase returned an error:', errorDescription);
-    return NextResponse.redirect(
-      `${origin}/login?error=auth_callback_failed&reason=${encodeURIComponent(errorDescription)}`
+  if (code && envConfig.hasSupabase) {
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      envConfig.supabaseUrl,
+      envConfig.supabaseAnonKey,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              );
+            } catch {
+              // The `setAll` method was called from a Server Component or route handler.
+            }
+          },
+        },
+      }
     );
-  }
 
-  if (!code) {
-    console.error('[AuthCallback] No code param received. Full URL:', request.url);
-    return NextResponse.redirect(`${origin}/login?error=auth_callback_failed&reason=no_code`);
-  }
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
-  if (!envConfig.hasSupabase) {
-    console.error('[AuthCallback] Supabase env vars not configured.');
-    return NextResponse.redirect(`${origin}/login?error=auth_callback_failed&reason=no_supabase_config`);
-  }
+    if (!error && data.session) {
+      const user = data.user;
+      const meta = user.user_metadata || {};
+      const username = meta.user_name || meta.preferred_username || user.email?.split('@')[0] || 'developer';
+      const fullName = meta.full_name || meta.name || username;
+      const avatarUrl = meta.avatar_url || meta.picture || '';
 
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    envConfig.supabaseUrl,
-    envConfig.supabaseAnonKey,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Called from a Server Component — cookies are read-only; safe to ignore.
-          }
-        },
-      },
+      // Upsert profile in Supabase profiles table
+      try {
+        await supabase.from('profiles').upsert(
+          {
+            id: user.id,
+            username,
+            name: fullName,
+            avatar_url: avatarUrl,
+            github_url: meta.user_name ? `https://github.com/${meta.user_name}` : null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id' }
+        );
+      } catch (upsertErr) {
+        console.warn('[AuthCallback] Profile upsert notice:', upsertErr);
+      }
+
+      // Fetch backend dev record for authoritative role
+      const dev = await authService.fetchDevProfile(data.session.access_token);
+      const role = dev?.role ?? 'user';
+
+      // Check if user has completed onboarding
+      const isGoogle = user.app_metadata?.provider === 'google';
+      const isOnboarded = Boolean(meta.onboarding_completed);
+      const destination = (!isOnboarded || isGoogle) ? `${origin}/onboarding` : `${origin}${next}`;
+
+      const response = NextResponse.redirect(destination);
+
+      const cookieOptions = {
+        path: '/',
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax' as const,
+        maxAge: 60 * 60 * 24 * 7,
+      };
+
+      // Set DevLedgr session cookies (both devledgr_session and devledgr_token for compatibility)
+      response.cookies.set('devledgr_session', data.session.access_token, cookieOptions);
+      response.cookies.set(AUTH_COOKIE_NAME, data.session.access_token, cookieOptions);
+      response.cookies.set(ROLE_COOKIE_NAME, role, cookieOptions);
+
+      return response;
     }
-  );
-
-  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-
-  if (error || !data.session) {
-    console.error('[AuthCallback] exchangeCodeForSession failed:', error?.message, error?.status);
-    return NextResponse.redirect(
-      `${origin}/login?error=auth_callback_failed&reason=${encodeURIComponent(error?.message || 'no_session')}`
-    );
   }
 
-  // The backend owns dev records: GET /api/auth/me creates one on first
-  // sign-in and returns the authoritative role. Without a backend (sandbox),
-  // fall back to the default 'user' role.
-  const dev = await authService.fetchDevProfile(data.session.access_token);
-
-  const response = NextResponse.redirect(`${origin}/dashboard`);
-  const cookieOptions = {
-    path: '/',
-    httpOnly: false,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax' as const,
-    maxAge: 60 * 60 * 24 * 7,
-  };
-
-  // Set DevLedgr session cookies (read by proxy.ts and the API http client)
-  response.cookies.set(AUTH_COOKIE_NAME, data.session.access_token, cookieOptions);
-  response.cookies.set(ROLE_COOKIE_NAME, dev?.role ?? 'user', cookieOptions);
-
-  return response;
+  // Fallback if code exchange fails or is missing
+  return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`);
 }

@@ -5,6 +5,9 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { useAppStore } from "@/lib/store";
+import { PortfolioSkeleton } from "@/components/ui/skeletons";
+import { portfolioService } from "@/services/portfolio/portfolioService";
+import { DevPortfolio } from "@/types";
 import {
   ShieldCheck,
   ExternalLink,
@@ -40,13 +43,28 @@ export default function PublicPortfolioPage() {
   const params = useParams();
   const slug = (params?.slug as string) || "junior_dev";
   const { user, submissions, isLoggedIn } = useAppStore();
+  const [mounted, setMounted] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [expandedDiffs, setExpandedDiffs] = useState<Record<string, boolean>>(
-    {}
-  );
+  const [expandedDiffs, setExpandedDiffs] = useState<Record<string, boolean>>({});
+  const [portfolioData, setPortfolioData] = useState<DevPortfolio | null>(null);
 
-  const isOwner = isLoggedIn && slug.toLowerCase() === user.username.toLowerCase();
+  useEffect(() => {
+    setMounted(true);
+    let active = true;
+    portfolioService.getPortfolio(slug).then((data) => {
+      if (active && data) {
+        setPortfolioData(data);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [slug]);
+
+  const isOwner =
+    portfolioData?.isOwner ??
+    (isLoggedIn && slug.toLowerCase() === user.username.toLowerCase());
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -60,19 +78,23 @@ export default function PublicPortfolioPage() {
     }
   }, [showExportModal]);
 
-  // Filter submissions by author
-  const userSubmissions = submissions.filter(
-    (s) => s.authorUsername.toLowerCase() === slug.toLowerCase()
-  );
+  // Use live ledger from backend if present, else fallback to local submissions
+  const userSubmissions =
+    portfolioData?.ledger && portfolioData.ledger.length > 0
+      ? portfolioData.ledger
+      : submissions.filter(
+          (s) => s.authorUsername.toLowerCase() === slug.toLowerCase()
+        );
 
   const displayUser =
-    slug === user.username
+    portfolioData?.dev ||
+    (slug === user.username
       ? user
       : {
           ...user,
           username: slug,
-          name: slug === "junior_dev" ? "Alex Okafor" : slug,
-        };
+          name: slug === "junior_dev" ? "Candidate Engineer" : slug,
+        });
 
   const handleShare = () => {
     if (typeof window !== "undefined") {
@@ -120,6 +142,10 @@ ${userSubmissions
     URL.revokeObjectURL(url);
   };
 
+  if (!mounted) {
+    return <PortfolioSkeleton />;
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 md:py-14 space-y-10">
       {/* 1. Developer Hero Header */}
@@ -166,13 +192,13 @@ ${userSubmissions
           </div>
 
           {/* Action Buttons Group */}
-          <div className="flex flex-wrap sm:flex-col items-stretch gap-2 shrink-0">
+          <div className="flex flex-col sm:flex-col items-stretch gap-2 shrink-0 w-full sm:w-auto">
             {displayUser.githubUrl && (
               <a
                 href={displayUser.githubUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn-outline text-xs py-1.5 px-3 flex items-center justify-center gap-2 font-mono"
+                className="btn-outline text-xs py-2 px-3 flex items-center justify-center gap-2 font-mono w-full"
               >
                 <GithubIcon className="w-3.5 h-3.5" />
                 <span>GitHub Profile</span>
@@ -180,10 +206,10 @@ ${userSubmissions
               </a>
             )}
 
-            <div className="flex items-center gap-2 w-full">
+            <div className="grid grid-cols-2 gap-2 w-full">
               <button
                 onClick={handleShare}
-                className="btn-outline min-h-[44px] text-xs py-2 px-3 flex items-center justify-center gap-1.5 font-mono flex-1 cursor-pointer"
+                className="btn-outline min-h-[44px] text-xs py-2 px-3 flex items-center justify-center gap-1.5 font-mono cursor-pointer"
               >
                 {copiedUrl ? (
                   <>
@@ -200,7 +226,7 @@ ${userSubmissions
 
               <button
                 onClick={() => setShowExportModal(true)}
-                className="btn-brass min-h-[44px] text-xs py-2 px-3 flex items-center justify-center gap-1.5 font-mono flex-1 cursor-pointer"
+                className="btn-brass min-h-[44px] text-xs py-2 px-3 flex items-center justify-center gap-1.5 font-mono cursor-pointer"
               >
                 <FileText className="w-3.5 h-3.5" />
                 <span>Export</span>
@@ -210,7 +236,7 @@ ${userSubmissions
             {isOwner && (
               <Link
                 href="/settings"
-                className="btn-outline min-h-[44px] text-xs py-2 px-3 flex items-center justify-center gap-1.5 font-mono text-text-1 hover:text-text-0"
+                className="btn-outline min-h-[44px] text-xs py-2 px-3 flex items-center justify-center gap-1.5 font-mono text-text-1 hover:text-text-0 w-full"
               >
                 <Edit3 className="w-3.5 h-3.5" />
                 <span>Edit Profile</span>
@@ -243,13 +269,13 @@ ${userSubmissions
             <span className="font-semibold text-text-0 text-xs sm:text-sm font-sans block">
               Cryptographic Ledger Certificate
             </span>
-            <div className="flex items-center gap-2 text-text-1 text-xs">
+            <div className="flex flex-wrap items-center gap-1.5 text-text-1 text-xs">
               <span>Permanent Link:</span>
               <button
                 onClick={handleShare}
-                className="text-emerald-text font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer truncate"
+                className="text-emerald-text font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer truncate max-w-[200px] sm:max-w-xs"
               >
-                <span>{slug}.devledgr.xyz</span>
+                <span className="truncate">{slug}.devledgr.xyz</span>
                 <Copy className="w-3 h-3 opacity-70 shrink-0" />
               </button>
             </div>
@@ -341,7 +367,7 @@ ${userSubmissions
 
                     <Link
                       href={`/ideas/${sub.ideaId}`}
-                      className="text-lg sm:text-xl font-semibold tracking-tight text-text-0 hover:text-emerald-text hover:underline block leading-snug"
+                      className="text-base sm:text-lg md:text-xl font-semibold tracking-tight text-text-0 hover:text-emerald-text hover:underline block leading-snug break-words"
                     >
                       {sub.ideaTitle}
                     </Link>

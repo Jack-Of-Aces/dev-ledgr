@@ -33,9 +33,29 @@ export class UserService implements IUserService {
       return this.mock.updateProfile(data);
     }
 
-    // MUTATION INTEGRITY: In live mode, mutations do NOT silently fall back to mock
-    // to avoid phantom updates.
-    return await this.http.patch<UserProfile>('/api/v1/users/me', data);
+    // Sanitize payload for backend compatibility
+    const sanitizedData: Record<string, unknown> = { ...data };
+
+    // 1. Omit avatarUrl if it's a data URI (backend requires http/https URL)
+    if (typeof sanitizedData.avatarUrl === 'string' && sanitizedData.avatarUrl.startsWith('data:')) {
+      delete sanitizedData.avatarUrl;
+    }
+
+    // 2. Omit empty string URLs (backend rejects "" for http URL fields)
+    if (sanitizedData.githubUrl === '') {
+      delete sanitizedData.githubUrl;
+    }
+    if (sanitizedData.email === '') {
+      delete sanitizedData.email;
+    }
+
+    // 3. Omit empty statedSkills
+    if (Array.isArray(sanitizedData.statedSkills) && sanitizedData.statedSkills.length === 0) {
+      delete sanitizedData.statedSkills;
+    }
+
+    // Call the backend user profile API endpoint
+    return await this.http.patch<UserProfile>('/api/v1/users/me', sanitizedData as UserProfileUpdateInput);
   }
 
   async checkUsernameAvailable(username: string): Promise<boolean> {

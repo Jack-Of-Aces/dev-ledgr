@@ -2,13 +2,18 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { IdeaItem, SubmissionEntry, JobOpportunity, UserProfile } from '@/types';
+import { IdeaItem, SubmissionEntry, JobOpportunity, UserProfile, EngineeringTrack, ExperienceLevel } from '@/types';
 import { INITIAL_IDEAS, INITIAL_SUBMISSIONS, INITIAL_JOBS, DEFAULT_USER } from './mock-data';
+import { setAuthCookies, clearAuthCookies } from './cookies';
 
 interface AppState {
   theme: 'light' | 'dark';
   setTheme: (theme: 'light' | 'dark') => void;
   toggleTheme: () => void;
+
+  isHydrated: boolean;
+  setHydrated: (isHydrated: boolean) => void;
+  refreshData: () => void;
 
   user: UserProfile;
   setUser: (user: Partial<UserProfile>) => void;
@@ -25,7 +30,13 @@ interface AppState {
     name: string;
     headline?: string;
     skills: string[];
+    engineeringTrack?: EngineeringTrack;
+    targetRole?: string;
+    experienceLevel?: ExperienceLevel;
+    githubConnected?: boolean;
+    githubUsername?: string;
   }) => void;
+  connectGitHubAccount: (githubUsername: string) => void;
 
   ideas: IdeaItem[];
   submissions: SubmissionEntry[];
@@ -43,6 +54,9 @@ interface AppState {
   verifySubmission: (hash: string) => void;
   getSubmissionByHash: (hash: string) => SubmissionEntry | undefined;
   getUserSubmissions: (username: string) => SubmissionEntry[];
+  setJobs: (jobs: JobOpportunity[]) => void;
+  setIdeas: (ideas: IdeaItem[]) => void;
+  setSubmissions: (submissions: SubmissionEntry[]) => void;
 
   // Dynamic Job Matcher
   getJobMatchDetails: (job: JobOpportunity) => {
@@ -50,6 +64,9 @@ interface AppState {
     hasGap: boolean;
     solvedProofTitles: string[];
     gapProblem?: IdeaItem;
+    matchedSkills?: string[];
+    missingSkills?: string[];
+    gapSkill?: string;
   };
 
   // CV generation cache
@@ -75,6 +92,32 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       theme: 'dark',
+      isHydrated: false,
+      setHydrated: (isHydrated) => set({ isHydrated }),
+      refreshData: () => {
+        set((state) => {
+          // Merge newly added ideas without losing custom-created ones
+          const existingIdeaIds = new Set(state.ideas.map((i) => i.id));
+          const freshIdeas = INITIAL_IDEAS.filter((i) => !existingIdeaIds.has(i.id));
+          const updatedIdeas = state.ideas.map((idea) => {
+            const canonical = INITIAL_IDEAS.find((i) => i.id === idea.id);
+            return canonical ? { ...canonical, submissionCount: Math.max(canonical.submissionCount, idea.submissionCount) } : idea;
+          });
+
+          // Merge fresh submissions (only if there are no persisted user submissions)
+          const existingHashes = new Set(state.submissions.map((s) => s.hash.toLowerCase()));
+          const freshSubs = INITIAL_SUBMISSIONS.filter((s) => !existingHashes.has(s.hash.toLowerCase()));
+
+          // Only seed mock submissions when state is completely empty (first launch)
+          const seedSubmissions = state.submissions.length === 0 ? freshSubs : [];
+
+          return {
+            ideas: [...updatedIdeas, ...freshIdeas],
+            submissions: [...seedSubmissions, ...state.submissions],
+            // Do not reset jobs here — live jobs are fetched and set by individual pages via setJobs
+          };
+        });
+      },
       setTheme: (theme) => {
         if (typeof document !== 'undefined') {
           document.documentElement.setAttribute('data-theme', theme);
@@ -103,7 +146,8 @@ export const useAppStore = create<AppState>()(
       setUser: (updates) => set((state) => ({ user: { ...state.user, ...updates } })),
       isLoggedIn: false,
 
-      loginAsGitHub: (username = 'junior_dev', name = 'Alex Okafor') => {
+      loginAsGitHub: (username = 'developer', name = 'Candidate Engineer') => {
+        setAuthCookies(`mock_token_${username}`, 'user');
         set({
           isLoggedIn: true,
           user: {
@@ -119,6 +163,7 @@ export const useAppStore = create<AppState>()(
       },
 
       logout: () => {
+        clearAuthCookies();
         set({
           isLoggedIn: false,
           activeToast: {
@@ -132,7 +177,18 @@ export const useAppStore = create<AppState>()(
       openAuthModal: () => set({ isAuthModalOpen: true }),
       closeAuthModal: () => set({ isAuthModalOpen: false }),
 
-      completeOnboarding: ({ username, name, headline, skills }) => {
+      completeOnboarding: ({
+        username,
+        name,
+        headline,
+        skills,
+        engineeringTrack,
+        targetRole,
+        experienceLevel,
+        githubConnected,
+        githubUsername,
+      }) => {
+        setAuthCookies('devledgr_onboarded_session', 'user');
         set((state) => ({
           isLoggedIn: true,
           isAuthModalOpen: false,
@@ -142,10 +198,34 @@ export const useAppStore = create<AppState>()(
             name,
             headline: headline || state.user.headline,
             statedSkills: skills.length > 0 ? skills : state.user.statedSkills,
+            engineeringTrack: engineeringTrack || state.user.engineeringTrack || 'backend-systems',
+            targetRole: targetRole || state.user.targetRole || 'Backend Engineer',
+            experienceLevel: experienceLevel || state.user.experienceLevel || 'junior',
+            onboardingCompleted: true,
+            githubConnected: githubConnected ?? state.user.githubConnected ?? Boolean(githubUsername),
+            githubUsername: githubUsername || state.user.githubUsername || (state.user.authProvider === 'github' ? username : undefined),
+            githubVerifiedAt: (githubConnected || githubUsername) ? new Date().toISOString() : state.user.githubVerifiedAt,
           },
           activeToast: {
             title: 'Onboarding Complete',
-            message: `Profile initialized! Matched roles and problems have been re-indexed for your stack.`,
+            message: `Profile initialized! Matched roles and problems have been personalized for ${targetRole || 'your track'}.`,
+          },
+        }));
+      },
+
+      connectGitHubAccount: (githubUsername: string) => {
+        const cleanUsername = githubUsername.replace(/^@/, '').trim();
+        set((state) => ({
+          user: {
+            ...state.user,
+            githubConnected: true,
+            githubUsername: cleanUsername,
+            githubUrl: `https://github.com/${cleanUsername}`,
+            githubVerifiedAt: new Date().toISOString(),
+          },
+          activeToast: {
+            title: 'GitHub Connected & Verified',
+            message: `Linked @${cleanUsername}. You can now record cryptographic proof-of-work and submit solutions.`,
           },
         }));
       },
@@ -224,31 +304,133 @@ export const useAppStore = create<AppState>()(
         );
       },
 
+      setJobs: (jobs) => set({ jobs }),
+      setIdeas: (ideas) => set({ ideas }),
+      setSubmissions: (submissions) => set({ submissions }),
+
       getJobMatchDetails: (job) => {
-        const userSubs = get().getUserSubmissions(get().user.username);
-        const solvedIdeaIds = new Set(userSubs.map((s) => s.ideaId));
+        const { user, submissions, ideas } = get();
+        const userSubs = submissions.filter(
+          (s) => s.authorUsername.toLowerCase() === user.username.toLowerCase()
+        );
 
-        // Check if user solved matched ideas
-        const solvedMatched = job.matchedIdeaIds.filter((id) => solvedIdeaIds.has(id));
-        const hasSolvedGap = job.gapIdeaId ? solvedIdeaIds.has(job.gapIdeaId) : true;
+        // 1. If backend already computed match telemetry
+        if (job.match && typeof job.match.score === 'number') {
+          const gapProblem = job.gapIdeaId
+            ? ideas.find((i) => i.id === job.gapIdeaId)
+            : undefined;
+          return {
+            score: job.match.score,
+            hasGap: job.match.score < 80 || (job.match.missingSkills && job.match.missingSkills.length > 0),
+            solvedProofTitles: userSubs.map((s) => s.ideaTitle),
+            gapProblem,
+            matchedSkills: job.match.matchedSkills,
+            missingSkills: job.match.missingSkills,
+            gapSkill: job.match.missingSkills?.[0],
+          };
+        }
 
-        const gapProblem = job.gapIdeaId
-          ? get().ideas.find((i) => i.id === job.gapIdeaId)
-          : undefined;
+        // 2. Normalization map
+        const normalize = (skill: string) => {
+          const s = skill.toLowerCase().trim();
+          if (s === 'golang' || s === 'go') return 'go';
+          if (s === 'postgres' || s === 'postgresql' || s === 'sql databases' || s === 'sql') return 'postgres';
+          if (s === 'js' || s === 'javascript') return 'javascript';
+          if (s === 'ts' || s === 'typescript') return 'typescript';
+          if (s === 'react' || s === 'react.js' || s === 'reactjs') return 'react';
+          if (s === 'node' || s === 'node.js' || s === 'nodejs') return 'node';
+          if (s === 'py' || s === 'python') return 'python';
+          if (s === 'k8s' || s === 'kubernetes') return 'kubernetes';
+          if (s === 'aws' || s === 'amazon web services') return 'aws';
+          if (s.includes('rest') || s.includes('api development') || s === 'apis') return 'api';
+          if (s.includes('docker') || s.includes('container')) return 'docker';
+          if (s.includes('kafka') || s.includes('rabbitmq')) return 'kafka';
+          if (s.includes('redis') || s.includes('caching')) return 'redis';
+          if (s.includes('git')) return 'git';
+          if (s.includes('linux')) return 'linux';
+          return s;
+        };
 
-        let score = 50;
-        if (solvedMatched.length > 0) score += 30;
-        if (hasSolvedGap) score += 18;
+        // 3. User's known skills: Stated skills + Proven skills from submissions
+        const statedSkills = (user.statedSkills || ['Go', 'TypeScript', 'PostgreSQL']).map(normalize);
+        const provenSkills: string[] = [];
+        userSubs.forEach((sub) => {
+          const problem = ideas.find((i) => i.id === sub.ideaId);
+          if (problem?.tags) {
+            provenSkills.push(...problem.tags.map(normalize));
+          }
+        });
+        const userSkillSet = new Set([...statedSkills, ...provenSkills]);
 
-        const hasGap = !hasSolvedGap && job.matchScore < 80;
+        // 4. Job required skills: requiredSkills + tags
+        const rawJobSkills = [
+          ...(job.requiredSkills || []),
+          ...(job.tags || []),
+        ];
+        const uniqueJobSkills = Array.from(new Set(rawJobSkills.filter(Boolean)));
+        
+        const matchedSkills: string[] = [];
+        const missingSkills: string[] = [];
+
+        uniqueJobSkills.forEach((skill) => {
+          const norm = normalize(skill);
+          if (
+            userSkillSet.has(norm) ||
+            Array.from(userSkillSet).some(
+              (us) => norm === us || norm.includes(us) || us.includes(norm)
+            )
+          ) {
+            matchedSkills.push(skill);
+          } else {
+            missingSkills.push(skill);
+          }
+        });
+
+        // 5. Calculate percentage score
+        const totalSkills = Math.max(uniqueJobSkills.length, 1);
+        let score = Math.round((matchedSkills.length / totalSkills) * 100);
+
+        // Track and role synergy bonus
+        const userTrack = user.engineeringTrack?.toLowerCase() || '';
+        const userRole = user.targetRole?.toLowerCase() || '';
+        const jobTitle = job.title.toLowerCase();
+        const jobDesc = job.description?.toLowerCase() || '';
+
+        if (userTrack && (jobTitle.includes('backend') || jobDesc.includes('backend'))) {
+          score += 15;
+        }
+        if (userRole && (jobTitle.includes(userRole) || jobDesc.includes(userRole))) {
+          score += 15;
+        }
+
+        // Proven ledger proofs boost
+        if (userSubs.length > 0) {
+          score += Math.min(userSubs.length * 8, 25);
+        }
+
+        // Clamp between 20% and 98%
+        score = Math.min(Math.max(score, matchedSkills.length > 0 ? 45 : 20), 98);
+        const hasGap = score < 80 || missingSkills.length > 0;
+
+        // Find best gap-closing problem in Idea Bank
+        let gapProblem = job.gapIdeaId ? ideas.find((i) => i.id === job.gapIdeaId) : undefined;
+        if (!gapProblem && missingSkills.length > 0) {
+          const firstMissing = normalize(missingSkills[0]);
+          gapProblem = ideas.find((idea) =>
+            idea.tags.some((t) => normalize(t) === firstMissing || normalize(t).includes(firstMissing))
+          ) || ideas[0];
+        }
 
         return {
-          score: hasGap ? Math.min(score, 72) : Math.max(score, 94),
+          score,
           hasGap,
           solvedProofTitles: userSubs
-            .filter((s) => job.matchedIdeaIds.includes(s.ideaId) || s.ideaId === job.gapIdeaId)
+            .filter((s) => (job.matchedIdeaIds || []).includes(s.ideaId) || s.ideaId === job.gapIdeaId)
             .map((s) => s.ideaTitle),
           gapProblem,
+          matchedSkills,
+          missingSkills,
+          gapSkill: missingSkills[0] || (hasGap ? 'Production Resilience' : undefined),
         };
       },
 
@@ -267,10 +449,14 @@ export const useAppStore = create<AppState>()(
       clearToast: () => set({ activeToast: null }),
     }),
     {
-      name: 'devledgr_storage_v1',
+      name: 'devledgr_storage_v2',
+      onRehydrateStorage: () => (state) => {
+        state?.setHydrated(true);
+        state?.refreshData();
+      },
+
       // v1: BYOK API keys are no longer kept in the browser. Strip any key an
       // earlier version persisted to localStorage.
-      version: 1,
       migrate: (persisted) => {
         const state = persisted as { user?: Record<string, unknown> } | undefined;
         if (state?.user) {

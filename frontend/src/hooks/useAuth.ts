@@ -26,9 +26,20 @@ export function useAuth() {
         return session;
       }
 
-      const uname = username || session.username || 'junior_dev';
-      const rname = name || session.name || 'Alex Okafor';
-      const profile = session.role === 'admin' ? ADMIN_USER : { ...DEFAULT_USER, username: uname, name: rname };
+      const uname = username || session.username || 'developer';
+      const rname = name || session.name || uname || 'Developer';
+      const isNewUser = uname !== 'junior_dev' && uname !== 'lead_auditor';
+      const profile = session.role === 'admin' ? ADMIN_USER : {
+        ...DEFAULT_USER,
+        username: uname,
+        name: rname,
+        authProvider: 'github' as const,
+        githubConnected: true,
+        githubUsername: uname,
+        githubUrl: `https://github.com/${uname}`,
+        githubVerifiedAt: new Date().toISOString(),
+        onboardingCompleted: !isNewUser,
+      };
 
       useAppStore.setState({
         isLoggedIn: true,
@@ -54,19 +65,37 @@ export function useAuth() {
 
       const uname = email?.split('@')[0] || session.username || 'developer';
       const rname = name || session.name || 'Developer';
-      const profile = { ...DEFAULT_USER, username: uname, name: rname };
+      const profile = {
+        ...DEFAULT_USER,
+        username: uname,
+        name: rname,
+        email: email || `${uname}@gmail.com`,
+        authProvider: 'google' as const,
+        githubConnected: false,
+        githubUsername: undefined,
+        githubUrl: '',
+        onboardingCompleted: false,
+      };
 
       useAppStore.setState({
         isLoggedIn: true,
         user: profile,
         activeToast: {
-          title: `Authenticated via Google: @${profile.username}`,
-          message: `Connected to DevLedgr consensus network.`,
+          title: `Signed In via Google: ${rname}`,
+          message: `Welcome to DevLedgr! Link your GitHub account to enable proof stamping.`,
         },
       });
 
       setAuthCookies(session.token, session.role);
       return session;
+    },
+    []
+  );
+
+  const connectGitHub = useCallback(
+    async (githubUsername: string) => {
+      const clean = githubUsername.replace(/^@/, '').trim();
+      useAppStore.getState().connectGitHubAccount(clean);
     },
     []
   );
@@ -120,6 +149,7 @@ export function useAuth() {
     isAdmin: user.role === 'admin' || user.role === 'reviewer',
     loginWithGitHub,
     loginWithGoogle,
+    connectGitHub,
     logout,
     switchRole,
     can,

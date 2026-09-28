@@ -61,7 +61,7 @@ export interface JobOpportunity {
   title: string;
   company: string;
   location: string;
-  type: 'Full-time' | 'Contract' | 'Remote';
+  type: string;
   salary: string;
   tags: string[];
   matchScore: number;
@@ -70,6 +70,17 @@ export interface JobOpportunity {
   description: string;
   gapIdeaId?: string; // If not ready, target problem to route user back to
   gapReason?: string;
+  level?: string;
+  applyUrl?: string;
+  sourceUrl?: string;
+  scrapedAt?: string;
+  adminApproved?: boolean;
+  isActive?: boolean;
+  match?: {
+    score: number;
+    matchedSkills: string[];
+    missingSkills: string[];
+  };
 }
 
 export interface CoachingItinerary {
@@ -87,10 +98,37 @@ export interface CoachingItinerary {
   }[];
 }
 
+export type EngineeringTrack =
+  | 'devops-infra'
+  | 'backend-systems'
+  | 'frontend-ui'
+  | 'fullstack'
+  | 'product-design'
+  | 'ai-ml'
+  | 'mobile';
+
+export type ExperienceLevel = 'junior' | 'mid' | 'senior' | 'lead';
+export type AuthProvider = 'github' | 'google' | 'mock';
+
+export interface TrackDefinition {
+  id: EngineeringTrack;
+  title: string;
+  shortTitle: string;
+  tagline: string;
+  description: string;
+  targetRoles: string[];
+  defaultSkills: string[];
+  recommendedIdeaIds: string[];
+  inferredKeywords: string[];
+}
+
 import { UserRole } from './auth';
 
 export * from './auth';
 export * from './api';
+export * from './launchpad';
+export * from './jobs';
+export * from './portfolio';
 
 export interface UserProfile {
   username: string;
@@ -107,5 +145,15 @@ export interface UserProfile {
   role: UserRole;
   email?: string;
   updatedAt?: string;
+
+  // Personalized Onboarding & Role Tracking
+  engineeringTrack?: EngineeringTrack;
+  targetRole?: string;
+  experienceLevel?: ExperienceLevel;
+  onboardingCompleted?: boolean;
+  githubConnected?: boolean;
+  githubUsername?: string;
+  authProvider?: AuthProvider;
+  githubVerifiedAt?: string;
 }
 

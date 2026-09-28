@@ -80,16 +80,16 @@ export default function PrivacyPolicyPage() {
         </p>
 
         {/* Quick Nav Pill between Terms and Privacy */}
-        <div className="flex items-center gap-3 pt-2 text-xs font-mono">
-          <span className="text-text-1">Document Switcher:</span>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-2 text-xs font-mono">
+          <span className="text-text-1 shrink-0">Document Switcher:</span>
           <Link
             href="/terms"
-            className="px-3 py-1 rounded-radius bg-card/60 border border-line text-text-1 hover:text-text-0 hover:border-text-1 transition-colors flex items-center gap-1"
+            className="px-3 py-1.5 rounded-radius bg-card/60 border border-line text-text-1 hover:text-text-0 hover:border-text-1 transition-colors inline-flex items-center gap-1"
           >
             <span>Terms of Service</span>
             <ArrowRight className="w-3 h-3" />
           </Link>
-          <span className="px-3 py-1 rounded-radius bg-card border border-emerald/50 text-emerald-text font-semibold">
+          <span className="px-3 py-1.5 rounded-radius bg-card border border-emerald/50 text-emerald-text font-semibold">
             Privacy Policy (Active)
           </span>
         </div>

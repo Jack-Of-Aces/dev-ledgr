@@ -8,7 +8,9 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function proxy(req: NextRequest) {
-  const sessionToken = req.cookies.get("devledgr_session")?.value;
+  const sessionToken =
+    req.cookies.get("devledgr_session")?.value ||
+    req.cookies.get("devledgr_token")?.value;
   const role = req.cookies.get("devledgr_role")?.value;
   const { pathname } = req.nextUrl;
 

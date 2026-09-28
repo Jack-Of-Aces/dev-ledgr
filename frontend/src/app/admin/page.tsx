@@ -7,13 +7,21 @@ import { IdeaItem, Domain, Difficulty } from "@/types";
 import { ShieldCheck, Plus, ExternalLink, X } from "lucide-react";
 import Link from "next/link";
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import { AdminSkeleton } from "@/components/ui/skeletons";
+import { submissionService } from "@/services/submissions/submissionService";
+import { defaultHttpClient } from "@/services/api/httpClient";
 
 export default function AdminPage() {
   const { submissions, ideas, addIdea, verifySubmission } = useAppStore();
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<"submissions" | "ideas">(
     "submissions"
   );
   const [seedModalOpen, setSeedModalOpen] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Close on Escape key press
   useEffect(() => {
@@ -85,6 +93,12 @@ export default function AdminPage() {
 
     addIdea(newIdea);
     setSeedModalOpen(false);
+
+    // Sync seed problem to backend API (POST /api/v1/ideas)
+    defaultHttpClient.post('/api/v1/ideas', newIdea).catch((err) => {
+      console.warn('Backend idea seed sync note:', err);
+    });
+
     // Reset fields
     setTitle("");
     setTagline("");
@@ -94,6 +108,23 @@ export default function AdminPage() {
     setEstimatedHours(12);
     setTags("Go, Redis, Distributed");
   };
+
+  const handleVerify = async (hash: string) => {
+    verifySubmission(hash);
+    try {
+      await submissionService.verifySubmission(hash);
+    } catch (err) {
+      console.warn('Backend verify submission note:', err);
+    }
+  };
+
+  if (!mounted) {
+    return (
+      <AuthGuard allowedRoles={['admin', 'reviewer']}>
+        <AdminSkeleton />
+      </AuthGuard>
+    );
+  }
 
   return (
     <AuthGuard allowedRoles={['admin', 'reviewer']}>
@@ -157,11 +188,15 @@ export default function AdminPage() {
                   </div>
                   <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
                     <button
-                      onClick={() => verifySubmission(sub.hash)}
-                      className="text-green-700 dark:text-green-400 font-medium flex items-center gap-1 cursor-pointer hover:underline"
+                      onClick={() => handleVerify(sub.hash)}
+                      className={`font-medium flex items-center gap-1 cursor-pointer hover:underline ${
+                        sub.status === 'verified'
+                          ? 'text-green-700 dark:text-green-400'
+                          : 'text-amber-600 dark:text-amber-400'
+                      }`}
                     >
                       <ShieldCheck className="w-3.5 h-3.5" />
-                      <span>Stamped</span>
+                      <span>{sub.status === 'verified' ? 'Audited & Stamped' : 'Stamp Verification'}</span>
                     </button>
                     <a
                       href={sub.repoUrl}

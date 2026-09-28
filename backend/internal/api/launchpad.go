@@ -15,15 +15,29 @@ import (
 // problems are not hoarded.
 const maxActiveClaims = 3
 
-// GET /api/launchpad/problems?status=&domain=&difficulty=&search=
 func (s *Server) listProblems(w http.ResponseWriter, r *http.Request) error {
-	status := r.URL.Query().Get("status")
-	if status != "" && !slices.Contains(model.ProblemStatuses, status) {
-		v := validationErrors{}
-		v.add("status", "Status must be one of "+strings.Join(model.ProblemStatuses, ", "))
-		return v.err()
-	}
-	return s.listIdeasWith(w, r, status)
+    status := r.URL.Query().Get("status")
+    if status != "" && !slices.Contains(model.ProblemStatuses, status) {
+        v := validationErrors{}
+        v.add("status", "Status must be one of "+strings.Join(model.ProblemStatuses, ", "))
+        return v.err()
+    }
+    // Build filters directly; do not enforce approved flag for launchpad
+    f := store.IdeaFilters{Domain: r.URL.Query().Get("domain"), Difficulty: r.URL.Query().Get("difficulty"), Search: r.URL.Query().Get("search"), Status: status}
+    // Validate length constraints similar to catalog version
+    v := validationErrors{}
+    if len(f.Search) > 100 || len(f.Domain) > 40 || len(f.Difficulty) > 40 {
+        v.add("search", "search must be under 100 characters; domain and difficulty under 40")
+    }
+    if err := v.err(); err != nil {
+        return err
+    }
+    ideas, err := s.store.ListIdeas(r.Context(), f)
+    if err != nil {
+        return err
+    }
+    writeJSON(w, http.StatusOK, ideas)
+    return nil
 }
 
 // GET /api/launchpad/problems/{id}

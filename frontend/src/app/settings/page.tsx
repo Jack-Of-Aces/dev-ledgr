@@ -1,10 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useProfile } from '@/hooks/useProfile';
+import { useAppStore } from '@/lib/store';
 import { AuthGuard } from '@/components/auth/AuthGuard';
+import { SettingsSkeleton } from '@/components/ui/skeletons';
+import { getAllTracks, getTrackById } from '@/lib/tracks';
+import { EngineeringTrack, ExperienceLevel } from '@/types';
+import { uploadImageToCloudinary } from '@/lib/upload';
 import {
   Key,
   User,
@@ -26,6 +31,8 @@ import {
   Copy,
   RotateCcw,
   AlertCircle,
+  Upload,
+  Trash2,
 } from 'lucide-react';
 
 type SettingsTab = 'profile' | 'skills' | 'compute' | 'consensus';
@@ -53,6 +60,11 @@ export default function SettingsPage() {
   const { user, isSaving, errors, updateProfile } = useProfile();
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Form states initialized from user profile
   const [name, setName] = useState(user.name);
@@ -65,6 +77,34 @@ export default function SettingsPage() {
   // Only holds a newly typed key; the stored key never comes back to the browser.
   const [apiKey, setApiKey] = useState('');
   const [statedSkills, setStatedSkills] = useState<string[]>(user.statedSkills || []);
+  const [engineeringTrack, setEngineeringTrack] = useState<EngineeringTrack>(
+    user.engineeringTrack || 'backend-systems'
+  );
+  const [targetRole, setTargetRole] = useState(user.targetRole || 'Backend Engineer');
+  const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel>(
+    user.experienceLevel || 'junior'
+  );
+  const [githubUsernameInput, setGithubUsernameInput] = useState(
+    user.githubUsername || (user.githubUrl ? user.githubUrl.split('/').pop() || '' : '')
+  );
+
+  // Sync form states whenever user profile in store updates (e.g. on auth or rehydration)
+  useEffect(() => {
+    setName(user.name);
+    setHeadline(user.headline);
+    setBio(user.bio);
+    setAvatarUrl(user.avatarUrl || '');
+    setGithubUrl(user.githubUrl || '');
+    setEmail(user.email || '');
+    setPlan(user.plan);
+    // Note: apiKey is write-only; the stored key is never returned to the browser.
+
+    setStatedSkills(user.statedSkills || []);
+    setEngineeringTrack(user.engineeringTrack || 'backend-systems');
+    setTargetRole(user.targetRole || 'Backend Engineer');
+    setExperienceLevel(user.experienceLevel || 'junior');
+    setGithubUsernameInput(user.githubUsername || (user.githubUrl ? user.githubUrl.split('/').pop() || '' : ''));
+  }, [user]);
 
   // The store first holds a placeholder profile; the real one arrives from the
   // backend after the first render. Reload the form whenever a different
@@ -93,6 +133,52 @@ export default function SettingsPage() {
   const [showMobilePreview, setShowMobilePreview] = useState(false);
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
   const [testFeedback, setTestFeedback] = useState('');
+  const [uploadError, setUploadError] = useState('');
+  const [isVerifyingGithub, setIsVerifyingGithub] = useState(false);
+  const [githubVerificationError, setGithubVerificationError] = useState<string | null>(null);
+  const [githubVerificationSuccess, setGithubVerificationSuccess] = useState<string | null>(null);
+
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  // Handle file upload (uploads directly to Cloudinary and obtains persistent HTTPS CDN URL)
+  const handleAvatarFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUploadError('');
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Please select a valid image file (PNG, JPG, WEBP, SVG).');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('Image size exceeds 5MB limit. Please choose a smaller image.');
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      const liveCdnUrl = await uploadImageToCloudinary(file);
+      setAvatarUrl(liveCdnUrl);
+    } catch (err: unknown) {
+      // Graceful fallback to local FileReader preview
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        if (result) {
+          setAvatarUrl(result);
+        }
+      };
+      reader.readAsDataURL(file);
+      setUploadError(
+        err instanceof Error
+          ? `${err.message} (Using local preview fallback)`
+          : 'Failed to upload to Cloudinary. Using local preview fallback.'
+      );
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
 
   // Escape key closes mobile preview bottom drawer
   React.useEffect(() => {
@@ -203,20 +289,82 @@ export default function SettingsPage() {
     setTimeout(() => setCopiedCert(false), 2000);
   };
 
+  const handleVerifyAndLinkGitHub = async () => {
+    const clean = githubUsernameInput.replace(/^@/, '').trim();
+    if (!clean) return;
+
+    setIsVerifyingGithub(true);
+    setGithubVerificationError(null);
+    setGithubVerificationSuccess(null);
+
+    const userEmail = user.email || email.trim() || '';
+    if (!userEmail) {
+      setIsVerifyingGithub(false);
+      setGithubVerificationError('Registered account email is required to verify ownership.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/github/verify-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: clean, userEmail }),
+      });
+      const data = await res.json();
+      if (res.ok && data.matched) {
+        useAppStore.getState().connectGitHubAccount(clean);
+        setGithubVerificationSuccess(
+          `Verified & linked @${clean} (matched via ${
+            data.matchSource === 'profile'
+              ? 'public profile email'
+              : data.matchSource === 'commits'
+              ? `commit author proof in ${data.repoProof || 'repo'}`
+              : 'verified alias'
+          }).`
+        );
+      } else {
+        setGithubVerificationError(
+          data.error ||
+            `Email mismatch: @${clean} is not associated with your registered email (${userEmail}). You can only link a GitHub account that belongs to you.`
+        );
+      }
+    } catch {
+      setGithubVerificationError('Failed to contact verification server. Please verify your connection.');
+    } finally {
+      setIsVerifyingGithub(false);
+    }
+  };
+
   const handleSave = async (e?: React.FormEvent | React.MouseEvent) => {
     if (e) e.preventDefault();
     setSavedSuccess(false);
+
+    const cleanGithub = githubUsernameInput.replace(/^@/, '').trim();
+    const isGithubOAuth = user.authProvider === 'github';
+    const isCurrentVerified = cleanGithub && cleanGithub === user.githubUsername;
+
+    // Only update GitHub username/connection if verified or already authenticated via OAuth
+    const finalGithubUsername =
+      isGithubOAuth || isCurrentVerified || githubVerificationSuccess
+        ? cleanGithub || user.githubUsername
+        : user.githubUsername;
+    const finalGithubConnected = Boolean(finalGithubUsername);
 
     const result = await updateProfile({
       name,
       headline,
       bio,
       avatarUrl: avatarUrl.trim() || undefined,
-      githubUrl: githubUrl.trim() || undefined,
+      githubUrl: finalGithubUsername ? `https://github.com/${finalGithubUsername}` : (githubUrl.trim() || undefined),
       email: email.trim() || undefined,
       plan,
       apiKey: apiKey.trim() || undefined,
       statedSkills,
+      engineeringTrack,
+      targetRole,
+      experienceLevel,
+      githubConnected: finalGithubConnected,
+      githubUsername: finalGithubUsername || undefined,
     });
 
     if (result.success) {
@@ -224,6 +372,14 @@ export default function SettingsPage() {
       setTimeout(() => setSavedSuccess(false), 2500);
     }
   };
+
+  if (!mounted) {
+    return (
+      <AuthGuard fallbackMessage="Please sign in to access your ledger identity and compute settings.">
+        <SettingsSkeleton />
+      </AuthGuard>
+    );
+  }
 
   return (
     <AuthGuard fallbackMessage="Please sign in to access your ledger identity and compute settings.">
@@ -478,7 +634,7 @@ export default function SettingsPage() {
                           onChange={(e) => setName(e.target.value)}
                           aria-invalid={!!errors.name}
                           aria-describedby={errors.name ? 'settings-name-error' : undefined}
-                          placeholder="e.g. Alex Okafor"
+                          placeholder="e.g. Jane Doe"
                           className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald outline-none text-xs sm:text-sm font-sans"
                         />
                         {errors.name && (
@@ -571,49 +727,219 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
+                  {/* Engineering Track & Role Calibration */}
+                  <div className="p-5 sm:p-6 rounded-radius border border-line bg-card space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-line">
+                      <div className="space-y-0.5">
+                        <h3 className="text-sm font-semibold text-text-0">
+                          Engineering Track &amp; Role Calibration
+                        </h3>
+                        <p className="text-xs text-text-1">
+                          Tailors your matched problem feed, automated test harnesses, and company opportunities.
+                        </p>
+                      </div>
+                      <Link
+                        href="/onboarding"
+                        className="text-xs font-mono text-brass hover:underline shrink-0"
+                      >
+                        Open Calibration Wizard →
+                      </Link>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* Track Grid */}
+                      <div>
+                        <label className="block text-xs font-mono text-text-1 font-semibold mb-2">
+                          PRIMARY ENGINEERING TRACK
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {getAllTracks().map((track) => {
+                            const isSelected = engineeringTrack === track.id;
+                            return (
+                              <button
+                                key={track.id}
+                                type="button"
+                                onClick={() => {
+                                  setEngineeringTrack(track.id);
+                                  setTargetRole(track.targetRoles[0]);
+                                }}
+                                className={`text-left p-3 rounded-radius border text-xs font-mono transition-colors cursor-pointer flex items-center justify-between ${
+                                  isSelected
+                                    ? 'border-brass bg-ink-1 text-text-0 font-medium'
+                                    : 'border-line bg-ink-0 text-text-1 hover:border-text-1'
+                                }`}
+                              >
+                                <div>
+                                  <div className="font-semibold text-text-0">{track.title}</div>
+                                  <div className="text-[11px] text-text-1 mt-0.5">{track.shortTitle}</div>
+                                </div>
+                                {isSelected && <Check className="w-4 h-4 text-brass shrink-0" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Target Role Chips */}
+                      <div>
+                        <label className="block text-xs font-mono text-text-1 font-semibold mb-1.5">
+                          TARGET ROLE DESIGNATION
+                        </label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {getTrackById(engineeringTrack).targetRoles.map((role) => (
+                            <button
+                              key={role}
+                              type="button"
+                              onClick={() => setTargetRole(role)}
+                              className={`px-3 py-1.5 rounded-radius text-xs font-mono cursor-pointer transition-colors ${
+                                targetRole === role
+                                  ? 'bg-text-0 text-ink-0 font-semibold'
+                                  : 'bg-ink-0 border border-line text-text-1 hover:text-text-0'
+                              }`}
+                            >
+                              {role}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Career Stage */}
+                      <div>
+                        <label className="block text-xs font-mono text-text-1 font-semibold mb-1.5">
+                          CAREER SENIORITY LEVEL
+                        </label>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {[
+                            { level: 'junior' as ExperienceLevel, label: 'Junior / Entry' },
+                            { level: 'mid' as ExperienceLevel, label: 'Mid-Level' },
+                            { level: 'senior' as ExperienceLevel, label: 'Senior' },
+                            { level: 'lead' as ExperienceLevel, label: 'Staff / Lead' },
+                          ].map(({ level, label }) => (
+                            <button
+                              key={level}
+                              type="button"
+                              onClick={() => setExperienceLevel(level)}
+                              className={`p-2 rounded-radius text-center border text-xs font-mono cursor-pointer transition-all ${
+                                experienceLevel === level
+                                  ? 'border-brass bg-ink-1 font-semibold text-text-0'
+                                  : 'border-line bg-ink-0 text-text-1 hover:border-text-1'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Connected Links & Social Identity */}
                   <div className="p-5 sm:p-6 rounded-radius border border-line bg-card space-y-4">
                     <h3 className="text-sm font-semibold text-text-0 pb-2 border-b border-line">
-                      Online Presence & Verification Links
+                      Online Presence &amp; Verification Links
                     </h3>
 
                     <div className="space-y-4">
-                      {/* Avatar URL */}
-                      <div>
+                      {/* Avatar Image & Upload */}
+                      <div className="space-y-2">
                         <label
                           htmlFor="settings-avatar-url"
-                          className="block text-xs font-mono text-text-1 mb-1 font-semibold"
+                          className="block text-xs font-mono text-text-1 font-semibold"
                         >
-                          AVATAR IMAGE URL
+                          AVATAR PICTURE (UPLOAD OR URL)
                         </label>
-                        <div className="flex items-center gap-3">
-                          <div className="relative flex-1">
-                            <ImageIcon className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-1" />
-                            <input
-                              id="settings-avatar-url"
-                              type="url"
-                              placeholder="https://images.unsplash.com/..."
-                              value={avatarUrl}
-                              onChange={(e) => setAvatarUrl(e.target.value)}
-                              className="w-full pl-9 pr-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald outline-none text-xs sm:text-sm font-mono"
-                            />
-                          </div>
-                          {avatarUrl && (
-                            <div className="relative w-9 h-9 rounded-radius border border-line shrink-0 overflow-hidden bg-card">
+
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                          {/* Avatar Circle Preview */}
+                          <div className="relative w-14 h-14 rounded-full border-2 border-line shrink-0 overflow-hidden bg-card flex items-center justify-center font-mono font-bold text-text-0 shadow-sm">
+                            {avatarUrl ? (
                               <Image
                                 src={avatarUrl}
                                 alt="Avatar preview"
                                 fill
-                                sizes="36px"
+                                sizes="56px"
                                 className="object-cover"
                                 unoptimized
                                 onError={(e) => {
                                   (e.target as HTMLElement).style.display = 'none';
                                 }}
                               />
+                            ) : (
+                              <span className="text-base text-emerald-text">
+                                {(name || user.username).slice(0, 2).toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Upload action buttons */}
+                          <div className="flex-1 space-y-2 w-full">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {/* File Input trigger */}
+                              <label
+                                className={`btn-brass text-xs py-1.5 px-3 inline-flex items-center gap-1.5 font-sans ${
+                                  isUploadingAvatar ? 'opacity-70 cursor-wait' : 'cursor-pointer'
+                                }`}
+                              >
+                                {isUploadingAvatar ? (
+                                  <>
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    <span>Uploading to Cloudinary...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Upload className="w-3.5 h-3.5" />
+                                    <span>Upload Image</span>
+                                    <input
+                                      type="file"
+                                      accept="image/png, image/jpeg, image/webp, image/svg+xml"
+                                      className="hidden"
+                                      disabled={isUploadingAvatar}
+                                      onChange={handleAvatarFileUpload}
+                                    />
+                                  </>
+                                )}
+                              </label>
+
+                              {avatarUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() => setAvatarUrl('')}
+                                  className="btn-outline text-xs py-1.5 px-3 inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 hover:border-rose-500 cursor-pointer font-sans"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  <span>Remove</span>
+                                </button>
+                              )}
+
+                              <span className="text-[11px] text-text-1 font-mono">
+                                Max 2MB (PNG, JPG, WEBP, SVG)
+                              </span>
                             </div>
-                          )}
+
+                            {/* Or direct URL input */}
+                            <div className="relative">
+                              <ImageIcon className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-1" />
+                              <input
+                                id="settings-avatar-url"
+                                type="text"
+                                placeholder="Or enter direct image URL (https://images.unsplash.com/...)"
+                                value={avatarUrl.startsWith('data:image/') ? '(Uploaded local image file)' : avatarUrl}
+                                onChange={(e) => {
+                                  if (!e.target.value.startsWith('(Uploaded')) {
+                                    setAvatarUrl(e.target.value);
+                                  }
+                                }}
+                                className="w-full pl-9 pr-3 py-1.5 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald outline-none text-xs font-mono"
+                              />
+                            </div>
+                          </div>
                         </div>
+
+                        {uploadError && (
+                          <p className="text-xs text-rose-600 dark:text-rose-400 mt-1 font-mono">
+                            {uploadError}
+                          </p>
+                        )}
                         {errors.avatarUrl && (
                           <p className="text-xs text-rose-600 dark:text-rose-400 mt-1 font-mono">
                             {errors.avatarUrl}
@@ -634,7 +960,7 @@ export default function SettingsPage() {
                           <input
                             id="settings-github-url"
                             type="url"
-                            placeholder="https://github.com/alexokafor"
+                            placeholder="https://github.com/your-username"
                             value={githubUrl}
                             onChange={(e) => setGithubUrl(e.target.value)}
                             className="w-full pl-9 pr-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald outline-none text-xs sm:text-sm font-mono"
@@ -1071,6 +1397,117 @@ export default function SettingsPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Connected Authentication & Identity Providers */}
+                  <div className="p-5 sm:p-6 rounded-radius border border-line bg-card space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-line">
+                      <div className="space-y-0.5">
+                        <h3 className="text-sm font-semibold text-text-0">
+                          Connected Identity &amp; Auth Providers
+                        </h3>
+                        <p className="text-xs text-text-1">
+                          Manage linked authentication channels for login and cryptographic commit tracking.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 font-mono text-xs">
+                      {/* Google Provider Status */}
+                      <div className="p-3.5 rounded-radius border border-line bg-ink-0/60 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                          <div>
+                            <div className="font-semibold text-text-0">Google Authentication</div>
+                            <div className="text-[11px] text-text-1">{user.email || 'Connected for session sign-in'}</div>
+                          </div>
+                        </div>
+                        <span className="px-2 py-0.5 rounded text-[11px] bg-emerald-tint text-emerald-text border border-emerald/30">
+                          Active Session
+                        </span>
+                      </div>
+
+                      {/* GitHub Provider Status */}
+                      <div className="p-3.5 rounded-radius border border-line bg-ink-0/60 space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2.5">
+                            <span className={`w-2.5 h-2.5 rounded-full ${user.githubConnected || user.githubUsername ? 'bg-emerald' : 'bg-amber-500'}`} />
+                            <div>
+                              <div className="font-semibold text-text-0">GitHub Commit Tracking</div>
+                              <div className="text-[11px] text-text-1">
+                                {user.githubConnected || user.githubUsername
+                                  ? `Linked: @${user.githubUsername || user.username} (Authorized for proof stamping)`
+                                  : 'Not Linked · Proof submission restricted'}
+                              </div>
+                            </div>
+                          </div>
+
+                          <span className={`px-2 py-0.5 rounded text-[11px] border ${
+                            user.githubConnected || user.githubUsername
+                              ? 'bg-emerald-tint text-emerald-text border-emerald/30'
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                          }`}>
+                            {user.githubConnected || user.githubUsername ? 'Verified' : 'Action Required'}
+                          </span>
+                        </div>
+
+                        {/* Quick-Link Input if unlinked or changing */}
+                        <div className="flex flex-col gap-2 pt-2 border-t border-line/60">
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <div className="relative flex-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-1 font-mono text-xs">@</span>
+                              <input
+                                type="text"
+                                value={githubUsernameInput}
+                                onChange={(e) => {
+                                  setGithubUsernameInput(e.target.value);
+                                  setGithubVerificationError(null);
+                                  setGithubVerificationSuccess(null);
+                                }}
+                                placeholder="GitHub handle (e.g. michojekunle)"
+                                className="w-full pl-7 pr-3 py-1.5 rounded-radius border border-line bg-card text-text-0 outline-none focus:border-brass text-xs font-mono"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleVerifyAndLinkGitHub}
+                              disabled={!githubUsernameInput.trim() || isVerifyingGithub}
+                              className="btn-brass text-xs py-1.5 px-3 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 shrink-0 font-mono"
+                            >
+                              {isVerifyingGithub ? (
+                                <>
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  <span>Verifying...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ShieldCheck className="w-3.5 h-3.5" />
+                                  <span>{user.githubConnected ? 'Verify & Update' : 'Verify & Link'}</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+
+                          <div className="text-[11px] text-text-1">
+                            Target GitHub account must match your registered account email (<code>{user.email || email}</code>) via public profile, git commit history, or verified alias.
+                          </div>
+
+                          {githubVerificationError && (
+                            <div className="p-2.5 rounded border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs flex items-start gap-2 font-mono">
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                              <span>{githubVerificationError}</span>
+                            </div>
+                          )}
+
+                          {githubVerificationSuccess && (
+                            <div className="p-2.5 rounded border border-emerald/30 bg-emerald-tint text-emerald-text text-xs flex items-start gap-2 font-mono">
+                              <Check className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                              <span>{githubVerificationSuccess}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1133,14 +1570,14 @@ export default function SettingsPage() {
 
               {/* Mini Card Preview simulating the public portfolio view */}
               <div className="rounded-radius border border-line bg-card p-5 space-y-4 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-radius border border-line overflow-hidden relative shrink-0 bg-ink-0 flex items-center justify-center font-mono font-bold text-text-0">
+                <div className="flex items-start gap-3">
+                  <div className="w-14 h-14 rounded-full border-2 border-line overflow-hidden relative shrink-0 bg-ink-0 flex items-center justify-center font-mono font-bold text-text-0 shadow-xs">
                     {avatarUrl ? (
                       <Image
                         src={avatarUrl}
                         alt="Avatar preview"
                         fill
-                        sizes="48px"
+                        sizes="56px"
                         className="object-cover"
                         unoptimized
                         onError={(e) => {
@@ -1148,40 +1585,52 @@ export default function SettingsPage() {
                         }}
                       />
                     ) : (
-                      name.slice(0, 2).toUpperCase()
+                      <span className="text-sm font-bold text-emerald-text">
+                        {(name || user.username).slice(0, 2).toUpperCase()}
+                      </span>
                     )}
                   </div>
 
-                  <div className="min-w-0">
-                    <div className="font-semibold text-text-0 text-sm truncate">
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <div className="font-semibold text-text-0 text-base truncate">
                       {name || 'Developer Name'}
                     </div>
-                    <div className="text-xs font-mono text-emerald-text truncate">
-                      @{user.username}
+                    <div className="flex items-center gap-1.5 text-xs font-mono">
+                      <span className="text-emerald-text font-semibold truncate">
+                        @{user.username}
+                      </span>
+                      <span className="text-line">·</span>
+                      <span className="text-text-1 capitalize">{plan} plan</span>
                     </div>
                   </div>
                 </div>
 
-                <p className="text-xs text-text-1 line-clamp-2 leading-relaxed">
-                  {headline || 'Professional Headline will appear here...'}
+                <p className="text-xs text-text-1 line-clamp-3 leading-relaxed">
+                  {headline || 'Professional headline will appear here...'}
                 </p>
+
+                {bio && (
+                  <p className="text-[11px] text-text-1/80 line-clamp-2 italic border-l-2 border-line pl-2.5">
+                    &ldquo;{bio}&rdquo;
+                  </p>
+                )}
 
                 {/* Stated skills badges */}
                 <div className="pt-2 border-t border-line/60">
-                  <div className="text-xs font-mono text-text-1 mb-1.5 uppercase">
+                  <div className="text-[11px] font-mono text-text-1 mb-1.5 uppercase font-semibold">
                     Active Stack ({statedSkills.length}):
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {statedSkills.slice(0, 6).map((skill) => (
                       <span
                         key={skill}
-                        className="text-xs font-mono px-2 py-0.5 rounded bg-card/80 border border-line text-text-0"
+                        className="text-[11px] font-mono px-2 py-0.5 rounded bg-card/80 border border-line text-text-0"
                       >
                         {skill}
                       </span>
                     ))}
                     {statedSkills.length > 6 && (
-                      <span className="text-xs font-mono text-text-1 px-1 py-0.5">
+                      <span className="text-[11px] font-mono text-text-1 px-1 py-0.5">
                         +{statedSkills.length - 6} more
                       </span>
                     )}
@@ -1190,8 +1639,8 @@ export default function SettingsPage() {
 
                 {/* Proof Guarantee Notice */}
                 <div className="pt-2 border-t border-line/60 flex items-center justify-between text-xs font-mono text-text-1">
-                  <span className="flex items-center gap-1 text-emerald-text">
-                    <ShieldCheck className="w-3 h-3" />
+                  <span className="flex items-center gap-1 text-emerald-text font-medium">
+                    <ShieldCheck className="w-3.5 h-3.5" />
                     Verified Guarantee
                   </span>
                   <span>Sep 2027</span>
@@ -1243,14 +1692,14 @@ export default function SettingsPage() {
 
               {/* Card Container */}
               <div className="rounded-radius border border-line bg-ink-0 p-4 space-y-4 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-radius border border-line overflow-hidden relative shrink-0 bg-card flex items-center justify-center font-mono font-bold text-text-0">
+                <div className="flex items-start gap-3">
+                  <div className="w-14 h-14 rounded-full border-2 border-line overflow-hidden relative shrink-0 bg-card flex items-center justify-center font-mono font-bold text-text-0 shadow-xs">
                     {avatarUrl ? (
                       <Image
                         src={avatarUrl}
                         alt="Avatar preview"
                         fill
-                        sizes="48px"
+                        sizes="56px"
                         className="object-cover"
                         unoptimized
                         onError={(e) => {
@@ -1258,16 +1707,22 @@ export default function SettingsPage() {
                         }}
                       />
                     ) : (
-                      name.slice(0, 2).toUpperCase()
+                      <span className="text-sm font-bold text-emerald-text">
+                        {(name || user.username).slice(0, 2).toUpperCase()}
+                      </span>
                     )}
                   </div>
 
-                  <div className="min-w-0">
-                    <div className="font-semibold text-text-0 text-sm truncate">
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <div className="font-semibold text-text-0 text-base truncate">
                       {name || 'Developer Name'}
                     </div>
-                    <div className="text-xs font-mono text-emerald-text truncate">
-                      @{user.username}
+                    <div className="flex items-center gap-1.5 text-xs font-mono">
+                      <span className="text-emerald-text font-semibold truncate">
+                        @{user.username}
+                      </span>
+                      <span className="text-line">·</span>
+                      <span className="text-text-1 capitalize">{plan} plan</span>
                     </div>
                   </div>
                 </div>
@@ -1276,15 +1731,21 @@ export default function SettingsPage() {
                   {headline || 'Professional headline...'}
                 </p>
 
+                {bio && (
+                  <p className="text-[11px] text-text-1/80 line-clamp-2 italic border-l-2 border-line pl-2.5">
+                    &ldquo;{bio}&rdquo;
+                  </p>
+                )}
+
                 <div className="pt-2 border-t border-line/60">
-                  <div className="text-xs font-mono text-text-1 mb-1.5 uppercase">
+                  <div className="text-[11px] font-mono text-text-1 mb-1.5 uppercase font-semibold">
                     Active Stack ({statedSkills.length}):
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {statedSkills.map((skill) => (
                       <span
                         key={skill}
-                        className="text-xs font-mono px-2 py-0.5 rounded bg-card border border-line text-text-0"
+                        className="text-[11px] font-mono px-2 py-0.5 rounded bg-card border border-line text-text-0"
                       >
                         {skill}
                       </span>

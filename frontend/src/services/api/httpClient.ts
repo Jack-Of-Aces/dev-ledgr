@@ -25,7 +25,12 @@ export class HttpClient {
     params?: Record<string, string | number | boolean | undefined>
   ): string {
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    const fullUrl = this.baseUrl ? `${this.baseUrl}${cleanEndpoint}` : cleanEndpoint;
+    // In the browser, use same-origin relative URLs (/api/...) so Next.js rewrites
+    // proxy calls server-side, preventing browser CORS preflight blocks.
+    const isBrowser = typeof window !== 'undefined';
+    const fullUrl = isBrowser
+      ? cleanEndpoint
+      : (this.baseUrl ? `${this.baseUrl}${cleanEndpoint}` : cleanEndpoint);
 
     if (!params) return fullUrl;
 
@@ -41,8 +46,34 @@ export class HttpClient {
   }
 
   private getAuthHeader(): Record<string, string> {
-    const token = getClientCookie(AUTH_COOKIE_NAME);
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    let token = getClientCookie(AUTH_COOKIE_NAME);
+
+    // If running in browser and cookie not yet populated, read Supabase session token from localStorage
+    if (!token && typeof window !== 'undefined' && window.localStorage) {
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.includes('auth-token') || key.startsWith('sb-'))) {
+            const raw = localStorage.getItem(key);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed?.access_token) {
+                token = parsed.access_token;
+                break;
+              }
+            }
+          }
+        }
+      } catch {
+        // ignore storage access errors
+      }
+    }
+
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
   }
 
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {

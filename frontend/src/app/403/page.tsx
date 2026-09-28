@@ -11,12 +11,34 @@ import { setAuthCookies } from '@/lib/cookies';
 export default function AccessDeniedPage() {
   const router = useRouter();
   const { user, setUser } = useAppStore();
+  const [mounted, setMounted] = React.useState(false);
+  const [isSwitching, setIsSwitching] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSwitchToAdmin = () => {
+    setIsSwitching(true);
     setUser({ ...ADMIN_USER });
     setAuthCookies(`mock_admin_token_${Date.now()}`, 'admin');
     router.push('/admin');
   };
+
+  if (!mounted) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center px-4 py-16">
+        <div className="max-w-lg w-full rounded-radius border border-line bg-card p-6 sm:p-8 text-center space-y-6 shadow-sm">
+          <div className="w-12 h-12 rounded-full bg-line mx-auto skeleton-shimmer" />
+          <div className="space-y-2">
+            <div className="h-4 w-32 bg-line rounded mx-auto skeleton-shimmer" />
+            <div className="h-8 w-64 bg-line rounded mx-auto skeleton-shimmer" />
+            <div className="h-12 w-full bg-line rounded skeleton-shimmer" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
 
   return (
@@ -49,9 +71,10 @@ export default function AccessDeniedPage() {
           </p>
           <button
             onClick={handleSwitchToAdmin}
-            className="w-full btn-brass text-xs md:text-sm py-2 mt-2 cursor-pointer"
+            disabled={isSwitching}
+            className="w-full btn-brass text-xs md:text-sm py-2 mt-2 cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
           >
-            Switch to @lead_auditor (Admin Persona)
+            {isSwitching ? 'Switching to @lead_auditor...' : 'Switch to @lead_auditor (Admin Persona)'}
           </button>
         </div>
 

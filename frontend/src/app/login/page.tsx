@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { BrandMark } from '@/components/brand/BrandMark';
 import { useAuth } from '@/hooks/useAuth';
-import { envConfig } from '@/lib/config';
-import { getSupabase } from '@/lib/supabase';
-import { setAuthCookies } from '@/lib/cookies';
+// import { envConfig } from '@/lib/config';
 import { ArrowLeft, Sparkles, AlertCircle } from 'lucide-react';
+import { LoginSkeleton } from '@/components/ui/skeletons';
+import { useAppStore } from '@/lib/store';
 
 const GithubIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -42,48 +42,17 @@ const GoogleIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
 );
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
   const authError = searchParams.get('error');
-  const { isLoggedIn, loginWithGitHub, loginWithGoogle, switchRole } = useAuth();
-
-  // Handle Supabase implicit flow: when the server-side PKCE route receives
-  // no ?code= param, it redirects here and the browser preserves the
-  // #access_token hash fragment. Parse it client-side and establish the session.
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const hash = window.location.hash;
-    if (!hash.includes('access_token=')) return;
-
-    const params = new URLSearchParams(hash.slice(1)); // strip leading '#'
-    const accessToken = params.get('access_token');
-    const refreshToken = params.get('refresh_token');
-    if (!accessToken || !refreshToken) return;
-
-    const supabase = getSupabase();
-    if (!supabase) return;
-
-    supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
-      .then(({ data, error }) => {
-        if (error || !data.session) {
-          console.error('[Login] setSession from hash failed:', error?.message);
-          return;
-        }
-        // Set DevLedgr cookies so server-side guards recognise the session
-        setAuthCookies(data.session.access_token, 'user');
-        // Clear the hash from the URL and navigate to dashboard
-        window.history.replaceState(null, '', window.location.pathname + window.location.search);
-        router.replace('/dashboard');
-      });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const { isLoggedIn, user, loginWithGitHub, loginWithGoogle, switchRole } = useAuth();
 
   useEffect(() => {
     if (isLoggedIn) {
-      router.replace(callbackUrl);
+      const dest = !user.onboardingCompleted ? '/onboarding' : callbackUrl;
+      window.location.replace(dest);
     }
-  }, [isLoggedIn, callbackUrl, router]);
+  }, [isLoggedIn, user.onboardingCompleted, callbackUrl]);
 
   const [loadingProvider, setLoadingProvider] = useState<'github' | 'google' | null>(null);
   const [showSandbox, setShowSandbox] = useState(false);
@@ -91,9 +60,11 @@ function LoginForm() {
   const handleGitHubAuth = async () => {
     setLoadingProvider('github');
     try {
-      await loginWithGitHub();
-      if (!envConfig.hasSupabase) {
-        router.push(callbackUrl);
+      const session = await loginWithGitHub();
+      if (session && session.token !== 'pending_oauth_redirect') {
+        const currentUser = useAppStore.getState().user;
+        const dest = !currentUser.onboardingCompleted ? '/onboarding' : callbackUrl;
+        window.location.replace(dest);
       }
     } catch {
       setLoadingProvider(null);
@@ -103,9 +74,9 @@ function LoginForm() {
   const handleGoogleAuth = async () => {
     setLoadingProvider('google');
     try {
-      await loginWithGoogle();
-      if (!envConfig.hasSupabase) {
-        router.push(callbackUrl);
+      const session = await loginWithGoogle();
+      if (session && session.token !== 'pending_oauth_redirect') {
+        window.location.replace('/onboarding');
       }
     } catch {
       setLoadingProvider(null);
@@ -115,7 +86,7 @@ function LoginForm() {
   const handleQuickPersona = async (role: 'user' | 'admin') => {
     setLoadingProvider('github');
     await switchRole(role);
-    router.push(role === 'admin' ? '/admin' : callbackUrl);
+    window.location.replace(role === 'admin' ? '/admin' : callbackUrl);
   };
 
   return (
@@ -148,7 +119,7 @@ function LoginForm() {
           <button
             onClick={handleGitHubAuth}
             disabled={loadingProvider !== null}
-            className="w-full btn-brass min-h-[44px] text-xs md:text-sm py-2.5 flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
+            className="w-full btn-brass min-h-11 text-xs md:text-sm py-2.5 flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
           >
             <GithubIcon className="w-4 h-4" />
             <span>
@@ -160,22 +131,13 @@ function LoginForm() {
           <button
             onClick={handleGoogleAuth}
             disabled={loadingProvider !== null}
-            className="w-full min-h-[44px] px-4 py-2.5 rounded-radius border border-line bg-card hover:bg-ink-1 text-text-0 text-xs md:text-sm font-medium flex items-center justify-center gap-2.5 transition-colors cursor-pointer disabled:opacity-50"
+            className="w-full min-h-11 px-4 py-2.5 rounded-radius border border-line bg-card hover:bg-ink-1 text-text-0 text-xs md:text-sm font-medium flex items-center justify-center gap-2.5 transition-colors cursor-pointer disabled:opacity-50"
           >
             <GoogleIcon className="w-4 h-4" />
             <span>
               {loadingProvider === 'google' ? 'Redirecting to Google...' : 'Continue with Google'}
             </span>
           </button>
-
-          <div className="flex items-center justify-between text-xs md:text-sm text-text-1 font-mono px-1 pt-1">
-            <span>Identity Provider:</span>
-            <span className="text-text-0 font-medium">
-              {envConfig.hasSupabase
-                ? 'Supabase OAuth (GitHub & Google)'
-                : 'Local Developer Sandbox'}
-            </span>
-          </div>
 
           <p className="text-xs text-text-1 text-center font-mono pt-1">
             By signing in, you agree to our{' '}
@@ -197,7 +159,7 @@ function LoginForm() {
             onClick={() => setShowSandbox(!showSandbox)}
             aria-expanded={showSandbox}
             aria-controls="sandbox-persona-list"
-            className="w-full min-h-[44px] flex items-center justify-between text-text-1 hover:text-text-0 font-mono text-xs md:text-sm py-1 cursor-pointer"
+            className="w-full min-h-11 flex items-center justify-between text-text-1 hover:text-text-0 font-mono text-xs md:text-sm py-1 cursor-pointer"
           >
             <span className="flex items-center gap-1.5">
               <Sparkles className="w-3 h-3 text-emerald-text" />
@@ -248,7 +210,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<LoginSkeleton />}>
       <LoginForm />
     </Suspense>
   );

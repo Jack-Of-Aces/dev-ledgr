@@ -23,7 +23,7 @@ export class AuthService implements IAuthService {
 
     // 1. Live Supabase GitHub OAuth Flow
     if (supabase && envConfig.hasSupabase && typeof window !== 'undefined') {
-      const redirectUri = `${window.location.origin}/auth/callback`;
+      const redirectUri = `${window.location.origin}/auth/callback?next=/dashboard`;
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
@@ -35,6 +35,9 @@ export class AuthService implements IAuthService {
       if (error) {
         console.warn('[AuthService] Supabase GitHub OAuth error, trying fallback:', error);
       } else if (data.url) {
+        if (typeof window !== 'undefined') {
+          window.location.assign(data.url);
+        }
         return {
           token: 'pending_oauth_redirect',
           username: username || 'authenticating',
@@ -62,7 +65,7 @@ export class AuthService implements IAuthService {
 
     // 1. Live Supabase Google OAuth Flow
     if (supabase && envConfig.hasSupabase && typeof window !== 'undefined') {
-      const redirectUri = `${window.location.origin}/auth/callback`;
+      const redirectUri = `${window.location.origin}/auth/callback?next=/onboarding`;
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -77,6 +80,9 @@ export class AuthService implements IAuthService {
       if (error) {
         console.warn('[AuthService] Supabase Google OAuth error:', error);
       } else if (data.url) {
+        if (typeof window !== 'undefined') {
+          window.location.assign(data.url);
+        }
         return {
           token: 'pending_oauth_redirect',
           username: email?.split('@')[0] || 'authenticating',
@@ -118,20 +124,42 @@ export class AuthService implements IAuthService {
           const username = meta.user_name || meta.preferred_username || u.email?.split('@')[0] || 'developer';
           const name = meta.full_name || meta.name || username;
           const avatarUrl = meta.avatar_url || meta.picture || DEFAULT_USER.avatarUrl;
+          let role: UserRole = meta.role === 'admin' ? 'admin' : 'user';
+          let devUsername = username;
+          let devName = name;
+          let devAvatar = avatarUrl;
 
-          // The role comes from the backend dev record, never from
-          // user_metadata, which users can edit themselves.
-          const dev = await this.fetchDevProfile(session.access_token);
-          const role: UserRole = dev?.role ?? 'user';
+          // Per backend specification: Call GET /api/auth/me to create/sync the dev record
+          // and obtain the authoritative database role. user_metadata is not trusted.
+          if (envConfig.apiUrl && !envConfig.useMocks) {
+            try {
+              const res = await fetch(`${envConfig.apiUrl.replace(/\/$/, '')}/api/auth/me`, {
+                headers: {
+                  Authorization: `Bearer ${session.access_token}`,
+                  Accept: 'application/json',
+                },
+              });
+              if (res.ok) {
+                const me = await res.json();
+                if (me.role) role = me.role as UserRole;
+                if (me.username) devUsername = me.username;
+                if (me.name) devName = me.name;
+                if (me.avatarUrl) devAvatar = me.avatarUrl;
+              }
+            } catch (syncErr) {
+              console.warn('[AuthService] Notice: /api/auth/me authoritative sync deferred:', syncErr);
+            }
+          }
 
+          // Use the authoritative role from /api/auth/me (already in `role` var above).
           setAuthCookies(session.access_token, role);
 
           return {
             token: session.access_token,
-            username: dev?.username ?? username,
-            name: dev?.name ?? name,
+            username: devUsername,
+            name: devName,
             role,
-            avatarUrl: dev?.avatarUrl || avatarUrl,
+            avatarUrl: devAvatar,
             expiresAt: new Date(session.expires_at ? session.expires_at * 1000 : Date.now() + 3600000).toISOString(),
           };
         }
