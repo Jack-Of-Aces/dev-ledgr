@@ -9,6 +9,7 @@ import { ScrutinyResult } from '@/services/ai/IAIService';
 import { JobApplySkeleton } from '@/components/ui/skeletons';
 import { jobService } from '@/services/jobs/jobService';
 import { JobOpportunity } from '@/types';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import {
   Sparkles,
   ShieldCheck,
@@ -131,7 +132,8 @@ export default function JobApplyPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-10 font-mono text-xs md:text-sm">
+    <AuthGuard fallbackMessage="You must be signed in with your developer account to run automated AI portfolio scrutiny and generate ATS-tailored application packages.">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-10 font-mono text-xs md:text-sm">
       {/* Back Link */}
       <div>
         <Link
@@ -370,6 +372,7 @@ export default function JobApplyPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AuthGuard>
   );
 }

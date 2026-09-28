@@ -17,6 +17,7 @@ import {
   ArrowRight,
   TrendingUp,
   Tag,
+  Upload,
 } from 'lucide-react';
 import { jobService } from '@/services/jobs/jobService';
 import { JobOpportunity, CVAudit } from '@/types';
@@ -38,6 +39,29 @@ export const CVAuditModal: React.FC<CVAuditModalProps> = ({
   const [auditResult, setAuditResult] = useState<CVAudit | null>(null);
 
   if (!isOpen) return null;
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setError('File size exceeds 2MB limit.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        setCvText(content);
+        setError(null);
+      }
+    };
+    reader.onerror = () => {
+      setError('Failed to read file content.');
+    };
+    reader.readAsText(file);
+  };
 
   const handleRunAudit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,9 +130,22 @@ export const CVAuditModal: React.FC<CVAuditModalProps> = ({
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="cv-text-input" className="block text-xs font-mono font-medium text-text-0">
-                Paste Resume / CV Plaintext (Markdown or Raw Text):
-              </label>
+              <div className="flex items-center justify-between">
+                <label htmlFor="cv-text-input" className="block text-xs font-mono font-medium text-text-0">
+                  Paste Resume / CV Plaintext (Markdown or Raw Text):
+                </label>
+                <label className="inline-flex items-center gap-1.5 text-xs font-mono text-emerald-text hover:underline cursor-pointer">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Upload File (.txt, .md)</span>
+                  <input
+                    type="file"
+                    accept=".txt,.md,text/plain,text/markdown"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                    disabled={loading}
+                  />
+                </label>
+              </div>
               <textarea
                 id="cv-text-input"
                 rows={9}

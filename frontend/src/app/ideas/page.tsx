@@ -25,7 +25,7 @@ type SortOption = 'relevance' | 'proofs-desc' | 'hours-asc' | 'hours-desc';
 type StatusOption = 'solved' | 'unsolved';
 
 export default function IdeasPage() {
-  const { ideas, user, submissions } = useAppStore();
+  const { ideas, user, submissions, setIdeas } = useAppStore();
   const [mounted, setMounted] = useState(false);
   const [liveProblems, setLiveProblems] = useState<IdeaItem[]>([]);
 
@@ -46,9 +46,10 @@ export default function IdeasPage() {
     launchpadService.getProblems().then((problems) => {
       if (problems && problems.length > 0) {
         setLiveProblems(problems);
+        setIdeas(problems);
       }
     }).catch(() => {});
-  }, []);
+  }, [setIdeas]);
 
   const activeIdeas = liveProblems.length > 0 ? liveProblems : ideas;
 

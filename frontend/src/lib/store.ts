@@ -55,6 +55,7 @@ interface AppState {
   getSubmissionByHash: (hash: string) => SubmissionEntry | undefined;
   getUserSubmissions: (username: string) => SubmissionEntry[];
   setJobs: (jobs: JobOpportunity[]) => void;
+  setIdeas: (ideas: IdeaItem[]) => void;
 
   // Dynamic Job Matcher
   getJobMatchDetails: (job: JobOpportunity) => {
@@ -300,6 +301,7 @@ export const useAppStore = create<AppState>()(
       },
 
       setJobs: (jobs) => set({ jobs }),
+      setIdeas: (ideas) => set({ ideas }),
 
       getJobMatchDetails: (job) => {
         const { user, submissions, ideas } = get();

@@ -47,7 +47,7 @@ interface NotificationItem {
 }
 
 export default function DashboardPage() {
-  const { user, submissions, jobs, ideas, getJobMatchDetails } = useAppStore();
+  const { user, submissions, jobs, ideas, getJobMatchDetails, setJobs } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<DashboardTab>('ledger');
   const [mounted, setMounted] = useState(false);
@@ -67,12 +67,13 @@ export default function DashboardPage() {
     jobService.getJobs().then((fetched) => {
       if (active && fetched && fetched.length > 0) {
         setLiveJobs(fetched);
+        setJobs(fetched);
       }
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [setJobs]);
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
