@@ -41,8 +41,34 @@ export class HttpClient {
   }
 
   private getAuthHeader(): Record<string, string> {
-    const token = getClientCookie(AUTH_COOKIE_NAME);
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    let token = getClientCookie(AUTH_COOKIE_NAME);
+
+    // If running in browser and cookie not yet populated, read Supabase session token from localStorage
+    if (!token && typeof window !== 'undefined' && window.localStorage) {
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.includes('auth-token') || key.startsWith('sb-'))) {
+            const raw = localStorage.getItem(key);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed?.access_token) {
+                token = parsed.access_token;
+                break;
+              }
+            }
+          }
+        }
+      } catch {
+        // ignore storage access errors
+      }
+    }
+
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
   }
 
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {

@@ -73,6 +73,9 @@ export interface JobOpportunity {
   level?: string;
   applyUrl?: string;
   sourceUrl?: string;
+  scrapedAt?: string;
+  adminApproved?: boolean;
+  isActive?: boolean;
   match?: {
     score: number;
     matchedSkills: string[];

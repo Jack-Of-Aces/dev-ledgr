@@ -27,7 +27,7 @@ export class JobService implements IJobService {
           params: {
             level: filters?.level,
             search: filters?.search,
-            limit: filters?.limit,
+            limit: filters?.limit ?? 50,
             offset: filters?.offset,
           },
         }

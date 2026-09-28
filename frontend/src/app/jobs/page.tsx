@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { jobService } from '@/services/jobs/jobService';
 import { JobOpportunity } from '@/types';
+import { getTrackById } from '@/lib/tracks';
 import { JobGridSkeleton } from '@/components/ui/skeletons';
 import { CVAuditModal } from '@/components/ui/CVAuditModal';
 import {
@@ -136,11 +137,52 @@ export default function JobsPage() {
       if (levelFilter !== 'all') {
         const jobLevel = (job.level || '').toLowerCase();
         const jobTitle = job.title.toLowerCase();
-        if (levelFilter === 'senior' && !jobLevel.includes('senior') && !jobTitle.includes('senior') && !jobTitle.includes('sr.')) return false;
-        if (levelFilter === 'lead' && !jobLevel.includes('lead') && !jobTitle.includes('lead') && !jobTitle.includes('principal')) return false;
-        if (levelFilter === 'junior' && !jobLevel.includes('junior') && !jobTitle.includes('junior') && !jobTitle.includes('entry')) return false;
-        if (levelFilter === 'mid' && !jobLevel.includes('mid') && (jobTitle.includes('senior') || jobTitle.includes('lead') || jobTitle.includes('junior'))) return false;
-        if (levelFilter === 'intern' && !jobLevel.includes('intern') && !jobTitle.includes('intern')) return false;
+        const jobDesc = job.description?.toLowerCase() || '';
+
+        if (levelFilter === 'senior') {
+          const isSenior =
+            jobLevel.includes('senior') ||
+            jobTitle.includes('senior') ||
+            jobTitle.includes('sr.') ||
+            jobDesc.includes('5+ years') ||
+            jobDesc.includes('6+ years') ||
+            jobDesc.includes('senior engineer');
+          if (!isSenior) return false;
+        } else if (levelFilter === 'lead') {
+          const isLead =
+            jobLevel.includes('lead') ||
+            jobTitle.includes('lead') ||
+            jobTitle.includes('principal') ||
+            jobTitle.includes('staff') ||
+            jobDesc.includes('lead engineer') ||
+            jobDesc.includes('head of');
+          if (!isLead) return false;
+        } else if (levelFilter === 'junior') {
+          const isJunior =
+            jobLevel.includes('junior') ||
+            jobTitle.includes('junior') ||
+            jobTitle.includes('entry') ||
+            jobTitle.includes('associate') ||
+            jobDesc.includes('0-2 years') ||
+            jobDesc.includes('1-2 years') ||
+            jobDesc.includes('entry level') ||
+            jobDesc.includes('junior');
+          if (!isJunior) return false;
+        } else if (levelFilter === 'mid') {
+          const isMid =
+            jobLevel.includes('mid') ||
+            (!jobTitle.includes('senior') &&
+              !jobTitle.includes('lead') &&
+              !jobTitle.includes('principal') &&
+              !jobTitle.includes('intern'));
+          if (!isMid) return false;
+        } else if (levelFilter === 'intern') {
+          const isIntern =
+            jobLevel.includes('intern') ||
+            jobTitle.includes('intern') ||
+            jobDesc.includes('internship');
+          if (!isIntern) return false;
+        }
       }
 
       // 3. Match Score Filter
@@ -149,13 +191,27 @@ export default function JobsPage() {
       if (matchFilter === 'gap' && match.score >= 60) return false;
 
       // 4. Track Filter
-      if (trackFilter && userTrack) {
-        const titleMatch = job.title.toLowerCase().includes(userTrack);
-        const descMatch = job.description?.toLowerCase().includes(userTrack);
-        const skillMatch = [...(job.requiredSkills || []), ...(job.tags || [])].some((s) =>
-          s.toLowerCase().includes(userTrack)
-        );
-        if (!titleMatch && !descMatch && !skillMatch) return false;
+      if (trackFilter && user.engineeringTrack) {
+        const trackDef = getTrackById(user.engineeringTrack);
+        const trackKeywords = [
+          ...(trackDef.inferredKeywords || []),
+          ...trackDef.targetRoles.map((r) => r.toLowerCase()),
+          ...trackDef.defaultSkills.map((s) => s.toLowerCase()),
+        ];
+        const jobTitleLower = job.title.toLowerCase();
+        const jobDescLower = job.description?.toLowerCase() || '';
+        const jobSkillsLower = [...(job.requiredSkills || []), ...(job.tags || [])].map((s) => s.toLowerCase());
+
+        const matchesTrack = trackKeywords.some((keyword) => {
+          if (keyword.length < 3) return false;
+          return (
+            jobTitleLower.includes(keyword) ||
+            jobSkillsLower.some((s) => s === keyword || s.includes(keyword) || keyword.includes(s)) ||
+            jobDescLower.includes(keyword)
+          );
+        });
+
+        if (!matchesTrack) return false;
       }
 
       // 5. Skill Pills
@@ -176,7 +232,9 @@ export default function JobsPage() {
         return b.match.score - a.match.score;
       }
       if (sortBy === 'newest') {
-        return (b.job.id || '').localeCompare(a.job.id || '');
+        const timeB = b.job.scrapedAt ? new Date(b.job.scrapedAt).getTime() : 0;
+        const timeA = a.job.scrapedAt ? new Date(a.job.scrapedAt).getTime() : 0;
+        return timeB - timeA;
       }
       if (sortBy === 'salary') {
         return (b.job.salary || '').localeCompare(a.job.salary || '');
@@ -587,18 +645,21 @@ export default function JobsPage() {
 
                   <div className="flex flex-wrap gap-1.5">
                     {/* Matched Skills */}
-                    {(match.matchedSkills && match.matchedSkills.length > 0
-                      ? match.matchedSkills
-                      : job.requiredSkills?.slice(0, 3) || []
-                    ).map((skill, idx) => (
-                      <span
-                        key={`matched-${idx}`}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-emerald-border/60 bg-emerald-tint/20 text-emerald-text text-xs font-mono"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                        <span>{skill}</span>
+                    {match.matchedSkills && match.matchedSkills.length > 0 ? (
+                      match.matchedSkills.map((skill, idx) => (
+                        <span
+                          key={`matched-${idx}`}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-emerald-border/60 bg-emerald-tint/20 text-emerald-text text-xs font-mono"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                          <span>{skill}</span>
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-[11px] font-mono text-text-1 italic py-0.5">
+                        No stated skills match this spec yet
                       </span>
-                    ))}
+                    )}
 
                     {/* Missing Skills */}
                     {(match.missingSkills || []).slice(0, 4).map((skill, idx) => (

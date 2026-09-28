@@ -329,7 +329,7 @@ export const useAppStore = create<AppState>()(
         const normalize = (skill: string) => {
           const s = skill.toLowerCase().trim();
           if (s === 'golang' || s === 'go') return 'go';
-          if (s === 'postgres' || s === 'postgresql' || s === 'sql databases') return 'postgres';
+          if (s === 'postgres' || s === 'postgresql' || s === 'sql databases' || s === 'sql') return 'postgres';
           if (s === 'js' || s === 'javascript') return 'javascript';
           if (s === 'ts' || s === 'typescript') return 'typescript';
           if (s === 'react' || s === 'react.js' || s === 'reactjs') return 'react';
@@ -337,6 +337,12 @@ export const useAppStore = create<AppState>()(
           if (s === 'py' || s === 'python') return 'python';
           if (s === 'k8s' || s === 'kubernetes') return 'kubernetes';
           if (s === 'aws' || s === 'amazon web services') return 'aws';
+          if (s.includes('rest') || s.includes('api development') || s === 'apis') return 'api';
+          if (s.includes('docker') || s.includes('container')) return 'docker';
+          if (s.includes('kafka') || s.includes('rabbitmq')) return 'kafka';
+          if (s.includes('redis') || s.includes('caching')) return 'redis';
+          if (s.includes('git')) return 'git';
+          if (s.includes('linux')) return 'linux';
           return s;
         };
 
@@ -363,7 +369,12 @@ export const useAppStore = create<AppState>()(
 
         uniqueJobSkills.forEach((skill) => {
           const norm = normalize(skill);
-          if (userSkillSet.has(norm) || Array.from(userSkillSet).some((us) => norm.includes(us) || us.includes(norm))) {
+          if (
+            userSkillSet.has(norm) ||
+            Array.from(userSkillSet).some(
+              (us) => norm === us || norm.includes(us) || us.includes(norm)
+            )
+          ) {
             matchedSkills.push(skill);
           } else {
             missingSkills.push(skill);
@@ -380,20 +391,20 @@ export const useAppStore = create<AppState>()(
         const jobTitle = job.title.toLowerCase();
         const jobDesc = job.description?.toLowerCase() || '';
 
-        if (userTrack && (jobTitle.includes(userTrack) || jobDesc.includes(userTrack))) {
-          score = Math.min(score + 10, 98);
+        if (userTrack && (jobTitle.includes('backend') || jobDesc.includes('backend'))) {
+          score += 15;
         }
-        if (userRole && jobTitle.includes(userRole)) {
-          score = Math.min(score + 15, 98);
+        if (userRole && (jobTitle.includes(userRole) || jobDesc.includes(userRole))) {
+          score += 15;
         }
 
         // Proven ledger proofs boost
         if (userSubs.length > 0) {
-          score = Math.min(score + 5, 98);
+          score += Math.min(userSubs.length * 8, 25);
         }
 
-        // Keep within reasonable range
-        score = Math.max(score, uniqueJobSkills.length === 0 ? 80 : 35);
+        // Clamp between 20% and 98%
+        score = Math.min(Math.max(score, matchedSkills.length > 0 ? 45 : 20), 98);
         const hasGap = score < 80 || missingSkills.length > 0;
 
         // Find best gap-closing problem in Idea Bank
