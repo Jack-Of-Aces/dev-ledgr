@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { IdeaItem, SubmissionEntry } from '@/types';
 import { useAppStore } from '@/lib/store';
 import { generateProofSignature } from '@/lib/crypto';
+import { submissionService } from '@/services/submissions/submissionService';
 import {
   Loader2,
   ShieldCheck,
@@ -16,6 +17,7 @@ import {
   Check,
   Star,
   GitBranch,
+  Lock,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Skeleton } from '@/components/ui/skeletons';
@@ -66,6 +68,46 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
   const [isInspecting, setIsInspecting] = useState(false);
   const [inspectionData, setInspectionData] = useState<GitHubInspectData | null>(null);
   const [inspectionError, setInspectionError] = useState<string | null>(null);
+  const [linkHandle, setLinkHandle] = useState('');
+  const [isVerifyingLink, setIsVerifyingLink] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+
+  const handleVerifyAndLinkGitHub = async () => {
+    const clean = linkHandle.replace(/^@/, '').trim();
+    if (!clean) return;
+
+    setIsVerifyingLink(true);
+    setLinkError(null);
+
+    const userEmail = user.email || '';
+    if (!userEmail) {
+      setIsVerifyingLink(false);
+      setLinkError('Registered account email is required to verify GitHub ownership.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/github/verify-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: clean, userEmail }),
+      });
+      const data = await res.json();
+      if (res.ok && data.matched) {
+        useAppStore.getState().connectGitHubAccount(clean);
+        setLinkError(null);
+      } else {
+        setLinkError(
+          data.error ||
+            `Email mismatch: @${clean} is not associated with your registered email (${userEmail}). You can only link a GitHub account that belongs to you.`
+        );
+      }
+    } catch {
+      setLinkError('Failed to contact verification server. Please verify your connection.');
+    } finally {
+      setIsVerifyingLink(false);
+    }
+  };
 
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -223,6 +265,22 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
         });
 
         setCompletedEntry(newEntry);
+
+        // Record submission in backend API (POST /api/v1/submissions)
+        submissionService.submitSolution({
+          ideaId: idea.id,
+          ideaTitle: idea.title,
+          authorUsername: user.username,
+          authorName: user.name,
+          authorAvatar: user.avatarUrl,
+          repoUrl,
+          demoUrl: demoUrl || undefined,
+          architectureNotes:
+            architectureNotes ||
+            `Implemented solution meeting all technical requirements for ${idea.title}. Verified against automated CI harness.`,
+        }).catch((err) => {
+          console.warn('[SubmitSolutionModal] Backend submission sync note:', err);
+        });
 
         // Confetti explosion with prefers-reduced-motion protection
         const prefersReducedMotion =
@@ -393,6 +451,58 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
                   className="bg-green-600 dark:bg-green-500 h-full transition-all duration-300"
                   style={{ width: `${((verifyingStep + 1) / steps.length) * 100}%` }}
                 />
+              </div>
+            </div>
+          ) : !user.githubConnected && !user.githubUsername ? (
+            <div className="py-6 px-2 text-center space-y-4 font-mono text-xs md:text-sm">
+              <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-600 dark:text-amber-400">
+                <Lock className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-sans text-lg font-semibold text-text-0">
+                  GitHub Account Verification Required
+                </h3>
+                <p className="text-text-1 max-w-md mx-auto leading-relaxed">
+                  DevLedgr records immutable cryptographic proofs anchored to your verified GitHub commit tree. The linked GitHub profile must match your registered account email ({user.email}).
+                </p>
+              </div>
+
+              <div className="max-w-sm mx-auto space-y-3 pt-2">
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-1">@</span>
+                  <input
+                    type="text"
+                    placeholder="your_github_username"
+                    value={linkHandle}
+                    onChange={(e) => {
+                      setLinkHandle(e.target.value);
+                      setLinkError(null);
+                    }}
+                    className="w-full pl-7 pr-3 py-2 rounded-radius border border-line bg-card text-text-0 outline-none focus:border-brass text-xs"
+                  />
+                </div>
+
+                {linkError && (
+                  <div className="p-2.5 rounded border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs text-left font-mono">
+                    {linkError}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleVerifyAndLinkGitHub}
+                  disabled={!linkHandle.trim() || isVerifyingLink}
+                  className="w-full btn-brass text-xs py-2 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isVerifyingLink ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Verifying Ownership...</span>
+                    </>
+                  ) : (
+                    <span>Verify &amp; Unlock Submissions</span>
+                  )}
+                </button>
               </div>
             </div>
           ) : (

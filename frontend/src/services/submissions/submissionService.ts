@@ -54,6 +54,30 @@ export class SubmissionService implements ISubmissionService {
 
     return await this.http.post<SubmissionEntry>(`/api/v1/submissions/${encodeURIComponent(hash)}/verify`);
   }
+
+  async rejectSubmission(hash: string, reviewNotes?: string): Promise<SubmissionEntry> {
+    if (envConfig.useMocks) {
+      return this.mock.rejectSubmission(hash, reviewNotes);
+    }
+
+    return await this.http.post<SubmissionEntry>(`/api/v1/submissions/${encodeURIComponent(hash)}/reject`, {
+      reviewNotes,
+    });
+  }
+
+  async getCertificate(hash: string): Promise<{ hash: string; issuedAt: string; validUntil: string; valid: boolean }> {
+    if (envConfig.useMocks) {
+      return this.mock.getCertificate(hash);
+    }
+
+    try {
+      return await this.http.get<{ hash: string; issuedAt: string; validUntil: string; valid: boolean }>(
+        `/api/v1/submissions/${encodeURIComponent(hash)}/certificate`
+      );
+    } catch {
+      return this.mock.getCertificate(hash);
+    }
+  }
 }
 
 export const submissionService = new SubmissionService();

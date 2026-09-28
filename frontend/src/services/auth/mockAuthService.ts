@@ -7,11 +7,11 @@
 import { IAuthService } from './IAuthService';
 import { UserRole, UserSession } from '@/types/auth';
 import { UserProfile } from '@/types';
-import { DEFAULT_USER, ADMIN_USER } from '@/lib/mock-data';
+import { DEFAULT_USER, ADMIN_USER, DEMO_CANDIDATE_USER } from '@/lib/mock-data';
 import { setAuthCookies, clearAuthCookies, getClientCookie, AUTH_COOKIE_NAME, ROLE_COOKIE_NAME } from '@/lib/cookies';
 
 export class MockAuthService implements IAuthService {
-  async loginWithGitHub(username = 'junior_dev', name = 'Alex Okafor'): Promise<UserSession> {
+  async loginWithGitHub(username = 'developer', name = 'Candidate Engineer'): Promise<UserSession> {
     const role: UserRole = username === 'lead_auditor' ? 'admin' : 'user';
     const token = `mock_gh_token_${Date.now()}_${username}`;
 
@@ -27,7 +27,7 @@ export class MockAuthService implements IAuthService {
     };
   }
 
-  async loginWithGoogle(email = 'alex.okafor@gmail.com', name = 'Alex Okafor'): Promise<UserSession> {
+  async loginWithGoogle(email = 'developer@gmail.com', name = 'Candidate Engineer'): Promise<UserSession> {
     const username = email.split('@')[0];
     const role: UserRole = 'user';
     const token = `mock_google_token_${Date.now()}_${username}`;
@@ -55,7 +55,7 @@ export class MockAuthService implements IAuthService {
     if (!token) return null;
 
     const isAdmin = role === 'admin';
-    const profile = isAdmin ? ADMIN_USER : DEFAULT_USER;
+    const profile = isAdmin ? ADMIN_USER : DEMO_CANDIDATE_USER;
 
     return {
       token,
@@ -68,7 +68,7 @@ export class MockAuthService implements IAuthService {
   }
 
   async switchRole(role: UserRole): Promise<UserProfile> {
-    const profile = role === 'admin' ? ADMIN_USER : DEFAULT_USER;
+    const profile = role === 'admin' ? ADMIN_USER : DEMO_CANDIDATE_USER;
     const token = `mock_switched_token_${Date.now()}_${role}`;
     setAuthCookies(token, role);
     return profile;

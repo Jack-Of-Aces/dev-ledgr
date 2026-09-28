@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { INITIAL_COACHING } from '@/lib/mock-data';
+import { coachingService } from '@/services/coaching/coachingService';
+import { CoachingItinerary } from '@/types';
 import { CoachingSkeleton } from '@/components/ui/skeletons';
 import {
   ArrowRight,
@@ -18,16 +20,23 @@ import {
   ChevronUp,
   Code,
   Zap,
+  Check,
 } from 'lucide-react';
 
 export default function CoachingListPage() {
   const { user, submissions, jobs, getJobMatchDetails } = useAppStore();
   const [mounted, setMounted] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'fintech' | 'systems' | 'devtools'>('all');
+  const [itineraries, setItineraries] = useState<CoachingItinerary[]>(INITIAL_COACHING);
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [expandedTrackId, setExpandedTrackId] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    coachingService.getItineraries().then((data) => {
+      if (data && data.length > 0) {
+        setItineraries(data);
+      }
+    }).catch(() => {});
   }, []);
 
   const userSubmissions = submissions.filter(
@@ -46,27 +55,42 @@ export default function CoachingListPage() {
     return null;
   })();
 
-  // Match best recommendation track
-  const recommendedTrackId = primaryJobWithGap?.gapProblem?.domain === 'devtools'
-    ? 'devtools-infrastructure'
-    : primaryJobWithGap?.gapProblem?.domain === 'fintech'
-    ? 'fintech-reliability'
-    : 'backend-fundamentals';
+  // Match best recommendation track based on user's calibrated track & job gaps
+  const recommendedTrackId = (() => {
+    if (user.engineeringTrack === 'devops-infra') return 'devtools-infrastructure';
+    if (primaryJobWithGap?.gapProblem?.domain === 'devtools') return 'devtools-infrastructure';
+    if (primaryJobWithGap?.gapProblem?.domain === 'fintech') return 'fintech-reliability';
+    return 'backend-fundamentals';
+  })();
 
   // Calculate cumulative coaching metrics
-  const totalCurriculumMilestones = INITIAL_COACHING.reduce((acc, t) => acc + t.milestones.length, 0);
-  const totalSolvedInCurriculum = INITIAL_COACHING.reduce(
+  const totalCurriculumMilestones = itineraries.reduce((acc, t) => acc + t.milestones.length, 0);
+  const totalSolvedInCurriculum = itineraries.reduce(
     (acc, t) => acc + t.milestones.filter((m) => m.ideaIdRef && solvedIdeaIds.has(m.ideaIdRef)).length,
     0
   );
-  const overallReadinessPct = Math.round((totalSolvedInCurriculum / totalCurriculumMilestones) * 100);
+  const overallReadinessPct = totalCurriculumMilestones > 0 ? Math.round((totalSolvedInCurriculum / totalCurriculumMilestones) * 100) : 0;
 
-  // Filtered tracks
-  const filteredTracks = INITIAL_COACHING.filter((track) => {
-    if (selectedFilter === 'all') return true;
-    if (selectedFilter === 'fintech') return track.id.includes('fintech') || track.id === 'backend-fundamentals';
-    if (selectedFilter === 'systems') return track.id === 'backend-fundamentals';
-    return true;
+  // Multi-select toggle helper
+  const toggleFilter = (id: string) => {
+    if (id === 'all') {
+      setSelectedFilters([]);
+      return;
+    }
+    setSelectedFilters((prev) =>
+      prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
+    );
+  };
+
+  // Filtered tracks with multi-selection support
+  const filteredTracks = itineraries.filter((track) => {
+    if (selectedFilters.length === 0) return true;
+    return selectedFilters.some((f) => {
+      if (f === 'fintech') return track.id.includes('fintech') || track.id === 'backend-fundamentals';
+      if (f === 'systems') return track.id === 'backend-fundamentals';
+      if (f === 'devtools') return track.id === 'devtools-infrastructure';
+      return false;
+    });
   });
 
   if (!mounted) {
@@ -92,8 +116,16 @@ export default function CoachingListPage() {
             <span className="text-emerald-text">Milestone-Sealed</span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <span>Candidate: <strong className="text-text-0 font-medium">@{user.username}</strong></span>
+            {user.targetRole && (
+              <>
+                <span className="text-line">/</span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-tint border border-emerald-border text-emerald-text font-mono text-[11px] font-semibold">
+                  {user.targetRole}
+                </span>
+              </>
+            )}
             <span className="text-line">/</span>
             <Link href="/dashboard" className="text-emerald-text hover:underline">
               Dashboard View →
@@ -197,7 +229,7 @@ export default function CoachingListPage() {
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-text-0 font-medium break-words">
-                Enrolling in <span className="font-bold underline">{INITIAL_COACHING.find((t) => t.id === recommendedTrackId)?.title}</span> covers the missing proof required for <span className="font-bold">{primaryJobWithGap.job.company}</span>.
+                Enrolling in <span className="font-bold underline">{itineraries.find((t) => t.id === recommendedTrackId)?.title}</span> covers the missing proof required for <span className="font-bold">{primaryJobWithGap.job.company}</span>.
               </p>
               <p className="text-xs text-text-1">
                 {primaryJobWithGap.job.gapReason}
@@ -222,28 +254,45 @@ export default function CoachingListPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-line">
           <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 py-1">
             {[
-              { id: 'all', label: 'All Curriculums', count: INITIAL_COACHING.length },
+              { id: 'all', label: 'All Curriculums', count: itineraries.length },
               { id: 'fintech', label: 'Fintech & Payments', count: 2 },
               { id: 'systems', label: 'Distributed Systems', count: 1 },
               { id: 'devtools', label: 'DevTools & Reliability', count: 1 },
-            ].map((f) => (
-              <button
-                key={f.id}
-                onClick={() => setSelectedFilter(f.id as typeof selectedFilter)}
-                className={`px-3 py-1.5 rounded-radius font-medium transition-colors cursor-pointer text-xs shrink-0 whitespace-nowrap ${
-                  selectedFilter === f.id
-                    ? 'bg-text-0 text-ink-0 font-semibold'
-                    : 'bg-card border border-line text-text-1 hover:text-text-0 hover:border-text-1'
-                }`}
-              >
-                <span>{f.label}</span>
-                <span className="ml-1.5 opacity-60 font-mono">({f.count})</span>
-              </button>
-            ))}
+            ].map((f) => {
+              const isSelected = f.id === 'all' ? selectedFilters.length === 0 : selectedFilters.includes(f.id);
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => toggleFilter(f.id)}
+                  className={`px-3 py-1.5 rounded-radius font-medium transition-colors cursor-pointer text-xs shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 border ${
+                    isSelected
+                      ? 'bg-text-0 text-ink-0 font-semibold border-text-0 shadow-xs'
+                      : 'bg-card border-line text-text-1 hover:text-text-0 hover:border-text-1'
+                  }`}
+                  aria-pressed={isSelected}
+                >
+                  {isSelected && f.id !== 'all' && <Check className="w-3 h-3 shrink-0" />}
+                  <span>{f.label}</span>
+                  <span className={`font-mono ${isSelected ? 'opacity-80' : 'opacity-60'}`}>
+                    ({f.count})
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          <div className="text-xs font-mono text-text-1 shrink-0">
-            Showing <span className="text-text-0 font-medium">{filteredTracks.length}</span> verified tracks
+          <div className="text-xs font-mono text-text-1 shrink-0 flex items-center gap-2">
+            <span>
+              Showing <span className="text-text-0 font-medium">{filteredTracks.length}</span> verified tracks
+            </span>
+            {selectedFilters.length > 0 && (
+              <button
+                onClick={() => setSelectedFilters([])}
+                className="text-emerald-text hover:underline cursor-pointer"
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
         </div>
 

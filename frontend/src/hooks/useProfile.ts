@@ -51,6 +51,11 @@ export function useProfile() {
         plan: input.plan,
         apiKey: input.apiKey || undefined,
         statedSkills: input.statedSkills,
+        engineeringTrack: input.engineeringTrack || user.engineeringTrack,
+        targetRole: input.targetRole || user.targetRole,
+        experienceLevel: input.experienceLevel || user.experienceLevel,
+        githubConnected: input.githubConnected ?? user.githubConnected,
+        githubUsername: input.githubUsername || user.githubUsername,
         updatedAt: new Date().toISOString(),
       });
 

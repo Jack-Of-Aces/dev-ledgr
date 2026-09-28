@@ -373,6 +373,100 @@ Build an FX protection engine that:
     },
     tags: ['Fintech', 'Financial Engineering', 'Go', 'High Concurrency', 'Redis'],
     submissionCount: 38
+  },
+  {
+    id: 'k8s-canary-ingress',
+    title: 'Zero-Downtime Canary Ingress Controller & Traffic Splitter',
+    tagline: 'Custom Kubernetes ingress controller with dynamic weight splitting and automated rollback on 5xx bursts.',
+    domain: 'systems',
+    difficulty: 'production-grade',
+    estimatedHours: 14,
+    originStory: 'Fintech platforms face outages when deploying new microservices across Kubernetes clusters without progressive traffic shifting and automated health telemetry.',
+    problemStatement: `Implement a Kubernetes ingress controller in Go or Python that:
+1. Watches Custom Resource Definitions (CRDs) specifying CanaryDeployments (e.g. 95% v1, 5% v2).
+2. Dynamically adjusts NGINX/Envoy ingress weights without dropping live TLS connections.
+3. Automatically triggers an immediate rollback to baseline version if the canary service registers > 1.5% 5xx errors or latency p99 exceeds 120ms within a 60-second window.`,
+    technicalRequirements: [
+      'Kubernetes client-go controller with informers and workqueue architecture.',
+      'Prometheus telemetry watcher polling live pod request metrics.',
+      'Graceful rollback triggering automated Slack/PagerDuty notification and git tag stamp.',
+      'Failover actuation latency < 400ms from telemetry threshold breach.'
+    ],
+    mockInfra: {
+      baseUrl: 'https://mock-infra.devledgr.xyz/api/v1/k8s-mesh',
+      starterRepoUrl: 'https://github.com/devledgr-starters/k8s-canary-starter',
+      curlExample: `curl -X POST https://mock-infra.devledgr.xyz/api/v1/k8s-mesh/deploy-canary \\
+  -H "Content-Type: application/json" \\
+  -d '{"service": "payments-api", "stable_weight": 90, "canary_weight": 10, "error_threshold_pct": 1.5}'`,
+      endpoints: [
+        {
+          method: 'POST',
+          path: '/deploy-canary',
+          description: 'Spins up simulated Kubernetes canary deployment and begins traffic injection.',
+          responseSample: { status: 'traffic_split_applied', active_pods: 8, ingress_synced: true }
+        },
+        {
+          method: 'POST',
+          path: '/inject-fault',
+          description: 'Submission test harness: injects synthetic 503 errors to verify automated rollback trigger.',
+          responseSample: { rollback_executed: true, rollback_duration_ms: 280, error_spillover_prevented: true }
+        }
+      ],
+      testCriteria: [
+        'Rollback successfully executed in under 500ms following fault injection.',
+        'Zero traffic routed to dead pods during simulated pod eviction.',
+        'Prometheus metrics correctly exported on port 9090.'
+      ]
+    },
+    tags: ['Kubernetes', 'Terraform', 'Go', 'Docker', 'Prometheus', 'DevOps', 'SRE'],
+    submissionCount: 29
+  },
+  {
+    id: 'optimistic-ledger-design-system',
+    title: 'Optimistic Ledger Token Engine & Accessible Canvas',
+    tagline: 'WCAG AAA design system with token synchronization, subgrid layout, and zero-layout-shift data feed.',
+    domain: 'devtools',
+    difficulty: 'intermediate',
+    estimatedHours: 12,
+    originStory: 'Design engineering teams needed high-density financial transaction feeds that preserve accessibility contrast, run without Cumulative Layout Shift (CLS), and stay synchronized with Figma design tokens.',
+    problemStatement: `Modern enterprise ledgers require dense tabular views with real-time websocket updates.
+    
+Build an accessible design system and components that:
+1. Parses Figma Design Tokens (W3C standard JSON) and emits CSS variable hierarchies for light and dark themes.
+2. Implements a responsive tabular matrix using CSS Subgrid with keyboard navigation (Arrow keys, Home, End, Tab) compliant with WCAG AAA standards.
+3. Renders optimistic transactions with immediate visual micro-interaction feedback and zero Cumulative Layout Shift (CLS < 0.01).`,
+    technicalRequirements: [
+      'Strict WCAG 2.2 AAA color contrast compliance (> 7:1 for text).',
+      'Zero Cumulative Layout Shift (CLS = 0.000) during live streaming inserts.',
+      'Theme-aware design token compiler emitting CSS utility classes.',
+      'Screen reader ARIA live region announcing real-time state transitions.'
+    ],
+    mockInfra: {
+      baseUrl: 'https://mock-infra.devledgr.xyz/api/v1/design-tokens',
+      starterRepoUrl: 'https://github.com/devledgr-starters/accessible-ledger-starter',
+      curlExample: `curl -X GET https://mock-infra.devledgr.xyz/api/v1/design-tokens/sync?theme=dark`,
+      endpoints: [
+        {
+          method: 'GET',
+          path: '/sync',
+          description: 'Fetches raw token dictionary from simulated Figma API.',
+          responseSample: { tokens: { 'color-bg': '#121215', 'color-brass': '#D4AF37', 'radius-md': '6px' } }
+        },
+        {
+          method: 'POST',
+          path: '/audit-a11y',
+          description: 'Harness testing: runs automated Axe-Core accessibility and contrast compliance test.',
+          responseSample: { wcag_aaa_compliant: true, contrast_violations: 0, keyboard_nav_passed: true }
+        }
+      ],
+      testCriteria: [
+        'Axe-Core accessibility audit reports 0 violations across all themes.',
+        'Keyboard navigation reaches every cell and modal without focus trap.',
+        'Renders 1,000 transaction rows without layout stutter.'
+      ]
+    },
+    tags: ['Design Systems', 'Figma Tokens', 'Next.js', 'Tailwind CSS', 'Accessible ARIA', 'Frontend'],
+    submissionCount: 41
   }
 ];
 
@@ -382,10 +476,10 @@ export const INITIAL_SUBMISSIONS: SubmissionEntry[] = [
     ideaId: 'lpg-route-optimizer',
     ideaTitle: 'Route Optimizer for Informal LPG Delivery',
     authorUsername: 'junior_dev',
-    authorName: 'Alex Okafor',
+    authorName: 'DevLedgr Candidate',
     authorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-    repoUrl: 'https://github.com/alexokafor/lpg-matrix-router',
-    demoUrl: 'https://lpg-router-alex.devledgr.app',
+    repoUrl: 'https://github.com/devledgr-examples/lpg-matrix-router',
+    demoUrl: 'https://lpg-router.devledgr.app',
     architectureNotes: 'Implemented Dijkstra with dynamic Voronoi cell partitioning for Lagos mainland. Integrated custom haversine weight matrix with penalty for unpaved roads. Sustained 120 req/sec at 42ms p99.',
     timestamp: '2026-09-26T14:22:10Z',
     status: 'verified',
@@ -406,9 +500,9 @@ export const INITIAL_SUBMISSIONS: SubmissionEntry[] = [
     ideaId: 'webhook-deduplicator',
     ideaTitle: 'Idempotent Webhook Replayer & Deduplicator',
     authorUsername: 'junior_dev',
-    authorName: 'Alex Okafor',
+    authorName: 'DevLedgr Candidate',
     authorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-    repoUrl: 'https://github.com/alexokafor/fintech-idempotency-engine',
+    repoUrl: 'https://github.com/devledgr-examples/fintech-idempotency-engine',
     demoUrl: 'https://idempotent-hooks.devledgr.app',
     architectureNotes: 'Built on Go + Redis sliding Bloom filters for memory-efficient deduping. Prevents replay attacks using HMAC timing-safe verification and jittered exponential retry backoff.',
     timestamp: '2026-09-26T10:14:45Z',
@@ -570,6 +664,46 @@ You will maintain high-volume merchant processing switches where duplicate reque
     description: `Scale automated savings and investment infrastructure for millions of active retail customers. We test real-world database locking and payment idempotency upfront.`,
     gapIdeaId: 'schema-migration-guard',
     gapReason: 'Demonstrated proficiency in non-blocking Postgres migrations is essential.'
+  },
+  {
+    id: 'job-kuda-devops',
+    title: 'Site Reliability & Cloud Platform Engineer',
+    company: 'Kuda Microfinance Bank',
+    location: 'Lagos / London (Remote)',
+    type: 'Full-time',
+    salary: '₦1,200,000 - ₦1,750,000 / mo',
+    tags: ['Kubernetes', 'Terraform', 'Prometheus', 'AWS', 'Go', 'Docker'],
+    matchScore: 89,
+    matchedIdeaIds: ['k8s-canary-ingress', 'schema-migration-guard'],
+    requiredSkills: [
+      'Zero-downtime canary deployment rollouts and automated rollback triggers',
+      'Terraform Infrastructure-as-Code (IaC) modular architecture',
+      'Prometheus, Grafana, and OpenTelemetry observability alerting',
+      'Multi-region cluster networking and ingress failure recovery'
+    ],
+    description: `Maintain high availability across core banking microservices and transactional gateways. DevLedgr applicants with verified canary rollout proofs bypass preliminary technical screens.`,
+    gapIdeaId: 'k8s-canary-ingress',
+    gapReason: 'Hands-on verification of automated rollback under synthetic fault conditions required.'
+  },
+  {
+    id: 'job-paystack-design',
+    title: 'Design Systems & UI Performance Engineer',
+    company: 'Paystack',
+    location: 'Lagos / Remote',
+    type: 'Full-time',
+    salary: '₦950,000 - ₦1,400,000 / mo',
+    tags: ['Design Systems', 'Figma Tokens', 'Next.js', 'Tailwind CSS', 'A11y'],
+    matchScore: 91,
+    matchedIdeaIds: ['optimistic-ledger-design-system'],
+    requiredSkills: [
+      'WCAG 2.2 AAA accessibility compliance across high-density financial matrices',
+      'Automated Figma design token compilation into responsive CSS variables',
+      'Zero Cumulative Layout Shift (CLS) optimization during live streaming updates',
+      'Tactile micro-interaction feedback and keyboard-first navigation'
+    ],
+    description: `Build the unified developer checkout UI and merchant dashboard used by hundreds of thousands of African businesses. We evaluate code and design system implementation directly through verified ledger proofs.`,
+    gapIdeaId: 'optimistic-ledger-design-system',
+    gapReason: 'Verified implementation of token sync and accessible matrix components required.'
   }
 ];
 
@@ -704,18 +838,49 @@ export const INITIAL_COACHING: CoachingItinerary[] = [
 ];
 
 export const DEFAULT_USER: UserProfile = {
+  username: '',
+  name: '',
+  avatarUrl: '',
+  headline: 'Software Engineer · DevLedgr',
+  bio: '',
+  githubUrl: '',
+  portfolioValidUntil: '2027-09-26T20:00:00Z',
+  plan: 'free',
+  statedSkills: [],
+  role: 'user',
+  email: '',
+  updatedAt: '2026-09-26T20:00:00Z',
+  engineeringTrack: undefined,
+  targetRole: undefined,
+  experienceLevel: 'junior',
+  onboardingCompleted: false,
+  githubConnected: false,
+  githubUsername: undefined,
+  authProvider: undefined,
+  githubVerifiedAt: undefined,
+};
+
+export const DEMO_CANDIDATE_USER: UserProfile = {
   username: 'junior_dev',
-  name: 'Alex Okafor',
+  name: 'Candidate Engineer',
   avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
   headline: 'Junior Backend Engineer · 2 Verified Proof-of-Work Entries',
   bio: 'Self-taught engineer transitioning from web basics to resilient distributed backends. Focused on real-world fintech deduplication and logistics optimization.',
-  githubUrl: 'https://github.com/alexokafor',
+  githubUrl: 'https://github.com/junior-dev',
   portfolioValidUntil: '2027-09-26T20:00:00Z',
   plan: 'free',
   statedSkills: ['Go', 'TypeScript', 'PostgreSQL', 'Redis', 'Docker', 'FastAPI'],
   role: 'user',
-  email: 'alex@devledgr.me',
+  email: 'candidate@devledgr.xyz',
   updatedAt: '2026-09-26T20:00:00Z',
+  engineeringTrack: 'backend-systems',
+  targetRole: 'Backend Engineer',
+  experienceLevel: 'junior',
+  onboardingCompleted: true,
+  githubConnected: true,
+  githubUsername: 'junior-dev',
+  authProvider: 'github',
+  githubVerifiedAt: '2026-09-26T20:00:00Z',
 };
 
 export const ADMIN_USER: UserProfile = {
@@ -731,4 +896,12 @@ export const ADMIN_USER: UserProfile = {
   role: 'admin',
   email: 'sarah.chen@devledgr.org',
   updatedAt: '2026-09-26T00:00:00Z',
+  engineeringTrack: 'devops-infra',
+  targetRole: 'Infrastructure Architect & Auditor',
+  experienceLevel: 'lead',
+  onboardingCompleted: true,
+  githubConnected: true,
+  githubUsername: 'sarahchen-auditor',
+  authProvider: 'github',
+  githubVerifiedAt: '2026-09-26T00:00:00Z',
 };

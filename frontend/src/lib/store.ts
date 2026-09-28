@@ -2,8 +2,9 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { IdeaItem, SubmissionEntry, JobOpportunity, UserProfile } from '@/types';
+import { IdeaItem, SubmissionEntry, JobOpportunity, UserProfile, EngineeringTrack, ExperienceLevel } from '@/types';
 import { INITIAL_IDEAS, INITIAL_SUBMISSIONS, INITIAL_JOBS, DEFAULT_USER } from './mock-data';
+import { setAuthCookies, clearAuthCookies } from './cookies';
 
 interface AppState {
   theme: 'light' | 'dark';
@@ -29,7 +30,13 @@ interface AppState {
     name: string;
     headline?: string;
     skills: string[];
+    engineeringTrack?: EngineeringTrack;
+    targetRole?: string;
+    experienceLevel?: ExperienceLevel;
+    githubConnected?: boolean;
+    githubUsername?: string;
   }) => void;
+  connectGitHubAccount: (githubUsername: string) => void;
 
   ideas: IdeaItem[];
   submissions: SubmissionEntry[];
@@ -130,7 +137,8 @@ export const useAppStore = create<AppState>()(
       setUser: (updates) => set((state) => ({ user: { ...state.user, ...updates } })),
       isLoggedIn: false,
 
-      loginAsGitHub: (username = 'junior_dev', name = 'Alex Okafor') => {
+      loginAsGitHub: (username = 'developer', name = 'Candidate Engineer') => {
+        setAuthCookies(`mock_token_${username}`, 'user');
         set({
           isLoggedIn: true,
           user: {
@@ -146,6 +154,7 @@ export const useAppStore = create<AppState>()(
       },
 
       logout: () => {
+        clearAuthCookies();
         set({
           isLoggedIn: false,
           activeToast: {
@@ -159,7 +168,18 @@ export const useAppStore = create<AppState>()(
       openAuthModal: () => set({ isAuthModalOpen: true }),
       closeAuthModal: () => set({ isAuthModalOpen: false }),
 
-      completeOnboarding: ({ username, name, headline, skills }) => {
+      completeOnboarding: ({
+        username,
+        name,
+        headline,
+        skills,
+        engineeringTrack,
+        targetRole,
+        experienceLevel,
+        githubConnected,
+        githubUsername,
+      }) => {
+        setAuthCookies('devledgr_onboarded_session', 'user');
         set((state) => ({
           isLoggedIn: true,
           isAuthModalOpen: false,
@@ -169,10 +189,34 @@ export const useAppStore = create<AppState>()(
             name,
             headline: headline || state.user.headline,
             statedSkills: skills.length > 0 ? skills : state.user.statedSkills,
+            engineeringTrack: engineeringTrack || state.user.engineeringTrack || 'backend-systems',
+            targetRole: targetRole || state.user.targetRole || 'Backend Engineer',
+            experienceLevel: experienceLevel || state.user.experienceLevel || 'junior',
+            onboardingCompleted: true,
+            githubConnected: githubConnected ?? state.user.githubConnected ?? Boolean(githubUsername),
+            githubUsername: githubUsername || state.user.githubUsername || (state.user.authProvider === 'github' ? username : undefined),
+            githubVerifiedAt: (githubConnected || githubUsername) ? new Date().toISOString() : state.user.githubVerifiedAt,
           },
           activeToast: {
             title: 'Onboarding Complete',
-            message: `Profile initialized! Matched roles and problems have been re-indexed for your stack.`,
+            message: `Profile initialized! Matched roles and problems have been personalized for ${targetRole || 'your track'}.`,
+          },
+        }));
+      },
+
+      connectGitHubAccount: (githubUsername: string) => {
+        const cleanUsername = githubUsername.replace(/^@/, '').trim();
+        set((state) => ({
+          user: {
+            ...state.user,
+            githubConnected: true,
+            githubUsername: cleanUsername,
+            githubUrl: `https://github.com/${cleanUsername}`,
+            githubVerifiedAt: new Date().toISOString(),
+          },
+          activeToast: {
+            title: 'GitHub Connected & Verified',
+            message: `Linked @${cleanUsername}. You can now record cryptographic proof-of-work and submit solutions.`,
           },
         }));
       },

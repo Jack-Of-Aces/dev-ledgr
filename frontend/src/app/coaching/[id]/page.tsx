@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { INITIAL_COACHING } from '@/lib/mock-data';
+import { coachingService } from '@/services/coaching/coachingService';
+import { CoachingItinerary } from '@/types';
 import { aiService } from '@/services/ai/aiService';
 import { CoachingSkeleton } from '@/components/ui/skeletons';
 import {
@@ -26,7 +28,9 @@ type ConsoleTab = 'socratic' | 'custom' | 'patterns';
 export default function CoachingDetailPage() {
   const params = useParams();
   const id = params?.id as string;
-  const itinerary = INITIAL_COACHING.find((c) => c.id === id) || INITIAL_COACHING[0];
+  const [itinerary, setItinerary] = useState<CoachingItinerary>(
+    () => INITIAL_COACHING.find((c) => c.id === id) || INITIAL_COACHING[0]
+  );
 
   const { user, submissions, ideas } = useAppStore();
   const userSubmissions = submissions.filter(
@@ -49,7 +53,14 @@ export default function CoachingDetailPage() {
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    if (id) {
+      coachingService.getItineraryById(id).then((found) => {
+        if (found) {
+          setItinerary(found);
+        }
+      }).catch(() => {});
+    }
+  }, [id]);
 
   const selectedMilestone =
     itinerary.milestones.find((m) => m.week === activeWeek) || itinerary.milestones[0];

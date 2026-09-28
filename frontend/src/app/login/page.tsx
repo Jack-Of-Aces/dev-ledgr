@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { BrandMark } from '@/components/brand/BrandMark';
 import { useAuth } from '@/hooks/useAuth';
-import { envConfig } from '@/lib/config';
+// import { envConfig } from '@/lib/config';
 import { ArrowLeft, Sparkles, AlertCircle } from 'lucide-react';
 import { LoginSkeleton } from '@/components/ui/skeletons';
+import { useAppStore } from '@/lib/store';
 
 const GithubIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -41,17 +42,17 @@ const GoogleIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
 );
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
   const authError = searchParams.get('error');
-  const { isLoggedIn, loginWithGitHub, loginWithGoogle, switchRole } = useAuth();
+  const { isLoggedIn, user, loginWithGitHub, loginWithGoogle, switchRole } = useAuth();
 
   useEffect(() => {
     if (isLoggedIn) {
-      router.replace(callbackUrl);
+      const dest = !user.onboardingCompleted ? '/onboarding' : callbackUrl;
+      window.location.replace(dest);
     }
-  }, [isLoggedIn, callbackUrl, router]);
+  }, [isLoggedIn, user.onboardingCompleted, callbackUrl]);
 
   const [loadingProvider, setLoadingProvider] = useState<'github' | 'google' | null>(null);
   const [showSandbox, setShowSandbox] = useState(false);
@@ -59,9 +60,11 @@ function LoginForm() {
   const handleGitHubAuth = async () => {
     setLoadingProvider('github');
     try {
-      await loginWithGitHub();
-      if (!envConfig.hasSupabase) {
-        router.push(callbackUrl);
+      const session = await loginWithGitHub();
+      if (session && session.token !== 'pending_oauth_redirect') {
+        const currentUser = useAppStore.getState().user;
+        const dest = !currentUser.onboardingCompleted ? '/onboarding' : callbackUrl;
+        window.location.replace(dest);
       }
     } catch {
       setLoadingProvider(null);
@@ -71,9 +74,9 @@ function LoginForm() {
   const handleGoogleAuth = async () => {
     setLoadingProvider('google');
     try {
-      await loginWithGoogle();
-      if (!envConfig.hasSupabase) {
-        router.push(callbackUrl);
+      const session = await loginWithGoogle();
+      if (session && session.token !== 'pending_oauth_redirect') {
+        window.location.replace('/onboarding');
       }
     } catch {
       setLoadingProvider(null);
@@ -83,7 +86,7 @@ function LoginForm() {
   const handleQuickPersona = async (role: 'user' | 'admin') => {
     setLoadingProvider('github');
     await switchRole(role);
-    router.push(role === 'admin' ? '/admin' : callbackUrl);
+    window.location.replace(role === 'admin' ? '/admin' : callbackUrl);
   };
 
   return (
@@ -135,15 +138,6 @@ function LoginForm() {
               {loadingProvider === 'google' ? 'Redirecting to Google...' : 'Continue with Google'}
             </span>
           </button>
-
-          <div className="flex items-center justify-between text-xs md:text-sm text-text-1 font-mono px-1 pt-1">
-            <span>Identity Provider:</span>
-            <span className="text-text-0 font-medium">
-              {envConfig.hasSupabase
-                ? 'Supabase OAuth (GitHub & Google)'
-                : 'Local Developer Sandbox'}
-            </span>
-          </div>
 
           <p className="text-xs text-text-1 text-center font-mono pt-1">
             By signing in, you agree to our{' '}

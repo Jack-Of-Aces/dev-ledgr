@@ -6,6 +6,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAppStore } from "@/lib/store";
 import { PortfolioSkeleton } from "@/components/ui/skeletons";
+import { portfolioService } from "@/services/portfolio/portfolioService";
+import { DevPortfolio } from "@/types";
 import {
   ShieldCheck,
   ExternalLink,
@@ -44,15 +46,25 @@ export default function PublicPortfolioPage() {
   const [mounted, setMounted] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [expandedDiffs, setExpandedDiffs] = useState<Record<string, boolean>>(
-    {}
-  );
+  const [expandedDiffs, setExpandedDiffs] = useState<Record<string, boolean>>({});
+  const [portfolioData, setPortfolioData] = useState<DevPortfolio | null>(null);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    let active = true;
+    portfolioService.getPortfolio(slug).then((data) => {
+      if (active && data) {
+        setPortfolioData(data);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [slug]);
 
-  const isOwner = isLoggedIn && slug.toLowerCase() === user.username.toLowerCase();
+  const isOwner =
+    portfolioData?.isOwner ??
+    (isLoggedIn && slug.toLowerCase() === user.username.toLowerCase());
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -66,19 +78,23 @@ export default function PublicPortfolioPage() {
     }
   }, [showExportModal]);
 
-  // Filter submissions by author
-  const userSubmissions = submissions.filter(
-    (s) => s.authorUsername.toLowerCase() === slug.toLowerCase()
-  );
+  // Use live ledger from backend if present, else fallback to local submissions
+  const userSubmissions =
+    portfolioData?.ledger && portfolioData.ledger.length > 0
+      ? portfolioData.ledger
+      : submissions.filter(
+          (s) => s.authorUsername.toLowerCase() === slug.toLowerCase()
+        );
 
   const displayUser =
-    slug === user.username
+    portfolioData?.dev ||
+    (slug === user.username
       ? user
       : {
           ...user,
           username: slug,
-          name: slug === "junior_dev" ? "Alex Okafor" : slug,
-        };
+          name: slug === "junior_dev" ? "Candidate Engineer" : slug,
+        });
 
   const handleShare = () => {
     if (typeof window !== "undefined") {

@@ -62,6 +62,28 @@ export class MockSubmissionService implements ISubmissionService {
     sub.status = 'verified';
     return sub;
   }
+
+  async rejectSubmission(hash: string, reviewNotes?: string): Promise<SubmissionEntry> {
+    const sub = this.submissions.find((s) => s.hash === hash);
+    if (!sub) throw new Error(`Submission #${hash} not found`);
+
+    sub.status = 'rejected';
+    if (reviewNotes) {
+      sub.architectureNotes = `${sub.architectureNotes}\n\n[Reviewer Feedback]: ${reviewNotes}`;
+    }
+    return sub;
+  }
+
+  async getCertificate(hash: string): Promise<{ hash: string; issuedAt: string; validUntil: string; valid: boolean }> {
+    const issuedAt = new Date().toISOString();
+    const validUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+    return {
+      hash,
+      issuedAt,
+      validUntil,
+      valid: true,
+    };
+  }
 }
 
 export const mockSubmissionService = new MockSubmissionService();

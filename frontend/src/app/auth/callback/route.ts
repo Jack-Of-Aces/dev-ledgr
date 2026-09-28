@@ -64,9 +64,22 @@ export async function GET(request: Request) {
         console.warn('[AuthCallback] Profile upsert notice:', upsertErr);
       }
 
-      const response = NextResponse.redirect(`${origin}${next}`);
+      // Check if user has completed onboarding
+      const isGoogle = user.app_metadata?.provider === 'google';
+      const isOnboarded = Boolean(meta.onboarding_completed);
+      const destination = (!isOnboarded || isGoogle) ? `${origin}/onboarding` : `${origin}${next}`;
 
-      // Set DevLedgr session cookies
+      const response = NextResponse.redirect(destination);
+
+      // Set DevLedgr session cookies (both devledgr_session and devledgr_token for compatibility)
+      response.cookies.set('devledgr_session', data.session.access_token, {
+        path: '/',
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7,
+      });
+
       response.cookies.set('devledgr_token', data.session.access_token, {
         path: '/',
         httpOnly: false,

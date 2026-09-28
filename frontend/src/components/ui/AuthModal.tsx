@@ -24,8 +24,8 @@ export const AuthModal: React.FC = () => {
   const { loginWithGitHub } = useAuth();
 
   const [step, setStep] = useState<'oauth' | 'onboarding'>('oauth');
-  const [username, setUsername] = useState(user.username || 'junior_dev');
-  const [name, setName] = useState(user.name || 'Alex Okafor');
+  const [username, setUsername] = useState(user.username || '');
+  const [name, setName] = useState(user.name || '');
 
   const [selectedTrack, setSelectedTrack] = useState('Backend & Distributed Systems');
   const [selectedSkills, setSelectedSkills] = useState<string[]>([

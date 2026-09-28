@@ -7,20 +7,58 @@ import { useAppStore } from '@/lib/store';
 import { TerminalExplorer } from '@/components/ui/TerminalExplorer';
 import { SubmitSolutionModal } from '@/components/ui/SubmitSolutionModal';
 import { LedgerEntryRow } from '@/components/ui/LedgerEntryRow';
-import { ArrowLeft, Clock, ExternalLink, GitBranch, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Clock, ExternalLink, GitBranch, ShieldCheck, Flame, Loader2 } from 'lucide-react';
 import { getDomainStyle, getDifficultyStyle } from '@/lib/colors';
 import { IdeaDetailSkeleton } from '@/components/ui/skeletons';
+import { launchpadService } from '@/services/launchpad/launchpadService';
+import { ProblemClaimStatus } from '@/types';
 
 export default function IdeaDetailPage() {
   const params = useParams();
   const id = params?.id as string;
-  const { ideas, submissions } = useAppStore();
+  const { ideas, submissions, isLoggedIn, showToast } = useAppStore();
   const [modalOpen, setModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [claimStatus, setClaimStatus] = useState<ProblemClaimStatus | null>(null);
+  const [claiming, setClaiming] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    let active = true;
+    launchpadService.getStatus(id).then((status) => {
+      if (active && status) setClaimStatus(status);
+    });
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  const handleClaim = async () => {
+    if (!isLoggedIn) {
+      showToast({
+        title: 'Authentication Required',
+        message: 'Sign in to claim this Launchpad challenge and register as builder.',
+      });
+      return;
+    }
+
+    setClaiming(true);
+    try {
+      const res = await launchpadService.claimProblem(id);
+      setClaimStatus(res);
+      showToast({
+        title: 'Challenge Claimed!',
+        message: 'You are now registered as the active builder for this challenge.',
+      });
+    } catch (err: unknown) {
+      showToast({
+        title: 'Claim Failed',
+        message: err instanceof Error ? err.message : 'Could not claim challenge.',
+      });
+    } finally {
+      setClaiming(false);
+    }
+  };
 
   const idea = ideas.find((i) => i.id === id) || ideas[0];
 
@@ -58,6 +96,25 @@ export default function IdeaDetailPage() {
             <Clock className="w-3 h-3" />
             Estimated ~{idea.estimatedHours} hours
           </span>
+          {claimStatus && (
+            <span
+              className={`px-2.5 py-1 rounded border text-xs font-mono uppercase font-semibold ${
+                claimStatus.status === 'open'
+                  ? 'border-emerald-border bg-emerald-tint text-emerald-text'
+                  : claimStatus.status === 'in_progress'
+                  ? 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                  : 'border-line bg-card text-text-1'
+              }`}
+            >
+              {claimStatus.status === 'open'
+                ? 'Open for Claim'
+                : claimStatus.status === 'in_progress'
+                ? `In Progress${claimStatus.claimedBy ? ` (@${claimStatus.claimedBy.username})` : ''}`
+                : claimStatus.status === 'seeking_contributors'
+                ? 'Seeking Contributors'
+                : 'Complete'}
+            </span>
+          )}
         </div>
 
         <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-text-0 leading-tight">
@@ -70,6 +127,26 @@ export default function IdeaDetailPage() {
 
         {/* Action bar */}
         <div className="pt-2 flex flex-wrap items-center gap-3">
+          {(!claimStatus || claimStatus.status === 'open') && (
+            <button
+              onClick={handleClaim}
+              disabled={claiming}
+              className="btn-outline text-xs md:text-sm py-2 px-4 cursor-pointer inline-flex items-center gap-2 border-amber-500/40 text-amber-600 dark:text-amber-400 hover:border-amber-500"
+            >
+              {claiming ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Registering Claim...</span>
+                </>
+              ) : (
+                <>
+                  <Flame className="w-4 h-4 text-amber-500" />
+                  <span>Claim Challenge</span>
+                </>
+              )}
+            </button>
+          )}
+
           <button
             onClick={() => setModalOpen(true)}
             className="btn-brass text-xs md:text-sm py-2 px-4 cursor-pointer"
