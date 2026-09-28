@@ -54,14 +54,8 @@ export class UserService implements IUserService {
       delete sanitizedData.statedSkills;
     }
 
-    // Per ADR-001: mutations never silently fall back. Try primary endpoint; if it fails,
-    // attempt the alternate endpoint. If both fail, the error propagates to the caller.
-    try {
-      return await this.http.patch<UserProfile>('/api/dev/profile', sanitizedData as UserProfileUpdateInput);
-    } catch {
-      // Attempt alternate endpoint — error propagates if this also fails
-      return await this.http.patch<UserProfile>('/api/v1/users/me', sanitizedData as UserProfileUpdateInput);
-    }
+    // Call the backend user profile API endpoint
+    return await this.http.patch<UserProfile>('/api/v1/users/me', sanitizedData as UserProfileUpdateInput);
   }
 
   async checkUsernameAvailable(username: string): Promise<boolean> {

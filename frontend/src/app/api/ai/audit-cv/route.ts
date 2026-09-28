@@ -42,10 +42,32 @@ export async function POST(req: Request) {
           try {
             const parser = new PDFParse({ data: buffer });
             const parsed = await parser.getText();
-            cvText = parsed.text || '';
-          } catch {
+            cvText = parsed?.text?.trim() || '';
+
+            // If parser returns empty string (e.g. scanned image-only PDF), attempt regex extraction fallback
+            if (!cvText) {
+              const rawStr = buffer.toString('binary');
+              const textMatches = rawStr.match(/\(([^)]+)\)\s*T[jJ]/g);
+              if (textMatches && textMatches.length > 0) {
+                cvText = textMatches.map((m) => m.replace(/^\(/, '').replace(/\)\s*T[jJ]$/, '')).join(' ');
+              }
+            }
+          } catch (pdfErr) {
+            console.warn('[Audit CV Route] PDF text extraction notice:', pdfErr);
+            // Fallback raw stream extract
+            const rawStr = buffer.toString('binary');
+            const textMatches = rawStr.match(/\(([^)]+)\)\s*T[jJ]/g);
+            if (textMatches && textMatches.length > 0) {
+              cvText = textMatches.map((m) => m.replace(/^\(/, '').replace(/\)\s*T[jJ]$/, '')).join(' ');
+            }
+          }
+
+          if (!cvText || cvText.length < 20) {
             return NextResponse.json(
-              { error: 'Failed to extract text from PDF. Please upload a text-readable PDF or paste plain text.' },
+              {
+                error:
+                  'Could not extract text from this PDF file. It may be a scanned image-only PDF or password protected. Please copy and paste your resume text directly into the box.',
+              },
               { status: 400 }
             );
           }
