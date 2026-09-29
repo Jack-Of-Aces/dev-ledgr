@@ -5,6 +5,7 @@
 
 import { IJobService } from './IJobService';
 import { JobOpportunity, JobFilters, CVAudit, RunCVAuditRequest } from '@/types';
+import { ApiError } from '@/types/api';
 import { INITIAL_JOBS, DEFAULT_USER } from '@/lib/mock-data';
 
 export class MockJobService implements IJobService {
@@ -84,6 +85,33 @@ export class MockJobService implements IJobService {
 
   async getAuditById(id: string): Promise<CVAudit | undefined> {
     return this.audits.find((a) => a.id === id);
+  }
+
+  // The moderation methods take no parameters on purpose: the sample bank has
+  // no hidden or removed listings to model, and the arguments would only be
+  // ignored. Declaring no parameters still satisfies IJobService.
+  async listAllJobs(): Promise<JobOpportunity[]> {
+    throw new ApiError({
+      message: 'Job management needs a connected backend',
+      statusCode: 0,
+      code: 'MOCK_MODE_UNSUPPORTED',
+    });
+  }
+
+  async setJobActive(): Promise<JobOpportunity> {
+    throw new ApiError({
+      message: 'Job management needs a connected backend',
+      statusCode: 0,
+      code: 'MOCK_MODE_UNSUPPORTED',
+    });
+  }
+
+  async deleteJob(): Promise<void> {
+    throw new ApiError({
+      message: 'Job management needs a connected backend',
+      statusCode: 0,
+      code: 'MOCK_MODE_UNSUPPORTED',
+    });
   }
 }
 

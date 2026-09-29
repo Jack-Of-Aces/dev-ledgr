@@ -252,7 +252,7 @@ export default function CoachingListPage() {
       {/* ========================================================= */}
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-line">
-          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 py-1">
+          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 py-1 min-w-0">
             {[
               { id: 'all', label: 'All Curriculums', count: itineraries.length },
               { id: 'fintech', label: 'Fintech & Payments', count: 2 },

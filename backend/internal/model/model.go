@@ -310,6 +310,9 @@ type Job struct {
 	SourceURL     string     `json:"sourceUrl,omitempty"`
 	PostedAt      *time.Time `json:"postedAt,omitempty"`
 	ScrapedAt     *time.Time `json:"scrapedAt,omitempty"`
+	// DeletedAt marks a job removed by an admin. Only the moderation list
+	// returns them; every public read path filters them out.
+	DeletedAt *time.Time `json:"deletedAt,omitempty"`
 }
 
 // JobMatch explains how well a job fits a developer's skills.

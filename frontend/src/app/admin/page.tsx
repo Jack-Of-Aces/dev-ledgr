@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { LaunchpadProblem, SubmissionEntry } from '@/types';
+import { LaunchpadProblem, JobOpportunity, AdminJobFilters, SubmissionEntry } from '@/types';
 import { IdeaDraft } from '@/services/ideas/IIdeaService';
 import {
   ShieldCheck,
@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Check,
   Loader2,
+  Eye,
   EyeOff,
   Trash2,
 } from 'lucide-react';
@@ -20,6 +21,7 @@ import { AuthGuard } from '@/components/auth/AuthGuard';
 import { submissionService } from '@/services/submissions/submissionService';
 import { launchpadService } from '@/services/launchpad/launchpadService';
 import { ideaService } from '@/services/ideas/ideaService';
+import { jobService } from '@/services/jobs/jobService';
 import { useAuth } from '@/hooks/useAuth';
 import { hasPermission, UserRole } from '@/types/auth';
 import { envConfig } from '@/lib/config';
@@ -63,7 +65,7 @@ export default function AdminPage() {
   // Without a backend URL the console is editing the in-memory sample bank.
   // It still has to say so, or a reviewer reads sample rows as real records.
   const isMockMode = envConfig.useMocks;
-  const [activeTab, setActiveTab] = useState<'submissions' | 'ideas' | 'team'>(
+  const [activeTab, setActiveTab] = useState<'submissions' | 'ideas' | 'team' | 'jobs'>(
     'submissions'
   );
   const [seedModalOpen, setSeedModalOpen] = useState(false);
@@ -83,6 +85,13 @@ export default function AdminPage() {
   const [teamError, setTeamError] = useState<string | null>(null);
   const [teamBusy, setTeamBusy] = useState<ReadonlySet<string>>(new Set());
   const [teamQuery, setTeamQuery] = useState('');
+
+  const [jobs, setJobs] = useState<JobOpportunity[] | null>(null);
+  const [jobError, setJobError] = useState<string | null>(null);
+  const [jobBusy, setJobBusy] = useState<ReadonlySet<string>>(new Set());
+  const [jobQuery, setJobQuery] = useState('');
+  const [jobStatus, setJobStatus] = useState<AdminJobFilters['active']>('all');
+  const [jobPendingDelete, setJobPendingDelete] = useState<JobOpportunity | null>(null);
 
   const [notice, setNotice] = useState<{ tone: 'error' | 'ok'; text: string } | null>(
     null
@@ -134,25 +143,50 @@ export default function AdminPage() {
     [canAssignRoles]
   );
 
+  // Job moderation reads the backend directly, with no mock fallback: the
+  // sample bank cannot represent a hidden or removed listing, so falling back
+  // would show an admin jobs that do not exist.
+  const loadJobs = useCallback(
+    async (query = '', status: AdminJobFilters['active'] = 'all') => {
+      if (!canManagePlatform) {
+        setJobs([]);
+        return;
+      }
+      setJobError(null);
+      try {
+        const rows = await jobService.listAllJobs({ active: status, search: query });
+        setJobs(Array.isArray(rows) ? rows : []);
+      } catch (err) {
+        setJobError(describeError(err));
+        setJobs([]);
+      }
+    },
+    [canManagePlatform]
+  );
+
   useEffect(() => {
     if (activeTab === 'ideas') {
       void loadProblems();
     } else if (activeTab === 'team') {
       void loadTeam(teamQuery);
+    } else if (activeTab === 'jobs') {
+      void loadJobs(jobQuery, jobStatus);
     } else {
       void loadQueue();
     }
-  }, [activeTab, loadProblems, loadQueue, loadTeam, teamQuery]);
+  }, [activeTab, loadProblems, loadQueue, loadTeam, loadJobs, teamQuery, jobQuery, jobStatus]);
 
-  // Close on Escape key press
+  // Close whichever dialog is open on Escape.
   useEffect(() => {
-    if (!seedModalOpen) return;
+    if (!seedModalOpen && !jobPendingDelete) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSeedModalOpen(false);
+      if (e.key !== 'Escape') return;
+      setSeedModalOpen(false);
+      setJobPendingDelete(null);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [seedModalOpen]);
+  }, [seedModalOpen, jobPendingDelete]);
 
   const setPending = (
     setter: React.Dispatch<React.SetStateAction<ReadonlySet<string>>>,
@@ -241,6 +275,46 @@ export default function AdminPage() {
     }
   };
 
+  const handleSetJobActive = async (job: JobOpportunity, active: boolean) => {
+    setPending(setJobBusy, job.id, true);
+    setNotice(null);
+    try {
+      const updated = await jobService.setJobActive(job.id, active);
+      // Take the server's row rather than patching locally, so the badge shows
+      // the state that was actually persisted.
+      await loadJobs(jobQuery, jobStatus);
+      setNotice({
+        tone: 'ok',
+        text: active
+          ? `"${updated.title}" is live on the job board again.`
+          : `"${updated.title}" is hidden from developers. It stays in the bank and can be reactivated.`,
+      });
+    } catch (err) {
+      setNotice({ tone: 'error', text: describeError(err) });
+    } finally {
+      setPending(setJobBusy, job.id, false);
+    }
+  };
+
+  const handleDeleteJob = async (job: JobOpportunity) => {
+    setPending(setJobBusy, job.id, true);
+    setNotice(null);
+    try {
+      await jobService.deleteJob(job.id);
+      setJobPendingDelete(null);
+      // Reload so the row reflects what the server stored, not a local splice.
+      await loadJobs(jobQuery, jobStatus);
+      setNotice({
+        tone: 'ok',
+        text: `"${job.title}" was removed from the job board.`,
+      });
+    } catch (err) {
+      setNotice({ tone: 'error', text: describeError(err) });
+    } finally {
+      setPending(setJobBusy, job.id, false);
+    }
+  };
+
   const draftCount = useMemo(
     () => (problems ?? []).filter((p) => !p.adminApproved).length,
     [problems]
@@ -249,6 +323,13 @@ export default function AdminPage() {
   const staffCount = useMemo(
     () => (team ?? []).filter((u) => u.role !== 'user').length,
     [team]
+  );
+
+  // Counted separately from removed rows: a hidden job is one an admin may
+  // still want to bring back, a removed one is a tombstone.
+  const hiddenJobCount = useMemo(
+    () => (jobs ?? []).filter((j) => !j.isActive && !j.deletedAt).length,
+    [jobs]
   );
 
   return (
@@ -306,6 +387,28 @@ export default function AdminPage() {
                 {staffCount > 0 && (
                   <span className="ml-1.5 text-text-1">
                     ({staffCount} staff)
+                  </span>
+                )}
+              </button>
+            )}
+            {/* manage_platform is admin-only, so the tab is hidden rather than
+                offered and then refused with a 403. */}
+            {canManagePlatform && (
+              <button
+                onClick={() => setActiveTab('jobs')}
+                className={`px-3 py-1.5 rounded-radius cursor-pointer text-xs md:text-sm font-medium ${
+                  activeTab === 'jobs'
+                    ? 'bg-card text-text-0 border border-green-500'
+                    : 'text-text-1'
+                }`}
+              >
+                Jobs
+                {/* The count is over whatever is currently loaded, so it is
+                    only a platform total while the list is unfiltered. With a
+                    filter applied it would silently report zero. */}
+                {hiddenJobCount > 0 && !jobQuery && jobStatus === 'all' && (
+                  <span className="ml-1.5 text-amber-600 dark:text-amber-400">
+                    ({hiddenJobCount} hidden)
                   </span>
                 )}
               </button>
@@ -575,7 +678,7 @@ export default function AdminPage() {
               </div>
             )}
           </div>
-        ) : (
+        ) : activeTab === 'team' ? (
           <TeamTab
             team={team}
             error={teamError}
@@ -585,6 +688,19 @@ export default function AdminPage() {
             onQueryChange={setTeamQuery}
             onReload={() => void loadTeam(teamQuery)}
             onRoleChange={handleRoleChange}
+          />
+        ) : (
+          <JobsTab
+            jobs={jobs}
+            error={jobError}
+            busy={jobBusy}
+            query={jobQuery}
+            status={jobStatus}
+            onQueryChange={setJobQuery}
+            onStatusChange={setJobStatus}
+            onReload={() => void loadJobs(jobQuery, jobStatus)}
+            onSetActive={handleSetJobActive}
+            onRequestDelete={setJobPendingDelete}
           />
         )}
 
@@ -601,6 +717,15 @@ export default function AdminPage() {
               // actually stored.
               void loadProblems();
             }}
+          />
+        )}
+
+        {jobPendingDelete && (
+          <ConfirmDeleteJobDialog
+            job={jobPendingDelete}
+            busy={jobBusy.has(jobPendingDelete.id)}
+            onCancel={() => setJobPendingDelete(null)}
+            onConfirm={() => void handleDeleteJob(jobPendingDelete)}
           />
         )}
       </div>
@@ -759,6 +884,288 @@ function TeamTab({
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+const JOB_STATUS_FILTERS: { id: NonNullable<AdminJobFilters['active']>; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'true', label: 'Live' },
+  { id: 'false', label: 'Hidden' },
+];
+
+/** Formats the date a job was posted, falling back to when it was scraped. */
+function jobPostedLabel(job: JobOpportunity): string {
+  const raw = job.postedAt || job.scrapedAt;
+  if (!raw) return 'Date unknown';
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return 'Date unknown';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/**
+ * Job moderation: every listing in the bank, live and hidden.
+ *
+ * This reads the backend directly. jobService.getJobs deliberately falls back
+ * to the sample bank when the API returns nothing, which is right for the
+ * public board and fatal here: a moderation view that showed six invented jobs
+ * while the real ones were all hidden would be worse than an error.
+ */
+function JobsTab({
+  jobs,
+  error,
+  busy,
+  query,
+  status,
+  onQueryChange,
+  onStatusChange,
+  onReload,
+  onSetActive,
+  onRequestDelete,
+}: {
+  jobs: JobOpportunity[] | null;
+  error: string | null;
+  busy: ReadonlySet<string>;
+  query: string;
+  status: AdminJobFilters['active'];
+  onQueryChange: (next: string) => void;
+  onStatusChange: (next: NonNullable<AdminJobFilters['active']>) => void;
+  onReload: () => void;
+  onSetActive: (job: JobOpportunity, active: boolean) => void;
+  onRequestDelete: (job: JobOpportunity) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs md:text-sm text-text-1">
+        <span className="max-w-md leading-relaxed">
+          Every listing in the job bank, live and hidden. Hiding takes a role off
+          the board and is reversible; removing it is a tombstone, so a later
+          scrape cannot bring the listing back.
+        </span>
+        <label className="flex items-center gap-2 shrink-0">
+          <span className="sr-only">Search jobs</span>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => onQueryChange(e.target.value)}
+            placeholder="Search by role or company"
+            className="bg-card border border-line rounded-radius px-3 py-1.5 text-xs md:text-sm text-text-0 placeholder:text-text-1 w-full sm:w-64"
+          />
+        </label>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        {JOB_STATUS_FILTERS.map((opt) => (
+          <button
+            key={opt.id}
+            onClick={() => onStatusChange(opt.id)}
+            aria-pressed={status === opt.id}
+            className={`px-3 py-1.5 rounded-radius font-medium transition-colors cursor-pointer text-xs shrink-0 whitespace-nowrap inline-flex items-center border ${
+              status === opt.id
+                ? 'bg-text-0 text-ink-0 font-semibold border-text-0'
+                : 'bg-card border-line text-text-1 hover:text-text-0 hover:border-text-1'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+        <button onClick={onReload} className="btn-outline py-1 px-2.5 ml-auto">
+          Reload
+        </button>
+      </div>
+
+      {error ? (
+        <div className="rounded-radius border border-rose-500/30 bg-rose-500/5 p-4 text-xs md:text-sm text-rose-700 dark:text-rose-300 flex items-center justify-between gap-3">
+          <span>{error}</span>
+          <button onClick={onReload} className="btn-outline py-1 px-2.5 shrink-0">
+            Retry
+          </button>
+        </div>
+      ) : jobs === null ? (
+        <div className="flex items-center gap-2 text-text-1 text-xs md:text-sm py-6">
+          <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+          <span>Loading job bank…</span>
+        </div>
+      ) : jobs.length === 0 ? (
+        <div className="rounded-radius border border-line bg-card/40 p-6 text-center text-text-1 text-xs md:text-sm">
+          {query || status !== 'all'
+            ? 'No jobs match this filter.'
+            : 'The job bank is empty.'}
+        </div>
+      ) : (
+        <div className="rounded-radius border border-line bg-card/40 divide-y divide-line overflow-hidden">
+          {jobs.map((job) => {
+            const isBusy = busy.has(job.id);
+            const removed = Boolean(job.deletedAt);
+            return (
+              <div
+                key={job.id}
+                className={`p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                  removed ? 'opacity-60' : ''
+                }`}
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-text-0 break-words">
+                      {job.title}
+                    </span>
+                    <span
+                      className={`text-xs font-mono px-1.5 py-0.5 rounded border ${
+                        removed
+                          ? 'border-line text-text-1'
+                          : job.isActive
+                          ? 'border-green-500/40 text-green-700 dark:text-green-400'
+                          : 'border-amber-500/40 text-amber-700 dark:text-amber-300'
+                      }`}
+                    >
+                      {removed ? 'Removed' : job.isActive ? 'Live' : 'Hidden'}
+                    </span>
+                    {!job.adminApproved && !removed && (
+                      <span className="text-xs font-mono px-1.5 py-0.5 rounded border border-line text-text-1">
+                        Unpublished
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-text-1 mt-0.5 truncate">
+                    {job.company}
+                    {job.location ? ` · ${job.location}` : ''}
+                    {job.level && job.level !== 'unspecified'
+                      ? ` · ${job.level}`
+                      : ''}
+                    {` · posted ${jobPostedLabel(job)}`}
+                  </div>
+                  <div className="text-xs text-text-1 mt-0.5">
+                    {job.tags?.length ?? 0} skill tags · {job.matchScore}% match score
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  {removed ? (
+                    // A tombstone has no transition back. The row stays only so
+                    // an admin can see what was removed and when.
+                    <span className="text-xs text-text-1 font-mono">
+                      Removed {jobPostedLabel(job)}
+                    </span>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => onSetActive(job, !job.isActive)}
+                        disabled={isBusy}
+                        className={`btn-outline py-1 px-2.5 shrink-0 ${
+                          isBusy ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                        }`}
+                      >
+                        {job.isActive ? (
+                          <>
+                            <EyeOff className="w-3 h-3" />
+                            <span>Hide</span>
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="w-3 h-3" />
+                            <span>Show</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => onRequestDelete(job)}
+                        disabled={isBusy}
+                        title={`Remove ${job.title} from the job board`}
+                        className={`btn-outline py-1 px-2.5 shrink-0 text-rose-700 dark:text-rose-300 ${
+                          isBusy ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                        }`}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Remove</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Removal is confirmed rather than one click away. It is a tombstone rather
+ * than a row delete — the scraper upserts on source_url, so a hard delete would
+ * reappear on the next run — but an admin pressing "Remove" should still have
+ * said so on purpose.
+ */
+function ConfirmDeleteJobDialog({
+  job,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  job: JobOpportunity;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirm-delete-job"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-0/70 backdrop-blur-sm"
+    >
+      <div className="w-full max-w-md rounded-radius border border-line bg-card p-5 sm:p-6 space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <h2
+            id="confirm-delete-job"
+            className="text-base font-semibold text-text-0 tracking-tight"
+          >
+            Remove this role from the job board?
+          </h2>
+          <button
+            onClick={onCancel}
+            aria-label="Close"
+            className="text-text-1 hover:text-text-0 cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-2 text-xs md:text-sm text-text-1 leading-relaxed">
+          <p className="text-text-0 font-medium break-words">
+            {job.title} · {job.company}
+          </p>
+          <p>
+            It disappears from the board and from the public API. The record is
+            kept with a removal date rather than deleted, because the scraper
+            re-inserts anything it still finds at the same source URL — a real
+            delete would come back on the next run.
+          </p>
+          <p>
+            Developers with the role open will see it as no longer available.
+            Use <span className="font-mono">Hide</span> instead if the role is
+            only filled and you want to bring it back.
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-2 pt-2">
+          <button onClick={onCancel} className="btn-outline py-1.5 px-3">
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={busy}
+            className={`btn-brass py-1.5 px-3 inline-flex items-center gap-1.5 ${
+              busy ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+            }`}
+          >
+            {busy ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+            ) : (
+              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+            )}
+            <span>Remove role</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

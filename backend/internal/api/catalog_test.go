@@ -100,3 +100,58 @@ func TestCreateIdeaRequestRoundTripsModelShape(t *testing.T) {
 		t.Error("createIdeaRequest no longer carries an id field")
 	}
 }
+
+// TestSetJobActiveRequest pins the body contract for
+// POST /api/v1/jobs/{id}/active. The handler decodes with
+// DisallowUnknownFields, and the field is `active`; a client that posts the
+// job's own `isActive` key is refused rather than silently defaulting the job
+// back to visible.
+func TestSetJobActiveRequest(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		body string
+		want bool
+	}{
+		{"hides explicitly", `{"active":false}`, false},
+		{"shows explicitly", `{"active":true}`, true},
+		{"defaults to showing when the field is absent", `{}`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/jobs/some-id/active", strings.NewReader(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			var got activeRequest
+			if err := decodeOptionalJSON(httptest.NewRecorder(), req, &got); err != nil {
+				t.Fatalf("body %s rejected: %v", tc.body, err)
+			}
+			if active := got.Active == nil || *got.Active; active != tc.want {
+				t.Errorf("body %s resolved to active=%v, want %v", tc.body, active, tc.want)
+			}
+		})
+	}
+
+	t.Run("accepts an empty body", func(t *testing.T) {
+		t.Parallel()
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/jobs/some-id/active", nil)
+		var got activeRequest
+		if err := decodeOptionalJSON(httptest.NewRecorder(), req, &got); err != nil {
+			t.Fatalf("empty body rejected: %v", err)
+		}
+		if got.Active != nil {
+			t.Errorf("empty body set Active=%v, want nil", *got.Active)
+		}
+	})
+
+	t.Run("refuses the job's own isActive key", func(t *testing.T) {
+		t.Parallel()
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/jobs/some-id/active",
+			strings.NewReader(`{"isActive":false}`))
+		req.Header.Set("Content-Type", "application/json")
+		var got activeRequest
+		if err := decodeOptionalJSON(httptest.NewRecorder(), req, &got); err == nil {
+			t.Fatal("a job-shaped body decoded cleanly; DisallowUnknownFields should have refused it")
+		}
+	})
+}

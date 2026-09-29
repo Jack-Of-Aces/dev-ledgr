@@ -12,7 +12,7 @@ export function AdminSkeleton() {
           <Skeleton variant="text" className="w-64 h-8" />
           <Skeleton variant="text" className="w-80 h-4" />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Skeleton variant="pill" className="w-28 h-8" />
           <Skeleton variant="pill" className="w-24 h-8" />
           <Skeleton variant="rectangular" className="w-36 h-9 rounded-radius" />
@@ -25,7 +25,7 @@ export function AdminSkeleton() {
           <div key={idx} className="rounded-radius border border-line bg-card p-6 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-line">
               <div className="space-y-2">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Skeleton variant="pill" className="w-20 h-5" />
                   <Skeleton variant="pill" className="w-24 h-5" />
                   <Skeleton variant="text" className="w-28 h-4" />

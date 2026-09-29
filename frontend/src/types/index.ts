@@ -76,8 +76,12 @@ export interface JobOpportunity {
   applyUrl?: string;
   sourceUrl?: string;
   scrapedAt?: string;
+  postedAt?: string;
   adminApproved?: boolean;
   isActive?: boolean;
+  // Set only on rows an admin removed. The moderation list returns them; the
+  // public board never does.
+  deletedAt?: string;
   match?: {
     score: number;
     matchedSkills: string[];

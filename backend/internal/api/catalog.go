@@ -170,6 +170,10 @@ type approveRequest struct {
 	Approved *bool `json:"approved"`
 }
 
+type activeRequest struct {
+	Active *bool `json:"active"`
+}
+
 // POST /api/launchpad/problems/{id}/approve publishes (default) or, with
 // {"approved": false}, unpublishes a problem (admin).
 func (s *Server) approveProblem(w http.ResponseWriter, r *http.Request) error {
@@ -198,10 +202,12 @@ func (s *Server) listJobs(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// loadVisibleJob fetches a job, hiding unapproved or inactive ones from non-moderators.
+// loadVisibleJob fetches a job, hiding unapproved, inactive or deleted ones
+// from non-moderators.
 func (s *Server) loadVisibleJob(r *http.Request, id string) (*model.Job, error) {
 	job, err := s.store.GetJob(r.Context(), id)
-	if errors.Is(err, store.ErrNotFound) || (err == nil && !(job.AdminApproved && job.IsActive) && !canModerate(r)) {
+	if errors.Is(err, store.ErrNotFound) ||
+		(err == nil && !(job.AdminApproved && job.IsActive && job.DeletedAt == nil) && !canModerate(r)) {
 		return nil, errNotFound("Job not found")
 	}
 	return job, err
@@ -258,6 +264,72 @@ func (s *Server) createJob(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	writeJSON(w, http.StatusCreated, created)
+	return nil
+}
+
+// GET /api/v1/admin/jobs?active=&level=&search=
+// Lists every job for moderation, including inactive and removed ones, which
+// the public list hides. Deliberately unpaginated: the point of this list is
+// that an admin can see the whole bank, and a cap would quietly hide the row
+// someone is looking for. The store's filter carries a limit for other callers.
+func (s *Server) listAdminJobs(w http.ResponseWriter, r *http.Request) error {
+	q := r.URL.Query()
+	f := store.AdminJobFilters{Level: q.Get("level"), Search: q.Get("search")}
+	v := validationErrors{}
+	if len(f.Search) > 100 || len(f.Level) > 40 {
+		v.add("search", "search must be under 100 characters and level under 40")
+	}
+	active := true
+	f.Active = &active
+	switch q.Get("active") {
+	case "", "all":
+		f.Active = nil
+	case "true":
+	case "false":
+		active = false
+	default:
+		v.add("active", "active must be true, false or all")
+	}
+	if err := v.err(); err != nil {
+		return err
+	}
+	jobs, err := s.store.ListAllJobs(r.Context(), f)
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, jobs)
+	return nil
+}
+
+// POST /api/v1/jobs/{id}/active shows (default) or, with {"active": false},
+// hides a job from the public board (admin).
+func (s *Server) setJobActive(w http.ResponseWriter, r *http.Request) error {
+	var req activeRequest
+	if err := decodeOptionalJSON(w, r, &req); err != nil {
+		return err
+	}
+	active := req.Active == nil || *req.Active
+	job, err := s.store.SetJobActive(r.Context(), r.PathValue("id"), active)
+	if errors.Is(err, store.ErrNotFound) {
+		return errNotFound("Job not found")
+	}
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, job)
+	return nil
+}
+
+// DELETE /api/v1/jobs/{id} removes a job from the platform (admin).
+func (s *Server) deleteJob(w http.ResponseWriter, r *http.Request) error {
+	err := s.store.DeleteJob(r.Context(), r.PathValue("id"))
+	if errors.Is(err, store.ErrNotFound) {
+		return errNotFound("Job not found")
+	}
+	if err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
 

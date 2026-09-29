@@ -11,7 +11,7 @@ export class AIService implements IAIService {
     params: ScrutinyParams,
     onLog?: (log: string) => void
   ): Promise<ScrutinyResult> {
-    const { job, user, userSubmissions, forceGap } = params;
+    const { job, user, userSubmissions, forceGap, overrideGap } = params;
 
     try {
       const res = await fetch('/api/ai/scrutiny', {
@@ -22,6 +22,7 @@ export class AIService implements IAIService {
           user,
           userSubmissions,
           forceGap,
+          overrideGap,
         }),
       });
 
@@ -53,7 +54,7 @@ export class AIService implements IAIService {
     // Local deterministic fallback
     const solvedIdeaIds = new Set(userSubmissions.map((s) => s.ideaId));
     const hasSolvedGap = job.gapIdeaId ? solvedIdeaIds.has(job.gapIdeaId) : true;
-    const hasGap = forceGap || (!hasSolvedGap && job.matchScore < 80);
+    const hasGap = !overrideGap && (forceGap || (!hasSolvedGap && job.matchScore < 80));
 
     const steps = [
       `Fetching verified commits for @${user.username} from DevLedgr consensus network...`,

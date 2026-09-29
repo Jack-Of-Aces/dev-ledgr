@@ -11,6 +11,12 @@ export interface ScrutinyParams {
   user: UserProfile;
   userSubmissions: SubmissionEntry[];
   forceGap?: boolean;
+  /**
+   * Generate the package even when a proof gap is detected. The dev is choosing
+   * to apply without closing the gap; the audit still logs the gap, it just
+   * stops short-circuiting before generation.
+   */
+  overrideGap?: boolean;
 }
 
 export interface ScrutinyResult {

@@ -16,6 +16,7 @@ interface ScrutinyRequestBody {
   user: UserProfile;
   userSubmissions: SubmissionEntry[];
   forceGap?: boolean;
+  overrideGap?: boolean;
 }
 
 export async function POST(req: Request) {
@@ -44,14 +45,17 @@ export async function POST(req: Request) {
 
   try {
     const body: ScrutinyRequestBody = await req.json();
-    const { job, user, userSubmissions, forceGap } = body;
+    const { job, user, userSubmissions, forceGap, overrideGap } = body;
     // BYOK key comes from the backend, never from the browser.
     const userKey = await resolveProviderKey(req);
 
     // 2. Decision Logic
     const solvedIdeaIds = new Set(userSubmissions.map((s) => s.ideaId));
     const hasSolvedGap = job.gapIdeaId ? solvedIdeaIds.has(job.gapIdeaId) : true;
-    const hasGap = forceGap || (!hasSolvedGap && job.matchScore < 80);
+    // overrideGap is the dev choosing to generate the package despite the gap.
+    // forceGap stays a hard switch so the "Simulate Skill Gap Branch" control
+    // still demonstrates the gap path.
+    const hasGap = !overrideGap && (forceGap || (!hasSolvedGap && job.matchScore < 80));
 
     const auditLogs = [
       `Fetching verified commits for @${user.username} from DevLedgr consensus network...`,
