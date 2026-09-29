@@ -53,22 +53,22 @@ export default function HomePage() {
           <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {isLoggedIn ? (
               <>
-                <Link href="/dashboard" className="btn-brass min-h-[44px] text-xs sm:text-sm px-5 inline-flex items-center justify-center gap-2">
+                <Link href="/dashboard" className="btn-brass min-h-11 text-xs sm:text-sm px-5 inline-flex items-center justify-center gap-2">
                   <span>Go to Dashboard</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
-                <Link href="/ideas" className="btn-outline min-h-[44px] text-xs sm:text-sm px-5 inline-flex items-center justify-center gap-2">
-                  <span>Browse 20+ Specs</span>
+                <Link href="/ideas" className="btn-outline min-h-11 text-xs sm:text-sm px-5 inline-flex items-center justify-center gap-2">
+                  <span>Browse 70+ Specs</span>
                 </Link>
               </>
             ) : (
               <>
-                <Link href="/login" className="btn-brass min-h-[44px] text-xs sm:text-sm px-5 inline-flex items-center justify-center gap-2">
+                <Link href="/login" className="btn-brass min-h-11 text-xs sm:text-sm px-5 inline-flex items-center justify-center gap-2">
                   <span>Start Building Proof</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
-                <Link href="/ideas" className="btn-outline min-h-[44px] text-xs sm:text-sm px-5 inline-flex items-center justify-center gap-2">
-                  <span>Browse 20+ Specs</span>
+                <Link href="/ideas" className="btn-outline min-h-11 text-xs sm:text-sm px-5 inline-flex items-center justify-center gap-2">
+                  <span>Browse 70+ Specs</span>
                 </Link>
               </>
             )}
@@ -117,7 +117,7 @@ export default function HomePage() {
                   <span className="text-line">·</span>
                   <span className="text-text-1">Production Proof</span>
                 </div>
-                <h3 className="text-base sm:text-lg md:text-xl font-semibold tracking-tight text-text-0 break-words">
+                <h3 className="text-base sm:text-lg md:text-xl font-semibold tracking-tight text-text-0 wrap-break-word">
                   Webhook Deduplication &amp; Distributed Idempotency Engine
                 </h3>
               </div>
@@ -125,7 +125,7 @@ export default function HomePage() {
               <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
                 <Link
                   href="/p/junior_dev"
-                  className="btn-outline min-h-[44px] text-xs py-2 px-3.5 w-full sm:w-auto inline-flex items-center justify-center gap-1.5 font-mono"
+                  className="btn-outline min-h-11 text-xs py-2 px-3.5 w-full sm:w-auto inline-flex items-center justify-center gap-1.5 font-mono"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   <span>Inspect Proof</span>
@@ -335,13 +335,13 @@ export default function HomePage() {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
           <Link
             href="/ideas"
-            className="btn-brass min-h-[44px] text-xs sm:text-sm py-2 px-5 inline-flex items-center justify-center"
+            className="btn-brass min-h-11 text-xs sm:text-sm py-2 px-5 inline-flex items-center justify-center"
           >
             Pick a Problem to Solve
           </Link>
           <Link
             href="/about"
-            className="btn-outline min-h-[44px] text-xs sm:text-sm py-2 px-5 inline-flex items-center justify-center"
+            className="btn-outline min-h-11 text-xs sm:text-sm py-2 px-5 inline-flex items-center justify-center"
           >
             Read the Manifesto
           </Link>

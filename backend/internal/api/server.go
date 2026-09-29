@@ -124,6 +124,12 @@ func (s *Server) Handler() http.Handler {
 	route("GET /api/v1/jobs", s.listJobs)
 	route("GET /api/v1/jobs/{id}", s.getJob)
 	route("POST /api/v1/jobs", requirePermission(model.PermManagePlatform, s.createJob))
+	// Job moderation. manage_platform already guards createJob and the scrape
+	// ingest, so extending it to hide and remove adds no privilege for
+	// reviewers; assign_roles stays the "staff the queue" permission.
+	route("GET /api/v1/admin/jobs", requirePermission(model.PermManagePlatform, s.listAdminJobs))
+	route("POST /api/v1/jobs/{id}/active", requirePermission(model.PermManagePlatform, s.setJobActive))
+	route("DELETE /api/v1/jobs/{id}", requirePermission(model.PermManagePlatform, s.deleteJob))
 	route("GET /api/v1/coaching", s.listItineraries)
 	route("GET /api/v1/coaching/{id}", s.getItinerary)
 	route("POST /api/v1/ai/scrutiny", requirePermission(model.PermApplyJob, s.aiLimiter.wrap(s.scrutiny)))

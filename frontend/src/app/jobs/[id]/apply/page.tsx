@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 
 import { launchpadService } from '@/services/launchpad/launchpadService';
+import { JobDescription } from '@/components/jobs/JobDescription';
 
 export default function JobApplyPage() {
   const params = useParams();
@@ -61,7 +62,13 @@ export default function JobApplyPage() {
     };
   }, [id, jobs, setIdeas]);
 
-  const job = currentJob || jobs.find((j) => j.id === id) || jobs[0];
+  // Resolve the job by id only. This used to fall back to jobs[0], which meant
+  // a deleted, inactive or mistyped id rendered a completely different posting
+  // — the page confidently showed another company's title, description and
+  // match score with nothing to indicate the id was wrong. That matters more
+  // now that admins can deactivate jobs: pulling a listing quietly swaps in
+  // an unrelated one.
+  const job = currentJob || jobs.find((j) => j.id === id) || null;
   const userSubmissions = submissions.filter(
     (s) => s.authorUsername.toLowerCase() === user.username.toLowerCase()
   );
@@ -88,7 +95,12 @@ export default function JobApplyPage() {
    *
    * forceGap=true is only used for demo/test purposes to exercise the gap branch.
    */
-  const runScrutiny = async (forceGap = false) => {
+  const runScrutiny = async (forceGap = false, overrideGap = false) => {
+    // The callers all sit behind the `if (!job)` return below, but this is a
+    // closure, so TypeScript cannot narrow `job` through the render gate.
+    // Auditing against a null job is meaningless, so bail rather than assert.
+    if (!job) return;
+
     setScrutinizing(true);
     setAnalysisResult(null);
     setScanLog([]);
@@ -96,7 +108,7 @@ export default function JobApplyPage() {
 
     try {
       const result = await aiService.runScrutinyAudit(
-        { job, user, userSubmissions, forceGap },
+        { job, user, userSubmissions, forceGap, overrideGap },
         (log) => setScanLog((prev) => [...prev, log])
       );
       setAnalysisResult(result.status);
@@ -111,8 +123,10 @@ export default function JobApplyPage() {
     }
   };
 
-  // The recommended problem to close a detected skill gap
-  const gapProblem = ideas.find((i) => i.id === job.gapIdeaId) || ideas[0];
+  // The recommended problem to close a detected skill gap. Resolved by id only,
+  // for the same reason as the job above: presenting an unrelated problem as
+  // "this closes your gap" is worse than presenting none.
+  const gapProblem = job?.gapIdeaId ? ideas.find((i) => i.id === job.gapIdeaId) || null : null;
 
   // Active document content for the tabbed output panel
   const activeDocContent =
@@ -127,7 +141,13 @@ export default function JobApplyPage() {
   };
 
   const handleDownload = () => {
-    const filename = `${user.username}_${job.company.replace(/\s+/g, '_')}_${
+    if (!job) return;
+
+    // Only whitespace used to be normalised, so path separators and other
+    // reserved characters survived into the download attribute. Strip
+    // anything that is not alphanumeric, dash, dot or underscore.
+    const safeCompany = job.company.replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/^[._]+/, '');
+    const filename = `${user.username}_${safeCompany || 'company'}_${
       activeTab === 'cv' ? 'CV' : 'CoverLetter'
     }.md`;
     const blob = new Blob([activeDocContent], { type: 'text/markdown;charset=utf-8;' });
@@ -141,8 +161,33 @@ export default function JobApplyPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (!mounted || !job) {
+  if (!mounted) {
     return <JobApplySkeleton />;
+  }
+
+  // Previously this also covered !job, so a missing or inactive posting left
+  // the skeleton spinning forever. jobService.getJobById swallows the 404 and
+  // falls back to mock data, so nothing ever surfaced the failure.
+  if (!job) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-6">
+        <Link
+          href="/jobs"
+          className="inline-flex items-center gap-1.5 text-text-1 hover:text-text-0 transition-colors"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to Opportunities</span>
+        </Link>
+        <div className="rounded-radius border border-line bg-card p-10 text-center space-y-3">
+          <h1 className="text-xl font-semibold tracking-tight text-text-0 font-sans">
+            This opportunity is no longer available
+          </h1>
+          <p className="text-xs md:text-sm text-text-1 leading-relaxed max-w-md mx-auto">
+            The listing may have been closed or removed by the platform team.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -161,10 +206,13 @@ export default function JobApplyPage() {
 
       {/* Target Job Header */}
       <div className="border border-line bg-card/50 p-5 sm:p-6 space-y-3 rounded-radius">
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text-0">
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text-0 break-words">
           {job.title} · {job.company}
         </h1>
-        <p className="text-text-1 leading-relaxed text-xs md:text-sm sm:text-sm lg:text-base max-w-prose">{job.description}</p>
+        <JobDescription
+          description={job.description}
+          className="text-xs md:text-sm sm:text-sm lg:text-base max-w-prose"
+        />
       </div>
 
       {/* Step 1: Audit Trigger Card */}
@@ -321,10 +369,20 @@ export default function JobApplyPage() {
               Re-run analysis
             </button>
             <a
-              href={`https://${job.company.toLowerCase()}.com/careers`}
+              // The real listing URL, not a guess. This used to build
+              // https://<company>.com/careers from the company name, which is
+              // invented: it ignores the applyUrl and sourceUrl the API
+              // actually returns, so for most of the bank it linked to a domain
+              // that either does not exist or has no such page — presented to
+              // the dev as a "Verified URL". Falls back to the source listing,
+              // and only renders the button when one of them exists.
+              href={job.applyUrl || job.sourceUrl || ''}
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-brass text-xs md:text-sm py-2 px-5 inline-flex items-center justify-center gap-2"
+              aria-disabled={!job.applyUrl && !job.sourceUrl}
+              className={`btn-brass text-xs md:text-sm py-2 px-5 inline-flex items-center justify-center gap-2 ${
+                !job.applyUrl && !job.sourceUrl ? 'opacity-50 pointer-events-none' : ''
+              }`}
             >
               <span>Submit to {job.company} with Verified URL</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -351,38 +409,70 @@ export default function JobApplyPage() {
 
           {/* Recommended Problem to close the gap */}
           <div className="border border-line bg-card p-5 sm:p-6 space-y-4 rounded-radius">
-            <div>
-              <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
-                {gapProblem.title}
-              </h2>
-              <p className="text-text-1 text-xs md:text-sm mt-1.5 leading-relaxed max-w-prose">
-                {gapProblem.tagline}
-              </p>
-            </div>
+            {gapProblem ? (
+              <>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
+                    {gapProblem.title}
+                  </h2>
+                  <p className="text-text-1 text-xs md:text-sm mt-1.5 leading-relaxed max-w-prose">
+                    {gapProblem.tagline}
+                  </p>
+                </div>
 
-            <div className="pl-3 border-l-2 border-green-500/40 text-xs md:text-sm text-text-0 space-y-1 py-1">
-              <div className="font-semibold text-green-700 dark:text-green-400">Why this closes the gap:</div>
-              <div className="text-text-1 leading-relaxed max-w-prose">
-                Solving this problem proves to {job.company} that you can prevent table-locking outages
-                on multi-tenant production databases.
+                <div className="pl-3 border-l-2 border-green-500/40 text-xs md:text-sm text-text-0 space-y-1 py-1">
+                  <div className="font-semibold text-green-700 dark:text-green-400">Why this closes the gap:</div>
+                  <div className="text-text-1 leading-relaxed max-w-prose">
+                    Solving this problem proves to {job.company} that you can prevent table-locking outages
+                    on multi-tenant production databases.
+                  </div>
+                </div>
+
+                <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <button
+                    onClick={() => runScrutiny(false, true)}
+                    className="text-text-1 hover:underline text-xs md:text-sm cursor-pointer text-left"
+                  >
+                    Generate the tailored package anyway
+                  </button>
+                  <Link
+                    href={`/ideas/${gapProblem.id}`}
+                    className="btn-brass text-xs md:text-sm py-2 px-5 inline-flex items-center justify-center gap-2"
+                  >
+                    <span>Go to Idea Bank Spec</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </>
+            ) : (
+              // The job points at a gap problem that is not in the bank we
+              // loaded — a deactivated or unapproved one, most likely. Say so
+              // instead of rendering an unrelated problem as the recommendation.
+              <div className="space-y-3">
+                <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-text-0">
+                  Skill gap detected
+                </h2>
+                <p className="text-text-1 text-xs md:text-sm leading-relaxed max-w-prose">
+                  This role has a proof gap, but the linked problem is not currently available in
+                  the Idea Bank. Browse the bank to find a relevant spec.
+                </p>
+                <div className="pt-2 flex flex-col sm:flex-row sm:items-center gap-3">
+                  <button
+                    onClick={() => runScrutiny(false, true)}
+                    className="text-text-1 hover:underline text-xs md:text-sm cursor-pointer text-left"
+                  >
+                    Generate the tailored package anyway
+                  </button>
+                  <Link
+                    href="/ideas"
+                    className="btn-brass text-xs md:text-sm py-2 px-5 inline-flex items-center justify-center gap-2"
+                  >
+                    <span>Browse Idea Bank</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
               </div>
-            </div>
-
-            <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <button
-                onClick={() => setAnalysisResult('ready')}
-                className="text-text-1 hover:underline text-xs md:text-sm cursor-pointer text-left"
-              >
-                (Override: proceed to CV anyway)
-              </button>
-              <Link
-                href={`/ideas/${gapProblem.id}`}
-                className="btn-brass text-xs md:text-sm py-2 px-5 inline-flex items-center justify-center gap-2"
-              >
-                <span>Go to Idea Bank Spec</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
+            )}
           </div>
         </div>
       )}

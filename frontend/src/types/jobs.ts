@@ -58,3 +58,14 @@ export interface JobFilters {
   limit?: number;
   offset?: number;
 }
+
+/**
+ * Narrows the moderation list (GET /api/v1/admin/jobs). `active` defaults to
+ * 'all' in the console so hidden listings are visible alongside live ones.
+ */
+export interface AdminJobFilters {
+  active?: 'all' | 'true' | 'false';
+  level?: string;
+  search?: string;
+  limit?: number;
+}

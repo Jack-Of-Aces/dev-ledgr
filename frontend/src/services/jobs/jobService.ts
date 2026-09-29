@@ -6,8 +6,9 @@
 
 import { IJobService } from './IJobService';
 import { mockJobService } from './mockJobService';
-import { JobOpportunity, JobFilters, CVAudit, RunCVAuditRequest } from '@/types';
+import { JobOpportunity, JobFilters, AdminJobFilters, CVAudit, RunCVAuditRequest } from '@/types';
 import { envConfig } from '@/lib/config';
+import { ApiError } from '@/types/api';
 import { defaultHttpClient } from '../api/httpClient';
 
 export class JobService implements IJobService {
@@ -110,6 +111,47 @@ export class JobService implements IJobService {
     } catch {
       return this.mock.getAuditById(id);
     }
+  }
+
+  // Job moderation deliberately has no mock path. The sample bank has no notion
+  // of a hidden or removed listing, so a fallback would render fabricated jobs
+  // to an admin who is trying to reason about the real ones. This mirrors the
+  // roster methods in userService, which the persona switcher taught the same
+  // lesson.
+  private requireLiveBackend(): void {
+    if (envConfig.useMocks) {
+      throw new ApiError({
+        message: 'Job management needs a connected backend',
+        statusCode: 0,
+        code: 'MOCK_MODE_UNSUPPORTED',
+      });
+    }
+  }
+
+  async listAllJobs(filters?: AdminJobFilters): Promise<JobOpportunity[]> {
+    this.requireLiveBackend();
+    const res = await this.http.get<JobOpportunity[]>('/api/v1/admin/jobs', {
+      params: {
+        active: filters?.active,
+        level: filters?.level,
+        search: filters?.search,
+        limit: filters?.limit,
+      },
+    });
+    return Array.isArray(res) ? res : [];
+  }
+
+  async setJobActive(id: string, active: boolean): Promise<JobOpportunity> {
+    this.requireLiveBackend();
+    return this.http.post<JobOpportunity>(
+      `/api/v1/jobs/${encodeURIComponent(id)}/active`,
+      { active }
+    );
+  }
+
+  async deleteJob(id: string): Promise<void> {
+    this.requireLiveBackend();
+    await this.http.delete<void>(`/api/v1/jobs/${encodeURIComponent(id)}`);
   }
 }
 

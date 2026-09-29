@@ -49,6 +49,7 @@ interface NotificationItem {
 }
 
 import { launchpadService } from '@/services/launchpad/launchpadService';
+import { JobDescription } from '@/components/jobs/JobDescription';
 
 export default function DashboardPage() {
   const { user, submissions, jobs, ideas, getJobMatchDetails, setJobs, setIdeas, setSubmissions } = useAppStore();
@@ -734,7 +735,7 @@ export default function DashboardPage() {
         {/* ========================================================= */}
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-line">
-            <div className="overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 min-w-0">
               <div
                 role="tablist"
                 aria-label="Dashboard views"
@@ -883,8 +884,10 @@ export default function DashboardPage() {
               {/* When user has submissions: Render Search & Domain Filter Toolbar */}
               {userSubmissions.length > 0 ? (
                 <>
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
-                      <div className="relative w-full lg:max-w-sm">
+                    {/* Search on its own row, domain and sort beneath it, so a
+                        long query never squeezes the filters into a sliver. */}
+                    <div className="space-y-3 text-xs">
+                      <div className="relative w-full">
                         <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-1" />
                         <input
                           type="text"
@@ -1286,9 +1289,10 @@ export default function DashboardPage() {
                       </div>
 
                       {/* Description excerpt */}
-                      <p className="text-xs sm:text-sm text-text-1 leading-relaxed max-w-3xl">
-                        {job.description}
-                      </p>
+                      <JobDescription
+                        description={job.description}
+                        className="text-xs sm:text-sm max-w-3xl"
+                      />
 
                       {/* Matched proofs vs gaps */}
                       <div className="space-y-2 pt-2 border-t border-line/40 text-xs font-mono">

@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -12,11 +13,12 @@ import (
 )
 
 // Jobs live in public.jobs. required_skills doubles as the matching tags;
-// only admin-approved, active jobs are listed publicly.
+// only admin-approved, active, non-deleted jobs are listed publicly.
 const jobSelect = `
 	select j.id::text, j.title, j.company, j.location, j.employment_type, j.salary, j.required_skills,
 		coalesce(j.match_score, 0), j.job_description, coalesce(j.gap_problem_id::text, ''), coalesce(j.gap_reason, ''),
-		j.level, j.apply_url, coalesce(j.source_url, ''), j.posted_at, j.scraped_at, j.admin_approved, j.is_active
+		j.level, j.apply_url, coalesce(j.source_url, ''), j.posted_at, j.scraped_at, j.admin_approved, j.is_active,
+		j.deleted_at
 	from public.jobs j`
 
 func scanJob(row pgx.Row) (*model.Job, error) {
@@ -24,7 +26,7 @@ func scanJob(row pgx.Row) (*model.Job, error) {
 	var scrapedAt time.Time
 	err := row.Scan(&j.ID, &j.Title, &j.Company, &j.Location, &j.Type, &j.Salary, &j.Tags, &j.MatchScore,
 		&j.Description, &j.GapIdeaID, &j.GapReason, &j.Level, &j.ApplyURL, &j.SourceURL, &j.PostedAt, &scrapedAt,
-		&j.AdminApproved, &j.IsActive)
+		&j.AdminApproved, &j.IsActive, &j.DeletedAt)
 	if err != nil {
 		return nil, mapErr(err)
 	}
@@ -55,7 +57,7 @@ const jobOrder = ` order by coalesce(j.posted_at, j.scraped_at) desc, j.id`
 
 // ListJobs returns the publicly visible jobs, newest first.
 func (s *Store) ListJobs(ctx context.Context) ([]model.Job, error) {
-	return collectJobs(s.pool.Query(ctx, jobSelect+` where j.admin_approved and j.is_active`+jobOrder))
+	return collectJobs(s.pool.Query(ctx, jobSelect+` where j.admin_approved and j.is_active and j.deleted_at is null`+jobOrder))
 }
 
 type JobFilters struct {
@@ -68,11 +70,89 @@ type JobFilters struct {
 func (s *Store) SearchJobs(ctx context.Context, f JobFilters) ([]model.Job, error) {
 	q := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(strings.TrimSpace(f.Search))
 	return collectJobs(s.pool.Query(ctx, jobSelect+`
-		where j.admin_approved and j.is_active
+		where j.admin_approved and j.is_active and j.deleted_at is null
 		  and ($1 = '' or j.level = $1)
 		  and ($2 = '' or j.title ilike '%' || $2 || '%' or j.company ilike '%' || $2 || '%'
 		       or exists (select 1 from unnest(j.required_skills) t where t ilike '%' || $2 || '%'))`+jobOrder+`
 		limit $3`, f.Level, q, f.Limit))
+}
+
+// AdminJobFilters narrows the moderation list. A nil Active means both.
+type AdminJobFilters struct {
+	Active *bool
+	Level  string
+	Search string
+	Limit  int
+}
+
+// ListAllJobs returns jobs for the moderation console: every row, including
+// inactive and deleted ones, which the public list hides. Unlike ListJobs this
+// deliberately applies no visibility predicate.
+func (s *Store) ListAllJobs(ctx context.Context, f AdminJobFilters) ([]model.Job, error) {
+	where := []string{"true"}
+	args := []any{}
+	add := func(format string, v any) {
+		args = append(args, v)
+		where = append(where, fmt.Sprintf(format, len(args)))
+	}
+	if f.Active != nil {
+		add("j.is_active = $%d", *f.Active)
+	}
+	if f.Level != "" {
+		add("j.level = $%d", f.Level)
+	}
+	if q := strings.TrimSpace(f.Search); q != "" {
+		// Escape LIKE wildcards so user input is matched literally.
+		q = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(q)
+		add(`(j.title ilike '%%' || $%[1]d || '%%' or j.company ilike '%%' || $%[1]d || '%%')`, q)
+	}
+	sql := jobSelect + ` where ` + strings.Join(where, " and ") + jobOrder
+	if f.Limit > 0 {
+		args = append(args, f.Limit)
+		sql += fmt.Sprintf(` limit $%d`, len(args))
+	}
+	return collectJobs(s.pool.Query(ctx, sql, args...))
+}
+
+// setJobActiveSQL and deleteJobSQL are named so the schema contract test can
+// read the columns they touch without executing them.
+const setJobActiveSQL = `update public.jobs set is_active = $2 where id = $1 and deleted_at is null`
+
+const deleteJobSQL = `update public.jobs set deleted_at = timezone('utc', now()), is_active = false
+	where id = $1 and deleted_at is null`
+
+// SetJobActive shows or hides a job on the public board. A hidden job stays in
+// the table, so the scraper cannot bring a deactivated listing back.
+func (s *Store) SetJobActive(ctx context.Context, id string, active bool) (*model.Job, error) {
+	if !IsUUID(id) {
+		return nil, ErrNotFound
+	}
+	tag, err := s.pool.Exec(ctx, setJobActiveSQL, id, active)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return nil, ErrNotFound
+	}
+	return s.GetJob(ctx, id)
+}
+
+// DeleteJob removes a job from the platform without deleting the row. The
+// scraper upserts on source_url, so a hard delete would be re-created by the
+// next scrape; the tombstone is what makes the removal stick, and it keeps
+// cv_audits.job_id (on delete set null) from being orphaned.
+func (s *Store) DeleteJob(ctx context.Context, id string) error {
+	if !IsUUID(id) {
+		return ErrNotFound
+	}
+	tag, err := s.pool.Exec(ctx, deleteJobSQL, id)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (s *Store) GetJob(ctx context.Context, id string) (*model.Job, error) {

@@ -8,6 +8,7 @@ import { JobOpportunity } from '@/types';
 import { getTrackById } from '@/lib/tracks';
 import { JobGridSkeleton } from '@/components/ui/skeletons';
 import { CVAuditModal } from '@/components/ui/CVAuditModal';
+import { parseJobDescription } from '@/components/jobs/JobDescription';
 import {
   ArrowRight,
   Sparkles,
@@ -365,7 +366,7 @@ export default function JobsPage() {
         </div>
 
         {/* Quick Match Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 text-xs">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 text-xs min-w-0">
           <span className="font-mono text-text-1 text-[11px] uppercase tracking-wider shrink-0 mr-1">
             Match:
           </span>
@@ -550,8 +551,16 @@ export default function JobsPage() {
           {filteredJobs.map(({ job, match }) => {
             const isHighMatch = !match.hasGap && match.score >= 80;
             const isExpanded = expandedJobIds.has(job.id);
-            const descriptionSnippet = job.description || 'No description provided for this opening.';
-            const isLongDescription = descriptionSnippet.length > 280;
+            // Collapse on a block boundary rather than a character count. The
+            // old 280-character cut landed mid-sentence and could slice a
+            // section heading in half, which read as a rendering fault rather
+            // than a deliberate truncation.
+            const descriptionBlocks = parseJobDescription(job.description);
+            const COLLAPSED_BLOCKS = 2;
+            const isLongDescription = descriptionBlocks.length > COLLAPSED_BLOCKS;
+            const visibleBlocks = isExpanded
+              ? descriptionBlocks
+              : descriptionBlocks.slice(0, COLLAPSED_BLOCKS);
 
             return (
               <div
@@ -613,11 +622,28 @@ export default function JobsPage() {
 
                 {/* Job Description */}
                 <div className="space-y-1">
-                  <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
-                    {isLongDescription && !isExpanded
-                      ? `${descriptionSnippet.slice(0, 280)}...`
-                      : descriptionSnippet}
-                  </p>
+                  {visibleBlocks.length === 0 ? (
+                    <p className="text-xs sm:text-sm text-text-1 italic">
+                      No description provided for this opening.
+                    </p>
+                  ) : (
+                    <div className="text-xs sm:text-sm space-y-2">
+                      {visibleBlocks.map((block, blockIdx) =>
+                        block.kind === 'heading' ? (
+                          <h3
+                            key={blockIdx}
+                            className="text-sm font-semibold text-text-0 font-sans tracking-tight"
+                          >
+                            {block.text}
+                          </h3>
+                        ) : (
+                          <p key={blockIdx} className="text-text-1 leading-relaxed">
+                            {block.text}
+                          </p>
+                        )
+                      )}
+                    </div>
+                  )}
                   {isLongDescription && (
                     <button
                       type="button"

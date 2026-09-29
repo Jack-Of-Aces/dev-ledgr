@@ -301,10 +301,12 @@ export default function IdeasPage() {
       {/* MULTI-SELECT SEARCH & FILTER CONTROLS                      */}
       {/* ========================================================= */}
       <div className="space-y-3">
-        {/* Tier 1: Search bar + Multi-Select Domain Pills + Filter Drawer Trigger */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+        {/* Tier 1: Search bar + Multi-Select Domain Pills + Filter Drawer Trigger.
+            The search owns its row and the pills get the next one, so a long
+            query never squeezes the domain filters into a scrolling sliver. */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           {/* Search Bar */}
-          <div className="relative flex-1 min-w-[280px]">
+          <div className="relative flex-1 min-w-0 w-full">
             <Search
               className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-text-1 shrink-0"
               aria-hidden="true"
@@ -329,65 +331,6 @@ export default function IdeasPage() {
             )}
           </div>
 
-          {/* Quick Domain Multi-Select Pills (Toggle multiple domains simultaneously) */}
-          <div
-            role="group"
-            aria-label="Filter problems by engineering domains"
-            className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 -mx-4 px-4 lg:mx-0 lg:px-0 shrink-0"
-          >
-            {/* "All" Reset Button */}
-            <button
-              onClick={() => toggleDomain('all')}
-              className={`px-3 py-1.5 rounded-radius transition-all cursor-pointer text-xs font-sans whitespace-nowrap shrink-0 border ${
-                selectedDomains.length === 0
-                  ? 'bg-text-0 text-ink-0 font-semibold border-text-0 shadow-xs'
-                  : 'bg-card border-line text-text-1 hover:text-text-0 hover:border-text-1/60'
-              }`}
-            >
-              <span>All Domains</span>
-              <span className={`ml-1.5 font-mono text-[11px] ${selectedDomains.length === 0 ? 'opacity-80' : 'opacity-60'}`}>
-                ({activeIdeas.length})
-              </span>
-            </button>
-
-            {/* Personalized Track Filter Pill */}
-            <button
-              onClick={() => setFilterMyTrack((prev) => !prev)}
-              aria-pressed={filterMyTrack}
-              className={`px-3 py-1.5 rounded-radius transition-all cursor-pointer text-xs font-sans whitespace-nowrap shrink-0 border inline-flex items-center gap-1.5 ${
-                filterMyTrack
-                  ? 'bg-emerald text-white font-semibold border-emerald shadow-xs'
-                  : 'bg-card border-line text-emerald-text hover:text-emerald-text hover:border-emerald/40'
-              }`}
-              title={`Highlight challenges curated for your ${currentTrack.title} track`}
-            >
-              {filterMyTrack && <Check className="w-3 h-3 shrink-0" />}
-              <span>🎯 My Track ({currentTrack.shortTitle})</span>
-            </button>
-
-            {domains.map((d) => {
-              const isSelected = selectedDomains.includes(d.value);
-              return (
-                <button
-                  key={d.value}
-                  onClick={() => toggleDomain(d.value)}
-                  className={`px-3 py-1.5 rounded-radius transition-all cursor-pointer text-xs font-sans whitespace-nowrap shrink-0 border inline-flex items-center gap-1.5 ${
-                    isSelected
-                      ? 'bg-emerald text-white font-semibold border-emerald shadow-xs'
-                      : 'bg-card border-line text-text-1 hover:text-text-0 hover:border-text-1/60'
-                  }`}
-                  aria-pressed={isSelected}
-                >
-                  {isSelected && <Check className="w-3 h-3 shrink-0" />}
-                  <span>{d.label}</span>
-                  <span className={`font-mono text-[11px] ${isSelected ? 'opacity-90' : 'opacity-60'}`}>
-                    ({d.count})
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
           {/* Advanced Filters Expand Toggle */}
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
@@ -408,6 +351,65 @@ export default function IdeasPage() {
             )}
             <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`} />
           </button>
+        </div>
+
+        {/* Quick Domain Multi-Select Pills (Toggle multiple domains simultaneously) */}
+        <div
+          role="group"
+          aria-label="Filter problems by engineering domains"
+          className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 -mx-4 px-4 sm:mx-0 sm:px-0 min-w-0"
+        >
+          {/* "All" Reset Button */}
+          <button
+            onClick={() => toggleDomain('all')}
+            className={`px-3 py-1.5 rounded-radius transition-all cursor-pointer text-xs font-sans whitespace-nowrap shrink-0 border ${
+              selectedDomains.length === 0
+                ? 'bg-text-0 text-ink-0 font-semibold border-text-0 shadow-xs'
+                : 'bg-card border-line text-text-1 hover:text-text-0 hover:border-text-1/60'
+            }`}
+          >
+            <span>All Domains</span>
+            <span className={`ml-1.5 font-mono text-[11px] ${selectedDomains.length === 0 ? 'opacity-80' : 'opacity-60'}`}>
+              ({activeIdeas.length})
+            </span>
+          </button>
+
+          {/* Personalized Track Filter Pill */}
+          <button
+            onClick={() => setFilterMyTrack((prev) => !prev)}
+            aria-pressed={filterMyTrack}
+            className={`px-3 py-1.5 rounded-radius transition-all cursor-pointer text-xs font-sans whitespace-nowrap shrink-0 border inline-flex items-center gap-1.5 ${
+              filterMyTrack
+                ? 'bg-emerald text-white font-semibold border-emerald shadow-xs'
+                : 'bg-card border-line text-emerald-text hover:text-emerald-text hover:border-emerald/40'
+            }`}
+            title={`Highlight challenges curated for your ${currentTrack.title} track`}
+          >
+            {filterMyTrack && <Check className="w-3 h-3 shrink-0" />}
+            <span>🎯 My Track ({currentTrack.shortTitle})</span>
+          </button>
+
+          {domains.map((d) => {
+            const isSelected = selectedDomains.includes(d.value);
+            return (
+              <button
+                key={d.value}
+                onClick={() => toggleDomain(d.value)}
+                className={`px-3 py-1.5 rounded-radius transition-all cursor-pointer text-xs font-sans whitespace-nowrap shrink-0 border inline-flex items-center gap-1.5 ${
+                  isSelected
+                    ? 'bg-emerald text-white font-semibold border-emerald shadow-xs'
+                    : 'bg-card border-line text-text-1 hover:text-text-0 hover:border-text-1/60'
+                }`}
+                aria-pressed={isSelected}
+              >
+                {isSelected && <Check className="w-3 h-3 shrink-0" />}
+                <span>{d.label}</span>
+                <span className={`font-mono text-[11px] ${isSelected ? 'opacity-90' : 'opacity-60'}`}>
+                  ({d.count})
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Tier 2: Advanced Refinement Panel (Multi-Select Matrix) */}
