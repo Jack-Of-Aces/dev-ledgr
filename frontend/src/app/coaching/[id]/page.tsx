@@ -11,6 +11,7 @@ import { CoachingItinerary } from '@/types';
 import { aiService } from '@/services/ai/aiService';
 import { CoachingSkeleton } from '@/components/ui/skeletons';
 import { AuthGuard } from '@/components/auth/AuthGuard';
+import { SubmitSolutionModal } from '@/components/ui/SubmitSolutionModal';
 import {
   ArrowLeft,
   Sparkles,
@@ -24,9 +25,14 @@ import {
   ChevronRight,
   RotateCcw,
   ExternalLink,
+  UploadCloud,
+  CheckSquare,
+  Copy,
+  Check,
+  Terminal,
 } from 'lucide-react';
 
-type ConsoleTab = 'socratic' | 'custom' | 'patterns';
+type ConsoleTab = 'socratic' | 'custom' | 'patterns' | 'harness';
 
 interface ChatMessage {
   id: string;
@@ -85,7 +91,18 @@ export default function CoachingDetailPage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [customQuestion, setCustomQuestion] = useState('');
   const [isLoadingCoach, setIsLoadingCoach] = useState(false);
+  const [submitModalOpen, setSubmitModalOpen] = useState(false);
+  const [copiedCurl, setCopiedCurl] = useState(false);
+  const [checkedCriteria, setCheckedCriteria] = useState<Record<string, boolean>>({});
   const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  const handleCopyCurl = (text: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedCurl(true);
+      setTimeout(() => setCopiedCurl(false), 2000);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -153,6 +170,7 @@ export default function CoachingDetailPage() {
 
   const selectedMilestone =
     itinerary.milestones.find((m) => m.week === activeWeek) || itinerary.milestones[0];
+  const nextMilestone = itinerary.milestones.find((m) => m.week === activeWeek + 1);
 
   const isMilestoneSolved = selectedMilestone.ideaIdRef
     ? userSolvedIdeaIds.has(selectedMilestone.ideaIdRef)
@@ -401,22 +419,42 @@ export default function CoachingDetailPage() {
 
                     <div className="shrink-0 flex items-center gap-2">
                       {isMilestoneSolved && solvedMilestoneSubmission ? (
-                        <Link
-                          href={`/p/${user.username}#${solvedMilestoneSubmission.hash}`}
-                          className="btn-outline text-xs py-1.5 px-3 inline-flex items-center gap-1.5 font-mono"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald" />
-                          <span>View Proof Certificate</span>
-                          <ExternalLink className="w-3 h-3 opacity-60" />
-                        </Link>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link
+                            href={`/p/${user.username}#${solvedMilestoneSubmission.hash}`}
+                            className="btn-outline text-xs py-1.5 px-3 inline-flex items-center gap-1.5 font-mono"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald" />
+                            <span>Proof #{solvedMilestoneSubmission.hash.slice(0, 8)}</span>
+                            <ExternalLink className="w-3 h-3 opacity-60" />
+                          </Link>
+                          {nextMilestone && (
+                            <button
+                              onClick={() => setActiveWeek(nextMilestone.week)}
+                              className="btn-brass text-xs py-1.5 px-3 inline-flex items-center gap-1.5 font-medium cursor-pointer"
+                            >
+                              <span>Next: Week 0{nextMilestone.week}</span>
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       ) : (
-                        <Link
-                          href={`/ideas/${pairedIdea.id}`}
-                          className="btn-brass text-xs py-2 px-3.5 inline-flex items-center justify-center gap-1.5 font-medium"
-                        >
-                          <span>Claim & Build Challenge</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </Link>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            onClick={() => setSubmitModalOpen(true)}
+                            className="btn-brass text-xs py-2 px-3.5 inline-flex items-center justify-center gap-1.5 font-medium cursor-pointer shadow-xs"
+                          >
+                            <UploadCloud className="w-3.5 h-3.5" />
+                            <span>Submit Solution & Pass Milestone</span>
+                          </button>
+                          <Link
+                            href={`/ideas/${pairedIdea.id}`}
+                            className="btn-outline text-xs py-2 px-3 inline-flex items-center justify-center gap-1.5 font-mono"
+                          >
+                            <span>Mock Infra Specs</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </Link>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -524,6 +562,16 @@ export default function CoachingDetailPage() {
                       }`}
                     >
                       Patterns
+                    </button>
+                    <button
+                      onClick={() => setConsoleTab('harness')}
+                      className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
+                        consoleTab === 'harness'
+                          ? 'bg-card text-text-0 font-medium border border-line shadow-xs'
+                          : 'text-text-1 hover:text-text-0'
+                      }`}
+                    >
+                      Grading & Criteria
                     </button>
                   </div>
                 </div>
@@ -641,6 +689,119 @@ export default function CoachingDetailPage() {
                 </div>
               )}
 
+              {/* TAB 4: Automated Grading, Acceptance Criteria & Harness */}
+              {consoleTab === 'harness' && pairedIdea && (
+                <div className="space-y-4 text-xs">
+                  {/* Protocol Overview */}
+                  <div className="p-3.5 rounded border border-line bg-card space-y-2">
+                    <div className="flex items-center gap-2 font-mono font-semibold text-text-0">
+                      <ShieldCheck className="w-4 h-4 text-emerald-text" />
+                      <span>End-to-End Verification & Automated Grading Protocol</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-1 text-[11px] font-mono text-text-1">
+                      <div className="p-2 rounded bg-ink-0 border border-line/60 space-y-1">
+                        <div className="font-semibold text-text-0">1. Code In Repo</div>
+                        <p className="font-sans leading-snug">
+                          Implement the core constraints in your public GitHub repository using your chosen stack.
+                        </p>
+                      </div>
+                      <div className="p-2 rounded bg-ink-0 border border-line/60 space-y-1">
+                        <div className="font-semibold text-text-0">2. Live GitHub Audit</div>
+                        <p className="font-sans leading-snug">
+                          DevLedgr inspects the repo via GitHub API, extracting HEAD SHA, languages, and commit history.
+                        </p>
+                      </div>
+                      <div className="p-2 rounded bg-ink-0 border border-line/60 space-y-1">
+                        <div className="font-semibold text-text-0">3. Proof Fingerprint</div>
+                        <p className="font-sans leading-snug">
+                          Submitting stamps the milestone, mints a SHA-256 content address, and unlocks the next week.
+                        </p>
+                      </div>
+                      <div className="p-2 rounded bg-ink-0 border border-line/60 space-y-1">
+                        <div className="font-semibold text-text-0">4. Ledger Cert</div>
+                        <p className="font-sans leading-snug">
+                          Reviewers verify test criteria and mint an HMAC-signed ledger certificate for your portfolio.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Interactive Acceptance Criteria */}
+                  {pairedIdea.mockInfra?.testCriteria && pairedIdea.mockInfra.testCriteria.length > 0 && (
+                    <div className="p-3.5 rounded border border-line bg-card space-y-2.5">
+                      <div className="flex items-center justify-between font-mono text-xs">
+                        <span className="font-semibold text-text-0 flex items-center gap-1.5">
+                          <CheckSquare className="w-3.5 h-3.5 text-emerald-text" />
+                          <span>Acceptance Criteria Self-Audit Checklist</span>
+                        </span>
+                        <span className="text-[11px] text-text-1">
+                          {Object.values(checkedCriteria).filter(Boolean).length} of{' '}
+                          {pairedIdea.mockInfra.testCriteria.length} checked
+                        </span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {pairedIdea.mockInfra.testCriteria.map((criterion, idx) => {
+                          const isChecked = !!checkedCriteria[`${selectedMilestone.week}-${idx}`];
+                          return (
+                            <label
+                              key={idx}
+                              className="flex items-start gap-2.5 p-2 rounded hover:bg-ink-0 transition-colors cursor-pointer border border-transparent hover:border-line/40 text-xs"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) =>
+                                  setCheckedCriteria((prev) => ({
+                                    ...prev,
+                                    [`${selectedMilestone.week}-${idx}`]: e.target.checked,
+                                  }))
+                                }
+                                className="mt-0.5 rounded border-line text-emerald focus:ring-emerald cursor-pointer"
+                              />
+                              <span className={isChecked ? 'line-through text-text-1' : 'text-text-0'}>
+                                {criterion}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Runnable cURL Harness */}
+                  {pairedIdea.mockInfra?.curlExample && (
+                    <div className="p-3.5 rounded border border-line bg-card space-y-2">
+                      <div className="flex items-center justify-between font-mono text-xs">
+                        <span className="font-semibold text-text-0 flex items-center gap-1.5">
+                          <Terminal className="w-3.5 h-3.5 text-emerald-text" />
+                          <span>Mock Infrastructure Test Command</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyCurl(pairedIdea.mockInfra.curlExample)}
+                          className="btn-outline text-[11px] py-0.5 px-2 inline-flex items-center gap-1 font-mono cursor-pointer"
+                        >
+                          {copiedCurl ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald" />
+                              <span>Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              <span>Copy cURL</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      <pre className="p-2.5 rounded bg-ink-0 border border-line/60 text-[11px] font-mono text-text-0 overflow-x-auto whitespace-pre">
+                        {pairedIdea.mockInfra.curlExample}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Persistent Input Bar */}
               <form onSubmit={handleCustomQuestionSubmit} className="pt-2">
                 <div className="relative">
@@ -740,6 +901,20 @@ export default function CoachingDetailPage() {
           </div>
         </div>
       </div>
+
+      {pairedIdea && (
+        <SubmitSolutionModal
+          idea={pairedIdea}
+          isOpen={submitModalOpen}
+          onClose={() => setSubmitModalOpen(false)}
+          onSuccess={() => {
+            setSubmitModalOpen(false);
+            if (nextMilestone) {
+              setActiveWeek(nextMilestone.week);
+            }
+          }}
+        />
+      )}
     </AuthGuard>
   );
 }
