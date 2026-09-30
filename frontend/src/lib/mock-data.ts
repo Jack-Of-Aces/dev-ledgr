@@ -712,47 +712,51 @@ export const INITIAL_COACHING: CoachingItinerary[] = [
     id: 'backend-fundamentals',
     title: 'Backend Fundamentals: From REST to Distributed Consistency',
     subtitle: 'A 4-week structured track taking you from simple CRUD to failure-resilient distributed architectures.',
-    targetRole: 'Junior Platform Backend Engineer',
+    targetRole: 'Backend Platform Engineer',
     durationWeeks: 4,
     milestones: [
       {
         week: 1,
         title: 'Network Failures & Idempotency',
-        deliverable: 'Build a zero-double-credit payment webhook buffer.',
-        ideaIdRef: 'webhook-deduplicator',
+        deliverable: 'Build an ingestion buffer that guarantees zero-double-credit payment webhook processing.',
+        ideaIdRef: '9238a9d5-9c8b-4eaa-a14a-36a0ed2a1ad8',
         prompts: [
           'Design an API that handles HTTP 504 timeouts gracefully.',
-          'Explain why UUIDv4 vs ULID impacts B-Tree index fragmentation.'
+          'Explain why UUIDv4 vs ULID impacts B-Tree index fragmentation.',
+          'How to implement sliding window deduplication in Redis with atomic SETNX.'
         ]
       },
       {
         week: 2,
-        title: 'Spatial Calculations & Greedy Heuristics',
-        deliverable: 'Ship an informal courier route clusterer.',
-        ideaIdRef: 'lpg-route-optimizer',
+        title: 'Logistics Optimization & Spatial Clustering',
+        deliverable: 'Ship a real-time dispatch and routing tracker with road network penalty factors.',
+        ideaIdRef: '23ef1379-e2ff-4de1-94fd-d89788dbc21f',
         prompts: [
           'How does Haversine calculation break down over dense urban paths?',
-          'Compare K-means vs DBSCAN for dispatch clustering.'
+          'Compare K-means vs DBSCAN for dispatch clustering.',
+          'Designing geohash-based spatial indexing in PostgreSQL with PostGIS vs raw float coordinates.'
         ]
       },
       {
         week: 3,
-        title: 'Database Locking & Concurrent DDL',
-        deliverable: 'Build a migration guard that intercepts AccessExclusiveLock.',
-        ideaIdRef: 'schema-migration-guard',
+        title: 'Database Locking & Infrastructure Reliability',
+        deliverable: 'Build high-throughput telemetry aggregation with deadlock-free concurrency.',
+        ideaIdRef: '5b87d8a2-0be0-4506-bd19-60f9121c521d',
         prompts: [
-          'Why does ALTER TABLE ... ADD COLUMN rewrite the heap in older Postgres?',
-          'How to run zero-downtime index creation safely.'
+          'Why does ALTER TABLE ... ADD COLUMN rewrite the heap in older Postgres versions?',
+          'How to run zero-downtime index creation safely without write lockouts.',
+          'Analyzing row-level locking: FOR UPDATE vs FOR NO KEY UPDATE.'
         ]
       },
       {
         week: 4,
-        title: 'Offline Replicated States & CRDTs',
-        deliverable: 'Implement a state-based sync engine for field nurses.',
-        ideaIdRef: 'offline-sync-clinic',
+        title: 'Offline State Synchronization & Local Storage',
+        deliverable: 'Implement an offline-resilient inventory synchronization engine.',
+        ideaIdRef: '0fd5e9d3-e7cc-448d-8153-ff82afa97077',
         prompts: [
           'State-based vs Operation-based CRDT trade-offs.',
-          'Vector clock vs LWW in intermittent connectivity.'
+          'Vector clock vs Last-Write-Wins in intermittent connectivity environments.',
+          'Local SQLite to remote PostgreSQL delta synchronization protocols.'
         ]
       }
     ]
@@ -761,14 +765,14 @@ export const INITIAL_COACHING: CoachingItinerary[] = [
     id: 'fintech-reliability',
     title: 'Fintech Systems: High-Throughput Idempotency & Financial Auditing',
     subtitle: 'Focused track tailored for payment processing switches, reconciliation ledgers, and zero-data-loss burst traffic.',
-    targetRole: 'Junior Fintech Infrastructure Engineer',
+    targetRole: 'Fintech Infrastructure Lead',
     durationWeeks: 3,
     milestones: [
       {
         week: 1,
-        title: 'Sliding Bloom Filters & Timing-Safe HMAC',
-        deliverable: 'Deduplicate 10,000 req/s burst payloads with zero memory leak.',
-        ideaIdRef: 'webhook-deduplicator',
+        title: 'High-Throughput Payment Gateway Architecture',
+        deliverable: 'Build a scalable payment gateway with constant-time HMAC verification and zero double-charge guarantee.',
+        ideaIdRef: '0c9a3d52-0809-43ab-984e-dfadde026214',
         prompts: [
           'How to prevent timing attacks in HMAC signature comparison with constant-time equality.',
           'Design a Redis sliding window lock with jittered retry to avoid thundering herds.'
@@ -776,9 +780,9 @@ export const INITIAL_COACHING: CoachingItinerary[] = [
       },
       {
         week: 2,
-        title: 'High-Volume Transaction Isolation & Locks',
-        deliverable: 'Prevent deadlocks during peak flash-sale balance deductions.',
-        ideaIdRef: 'schema-migration-guard',
+        title: 'Emerging Market Payment Invariants & Switch Failover',
+        deliverable: 'Build resilient payment dispatch with automated circuit breaking and gateway switching.',
+        ideaIdRef: 'b49fc218-5ec5-4d80-8594-6c0360ad414b',
         prompts: [
           'Compare PostgreSQL row-level locks (FOR UPDATE NOWAIT vs FOR NO KEY UPDATE) in banking ledgers.',
           'How to implement two-phase commit without microservice transaction coordinator bloat.'
@@ -786,9 +790,9 @@ export const INITIAL_COACHING: CoachingItinerary[] = [
       },
       {
         week: 3,
-        title: 'Double-Entry Ledger Invariants & Audit Seals',
-        deliverable: 'Stamp immutable cryptographic proofs of account reconciliation balance.',
-        ideaIdRef: 'ussd-session-reconciler',
+        title: 'Double-Entry Ledger Integrity & Financial API Hub',
+        deliverable: 'Implement immutable double-entry ledger auditing with cryptographic seals.',
+        ideaIdRef: 'c1d316e5-29e3-4bee-aaee-cacca44d9c37',
         prompts: [
           'How to design append-only ledger entries that guarantee balance zero-sum integrity.',
           'Explain deterministic state machine replication across partitioned nodes.'
@@ -798,16 +802,16 @@ export const INITIAL_COACHING: CoachingItinerary[] = [
   },
   {
     id: 'devtools-infrastructure',
-    title: 'Developer Infrastructure: Static Analysis & Safe Migrations',
+    title: 'Developer Infrastructure: Automation, CI Safety & API Integration',
     subtitle: 'Master database internals, AST query interception, and automated CI safety guards.',
-    targetRole: 'Associate Tooling & Database Engineer',
+    targetRole: 'Platform & Tooling Engineer',
     durationWeeks: 3,
     milestones: [
       {
         week: 1,
-        title: 'AST Parsing & Postgres DDL Traps',
-        deliverable: 'Build a shadow query parser that flags dangerous non-concurrent indexes.',
-        ideaIdRef: 'schema-migration-guard',
+        title: 'Webhook Reliability & Shadow Interception',
+        deliverable: 'Build an automated webhook interceptor and sanitizer that flags duplicate payload mutations.',
+        ideaIdRef: 'f89515fc-d1e8-43ca-bdd6-2d9aa497e2f2',
         prompts: [
           'Why does CREATE INDEX without CONCURRENTLY lock table writes in production?',
           'How to parse SQL AST trees in Go/TypeScript to flag unindexed foreign key lookups.'
@@ -815,9 +819,9 @@ export const INITIAL_COACHING: CoachingItinerary[] = [
       },
       {
         week: 2,
-        title: 'Ephemeral Container Test Harnesses',
-        deliverable: 'Automate Dockerized PostgreSQL lock matrix verification in CI pipelines.',
-        ideaIdRef: 'sms-otp-circuitbreaker',
+        title: 'Streamlined Automation & API Verification Pipelines',
+        deliverable: 'Build an end-to-end integration and API verification service with ephemeral test harnesses.',
+        ideaIdRef: '1010cf5c-2ed1-49ef-9236-9fcd7c10cafb',
         prompts: [
           'How to spin up ephemeral testcontainers in under 800ms for integration runs.',
           'Design a CI exit code reporter that outputs GitHub Actions check run annotations.'
@@ -825,12 +829,90 @@ export const INITIAL_COACHING: CoachingItinerary[] = [
       },
       {
         week: 3,
-        title: 'Zero-Downtime Rollout Orchestration',
-        deliverable: 'Implement blue-green shadow schema migrations with automated rollback.',
-        ideaIdRef: 'solar-minigrid-timeseries',
+        title: 'Forward-Deployed Reliability & Production Diagnostics',
+        deliverable: 'Implement diagnostic tracing, structured observability, and automated failure detection.',
+        ideaIdRef: 'fdc76f46-933f-4dee-9702-9cb20f98b6b3',
         prompts: [
           'Expand and Contract pattern: Safe column rename strategies without downtime.',
           'How to monitor pg_stat_activity to automatically cancel query execution on lock cascades.'
+        ]
+      }
+    ]
+  },
+  {
+    id: 'frontend-architecture',
+    title: 'Frontend Performance: Multi-Tenant State, Streaming & Edge Caching',
+    subtitle: 'Architect resilient web client applications with isolated state machines and sub-100ms LCP telemetry.',
+    targetRole: 'Staff Frontend UI Architect',
+    durationWeeks: 3,
+    milestones: [
+      {
+        week: 1,
+        title: 'Multi-Tenant CRM Architecture & Component Isolation',
+        deliverable: 'Architect a multi-tenant workspace with isolated client-side state and optimistic UI rollbacks.',
+        ideaIdRef: '445605d3-9031-4ca3-8c8f-76995453eb7a',
+        prompts: [
+          'How to prevent memory leaks in long-lived single-page app event subscriptions.',
+          'Architecting finite state machines with XState for multi-step transactional checkout.'
+        ]
+      },
+      {
+        week: 2,
+        title: 'High-Concurrency Customer Engagement & Real-Time Sync',
+        deliverable: 'Build a high-density, real-time activity feed with virtualized lists and zero jank.',
+        ideaIdRef: 'e3732a77-2350-4bbc-8b63-61170357952b',
+        prompts: [
+          'Benchmarking DOM virtualization vs CSS content-visibility for 10,000+ item feeds.',
+          'Optimizing Interaction to Next Paint (INP) during high-frequency WebSocket burst events.'
+        ]
+      },
+      {
+        week: 3,
+        title: 'Interactive Edge Hydration & Streaming Dashboards',
+        deliverable: 'Ship a sub-100ms LCP weather and telemetry dashboard with edge-cached stale-while-revalidate.',
+        ideaIdRef: 'a8f879dd-0a57-4e8d-aeb0-996d15ee5a51',
+        prompts: [
+          'React Server Components vs client hydration trade-offs in low-bandwidth regions.',
+          'Designing resilient offline IndexedDB caches with Service Worker background sync.'
+        ]
+      }
+    ]
+  },
+  {
+    id: 'ai-systems-engineering',
+    title: 'AI Systems: Deterministic Constraints, Agent Memory & Production RAG',
+    subtitle: 'Engineer production LLM systems with structured schema validation, vector grounding, and low-latency streaming.',
+    targetRole: 'AI Systems & Inference Engineer',
+    durationWeeks: 3,
+    milestones: [
+      {
+        week: 1,
+        title: 'AI Financial Planning & Deterministic Guardrails',
+        deliverable: 'Build an AI financial planner that validates model outputs against strict arithmetic constraints.',
+        ideaIdRef: 'fe3b4629-a823-4f85-8627-2723271caeb5',
+        prompts: [
+          'Why LLMs cannot be trusted for financial math: integrating JSON Schema grammar enforcement.',
+          'Designing fallback rule engines when AI reasoning confidence drops below 85%.'
+        ]
+      },
+      {
+        week: 2,
+        title: 'Context Grounding & Vector Retrieval for Civic Assistants',
+        deliverable: 'Build an accurate context-retrieval assistant with hybrid sparse/dense search and citation verification.',
+        ideaIdRef: '9c19b531-ac66-45bc-8274-6f333cd6aefa',
+        prompts: [
+          'Mitigating hallucination with Reciprocal Rank Fusion (BM25 + vector similarity).',
+          'Context window optimization: Chunking strategies and metadata pre-filtering.'
+        ]
+      },
+      {
+        week: 3,
+        title: 'AI Growth Engine & High-Throughput Recommendation Pipelines',
+        deliverable: 'Build a low-latency recommendation engine with batched model inference and Redis feature caches.',
+        ideaIdRef: '9f7f650e-9d44-44be-aa75-b32900cf9d90',
+        prompts: [
+          'Dynamic batching and token streaming over Server-Sent Events (SSE).',
+          'Measuring and controlling TTFT (Time To First Token) under burst user traffic.'
         ]
       }
     ]

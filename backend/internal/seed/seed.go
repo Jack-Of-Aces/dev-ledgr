@@ -39,11 +39,6 @@ func Run(ctx context.Context, st *store.Store) error {
 		return err
 	}
 	for _, c := range d.Coaching {
-		// Milestones referenced demo problems by slug; those ids do not exist
-		// in the live problem bank (UUIDs), so the links are dropped.
-		for i := range c.Milestones {
-			c.Milestones[i].IdeaIDRef = ""
-		}
 		if err := st.UpsertItinerary(ctx, c); err != nil {
 			return fmt.Errorf("seed itinerary %s: %w", c.ID, err)
 		}

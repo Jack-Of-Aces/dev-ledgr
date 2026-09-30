@@ -28,10 +28,16 @@ export interface ScrutinyResult {
   gapIdeaId?: string;
 }
 
+export interface CoachMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface CoachPromptParams {
   itineraryTitle: string;
   milestoneTitle: string;
   prompt: string;
+  messages?: CoachMessage[];
   candidateContext?: {
     username: string;
     name: string;

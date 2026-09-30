@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { INITIAL_COACHING } from '@/lib/mock-data';
 import { coachingService } from '@/services/coaching/coachingService';
+import { launchpadService } from '@/services/launchpad/launchpadService';
+import { jobService } from '@/services/jobs/jobService';
 import { CoachingItinerary } from '@/types';
 import { CoachingSkeleton } from '@/components/ui/skeletons';
 import {
@@ -24,7 +26,7 @@ import {
 } from 'lucide-react';
 
 export default function CoachingListPage() {
-  const { user, submissions, jobs, getJobMatchDetails } = useAppStore();
+  const { user, submissions, jobs, ideas, getJobMatchDetails, setIdeas, setJobs } = useAppStore();
   const [mounted, setMounted] = useState(false);
   const [itineraries, setItineraries] = useState<CoachingItinerary[]>(INITIAL_COACHING);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
@@ -50,10 +52,22 @@ export default function CoachingListPage() {
       .catch(() => {
         if (active) setItineraryStatus('error');
       });
+
+    if (ideas.length === 0) {
+      launchpadService.getProblems().then((data) => {
+        if (active && data && data.length > 0) setIdeas(data);
+      }).catch(() => {});
+    }
+    if (jobs.length === 0) {
+      jobService.getJobs().then((data) => {
+        if (active && data && data.length > 0) setJobs(data);
+      }).catch(() => {});
+    }
+
     return () => {
       active = false;
     };
-  }, []);
+  }, [ideas.length, jobs.length, setIdeas, setJobs]);
 
   useEffect(() => {
     if (itineraryRetry === 0) return;
@@ -98,9 +112,17 @@ export default function CoachingListPage() {
 
   // Match best recommendation track based on user's calibrated track & job gaps
   const recommendedTrackId = (() => {
-    if (user.engineeringTrack === 'devops-infra') return 'devtools-infrastructure';
+    const track = user.engineeringTrack;
+    if (track === 'devops-infra') return 'devtools-infrastructure';
+    if (track === 'frontend-ui') return 'frontend-architecture';
+    if (track === 'ai-ml') return 'ai-systems-engineering';
+    if (track === 'fullstack') return 'fintech-reliability';
+    if (track === 'backend-systems') return 'backend-fundamentals';
     if (primaryJobWithGap?.gapProblem?.domain === 'devtools') return 'devtools-infrastructure';
     if (primaryJobWithGap?.gapProblem?.domain === 'fintech') return 'fintech-reliability';
+    if (primaryJobWithGap?.gapProblem?.domain === 'social' || primaryJobWithGap?.gapProblem?.domain === 'ecommerce') {
+      return 'frontend-architecture';
+    }
     return 'backend-fundamentals';
   })();
 
@@ -134,23 +156,26 @@ export default function CoachingListPage() {
   };
 
   // Domain facets and their counts, derived from the itineraries actually loaded.
-  // The filter predicate below keys off the same track-id substrings.
   const trackFacets = useMemo(() => {
-    const matches = {
-      fintech: (id: string) => id.includes('fintech') || id === 'backend-fundamentals',
+    const matches: Record<string, (id: string) => boolean> = {
       systems: (id: string) => id === 'backend-fundamentals',
+      fintech: (id: string) => id === 'fintech-reliability',
       devtools: (id: string) => id === 'devtools-infrastructure',
-    } as const;
+      frontend: (id: string) => id === 'frontend-architecture',
+      ai: (id: string) => id === 'ai-systems-engineering',
+    };
     const defs = [
-      { id: 'fintech', label: 'Fintech & Payments' },
       { id: 'systems', label: 'Distributed Systems' },
-      { id: 'devtools', label: 'DevTools & Reliability' },
+      { id: 'fintech', label: 'Fintech & Ledgers' },
+      { id: 'devtools', label: 'DevOps & Tooling' },
+      { id: 'frontend', label: 'Frontend & UI' },
+      { id: 'ai', label: 'AI Systems & RAG' },
     ] as const;
     return [
       { id: 'all', label: 'All Curriculums', count: itineraries.length },
       ...defs.map((d) => ({
         ...d,
-        count: itineraries.filter((t) => matches[d.id](t.id)).length,
+        count: itineraries.filter((t) => matches[d.id]?.(t.id)).length,
       })),
     ];
   }, [itineraries]);
@@ -159,9 +184,11 @@ export default function CoachingListPage() {
   const filteredTracks = itineraries.filter((track) => {
     if (selectedFilters.length === 0) return true;
     return selectedFilters.some((f) => {
-      if (f === 'fintech') return track.id.includes('fintech') || track.id === 'backend-fundamentals';
       if (f === 'systems') return track.id === 'backend-fundamentals';
+      if (f === 'fintech') return track.id === 'fintech-reliability';
       if (f === 'devtools') return track.id === 'devtools-infrastructure';
+      if (f === 'frontend') return track.id === 'frontend-architecture';
+      if (f === 'ai') return track.id === 'ai-systems-engineering';
       return false;
     });
   });
