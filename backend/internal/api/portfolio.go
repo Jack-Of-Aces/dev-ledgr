@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/Jack-Of-Aces/dev-ledgr/backend/internal/model"
@@ -59,7 +60,18 @@ func (s *Server) devPortfolio(w http.ResponseWriter, r *http.Request) error {
 	isOwner := viewer != nil && viewer.ID == dev.ID
 
 	ctx := r.Context()
-	subs, err := s.store.ListSubmissions(ctx, store.SubmissionFilters{Username: dev.Username})
+	f := store.SubmissionFilters{Username: dev.Username}
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 {
+			f.Limit = n
+		}
+	}
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if n, err := strconv.Atoi(o); err == nil && n >= 0 {
+			f.Offset = n
+		}
+	}
+	subs, err := s.store.ListSubmissions(ctx, f)
 	if err != nil {
 		return err
 	}

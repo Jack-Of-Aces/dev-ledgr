@@ -4,6 +4,7 @@ package db
 import (
 	"context"
 	"embed"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -89,3 +90,34 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 	return nil
 }
+
+// Status reports all embedded migrations and whether they have been applied.
+type MigrationRecord struct {
+	Version   string
+	AppliedAt *time.Time
+}
+
+func Status(ctx context.Context, pool *pgxpool.Pool) ([]MigrationRecord, error) {
+	files, err := fs.Glob(migrationsFS, "migrations/*.sql")
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(files)
+
+	var records []MigrationRecord
+	for _, name := range files {
+		var appliedAt time.Time
+		err := pool.QueryRow(ctx, `select applied_at from schema_migrations where version = $1`, name).Scan(&appliedAt)
+		switch {
+		case err == nil:
+			t := appliedAt
+			records = append(records, MigrationRecord{Version: name, AppliedAt: &t})
+		case errors.Is(err, pgx.ErrNoRows):
+			records = append(records, MigrationRecord{Version: name, AppliedAt: nil})
+		default:
+			return nil, err
+		}
+	}
+	return records, nil
+}
+

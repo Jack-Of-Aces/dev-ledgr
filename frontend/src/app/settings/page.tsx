@@ -66,9 +66,13 @@ const POPULAR_SKILLS = [
 export default function SettingsPage() {
   const { user, isSaving, errors, updateProfile } = useProfile();
   const setUser = useAppStore((state) => state.setUser);
+  const showToast = useAppStore((state) => state.showToast);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
   const [mounted, setMounted] = useState(false);
+  // Stable render-time "now" so Date.now() is not called during the render
+  // phase (the React compiler flags impure calls in render).
+  const [now] = useState(() => Date.now());
 
   useEffect(() => {
     setMounted(true);
@@ -109,6 +113,31 @@ export default function SettingsPage() {
   const [isSavingHandle, setIsSavingHandle] = useState(false);
   const [handleError, setHandleError] = useState<string | null>(null);
   const handleDirty = handleInput !== user.username;
+
+  /**
+   * Which validation errors the dev has already addressed.
+   *
+   * useProfile only clears `errors` on the next save, so an error raised by a
+   * failed save stayed on screen after the field was fixed and stayed on any
+   * tab the dev did not visit. The hook is out of scope here, so the page
+   * tracks dismissal itself: editing a field marks its error as seen, and the
+   * errors are dropped for the tab they belong to. A fresh save replaces the
+   * whole set, so nothing is hidden that has not been re-validated.
+   */
+  const [dismissedErrors, setDismissedErrors] = useState<Record<string, true>>({});
+
+  const dismissFieldError = (field: string) => {
+    setDismissedErrors((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
+  };
+
+  /** Read a validation error, honouring local dismissal. */
+  const fieldError = (field: string) =>
+    dismissedErrors[field] ? undefined : errors[field];
+
+  // The handle handleSave actually persists. When a verified handle is on
+  // record, the free-text GitHub URL field is discarded on save.
+  const finalGithubUsernameOnRecord =
+    user.githubUsername || (user.githubUrl ? user.githubUrl.split('/').pop() || '' : '');
 
   const handleSaveHandle = async () => {
     const clean = handleInput.trim();
@@ -318,6 +347,9 @@ export default function SettingsPage() {
     } else {
       setStatedSkills([...statedSkills, skill]);
     }
+    // The skills field is editable from several places, so clear its error from
+    // the shared path rather than each call site.
+    dismissFieldError('statedSkills');
   };
 
   const handleAddCustomSkill = (e?: React.SyntheticEvent) => {
@@ -327,10 +359,12 @@ export default function SettingsPage() {
       setStatedSkills([...statedSkills, trimmed]);
       setCustomSkillInput('');
     }
+    dismissFieldError('statedSkills');
   };
 
   const handleRemoveSkill = (skillToRemove: string) => {
     setStatedSkills(statedSkills.filter((s) => s !== skillToRemove));
+    dismissFieldError('statedSkills');
   };
 
   // Upstream API key format test ping (Hardening)
@@ -359,7 +393,19 @@ export default function SettingsPage() {
     }
   };
 
-  // Reset to initial values
+  // Short month-year label for the certificate expiry, shared by the settings
+  // list and the mobile preview. Empty string when it is unknown so the caller
+  // can render "Not recorded" instead of a plausible-looking date.
+  const guaranteeExpiryLabel = (() => {
+    const expiry = new Date(user.portfolioValidUntil);
+    if (Number.isNaN(expiry.getTime())) return '';
+    return expiry.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  })();
+
+  // Reset to initial values. Every field the form edits has to be restored,
+  // otherwise "Discard changes" silently kept the unsaved track, target role,
+  // experience level, GitHub handle and public handle edits and the button did
+  // not do what it said.
   const handleReset = () => {
     setName(user.name);
     setHeadline(user.headline);
@@ -370,6 +416,14 @@ export default function SettingsPage() {
     setPlan(user.plan);
     setApiKey('');
     setStatedSkills(user.statedSkills || []);
+    setEngineeringTrack(user.engineeringTrack || 'backend-systems');
+    setTargetRole(user.targetRole || 'Backend Engineer');
+    setExperienceLevel(user.experienceLevel || 'junior');
+    setGithubUsernameInput(
+      user.githubUsername || (user.githubUrl ? user.githubUrl.split('/').pop() || '' : '')
+    );
+    setHandleInput(user.username);
+    setHandleError(null);
   };
 
   // API Key provider detection helper
@@ -494,6 +548,33 @@ export default function SettingsPage() {
       githubConnected: finalGithubConnected,
       githubUsername: finalGithubUsername || undefined,
     });
+
+    // Every save re-runs validation, so previously dismissed errors must be
+    // re-armed. Otherwise a field fixed once would never show a later error.
+    setDismissedErrors({});
+
+    if (!result.success) {
+      // Save is reachable from the header and the footer, so a dev can submit
+      // without ever opening the tab the failing field lives on. Route them to
+      // it instead of leaving an error they cannot see.
+      const fieldToTab: Record<string, SettingsTab> = {
+        name: 'profile',
+        headline: 'profile',
+        bio: 'profile',
+        avatarUrl: 'profile',
+        githubUrl: 'profile',
+        contactEmail: 'profile',
+        statedSkills: 'skills',
+      };
+      const failing = Object.keys(errors).find((field) => fieldToTab[field]);
+      if (failing) {
+        setActiveTab(fieldToTab[failing]);
+        showToast({
+          title: 'Validation Error',
+          message: `Fix the highlighted field in the ${fieldToTab[failing]} tab.`,
+        });
+      }
+    }
 
     if (result.success) {
       // The backend has the values now, so the scratchpad has done its job.
@@ -763,15 +844,18 @@ export default function SettingsPage() {
                           type="text"
                           required
                           value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          aria-invalid={!!errors.name}
-                          aria-describedby={errors.name ? 'settings-name-error' : undefined}
+                          onChange={(e) => {
+                            setName(e.target.value);
+                            dismissFieldError('name');
+                          }}
+                          aria-invalid={!!fieldError("name")}
+                          aria-describedby={fieldError("name") ? 'settings-name-error' : undefined}
                           placeholder="e.g. Jane Doe"
                           className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald outline-none text-xs sm:text-sm font-sans"
                         />
-                        {errors.name && (
+                        {fieldError("name") && (
                           <p id="settings-name-error" className="text-xs text-rose-600 dark:text-rose-400 mt-1 font-mono">
-                            {errors.name}
+                            {fieldError("name")}
                           </p>
                         )}
                       </div>
@@ -843,13 +927,16 @@ export default function SettingsPage() {
                         required
                         maxLength={120}
                         value={headline}
-                        onChange={(e) => setHeadline(e.target.value)}
+                        onChange={(e) => {
+                          setHeadline(e.target.value);
+                          dismissFieldError('headline');
+                        }}
                         placeholder="e.g. Junior Backend Engineer · 2 Verified Proofs"
                         className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald outline-none text-xs sm:text-sm"
                       />
-                      {errors.headline && (
+                      {fieldError("headline") && (
                         <p className="text-xs text-rose-600 dark:text-rose-400 mt-1 font-mono">
-                          {errors.headline}
+                          {fieldError("headline")}
                         </p>
                       )}
                     </div>
@@ -872,13 +959,16 @@ export default function SettingsPage() {
                         rows={3}
                         maxLength={500}
                         value={bio}
-                        onChange={(e) => setBio(e.target.value)}
+                        onChange={(e) => {
+                          setBio(e.target.value);
+                          dismissFieldError('bio');
+                        }}
                         placeholder="Describe your technical background, specific interest in distributed backends, idempotency, or systems engineering..."
                         className="w-full px-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald outline-none text-xs sm:text-sm leading-relaxed"
                       />
-                      {errors.bio && (
+                      {fieldError("bio") && (
                         <p className="text-xs text-rose-600 dark:text-rose-400 mt-1 font-mono">
-                          {errors.bio}
+                          {fieldError("bio")}
                         </p>
                       )}
                     </div>
@@ -1069,7 +1159,10 @@ export default function SettingsPage() {
                               )}
 
                               <span className="text-[11px] text-text-1 font-mono">
-                                Max 2MB (PNG, JPG, WEBP, SVG)
+                                {/* Said 2MB but the guard above rejects anything
+                                    over 5MB, so a 4MB file was accepted and then
+                                    refused. Match the actual limit. */}
+                                Max 5MB (PNG, JPG, WEBP, SVG)
                               </span>
                             </div>
 
@@ -1084,6 +1177,7 @@ export default function SettingsPage() {
                                 onChange={(e) => {
                                   if (!e.target.value.startsWith('(Uploaded')) {
                                     setAvatarUrl(e.target.value);
+                                    dismissFieldError('avatarUrl');
                                   }
                                 }}
                                 className="w-full pl-9 pr-3 py-1.5 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald outline-none text-xs font-mono"
@@ -1097,9 +1191,9 @@ export default function SettingsPage() {
                             {uploadError}
                           </p>
                         )}
-                        {errors.avatarUrl && (
+                        {fieldError("avatarUrl") && (
                           <p className="text-xs text-rose-600 dark:text-rose-400 mt-1 font-mono">
-                            {errors.avatarUrl}
+                            {fieldError("avatarUrl")}
                           </p>
                         )}
                       </div>
@@ -1119,13 +1213,28 @@ export default function SettingsPage() {
                             type="url"
                             placeholder="https://github.com/your-username"
                             value={githubUrl}
-                            onChange={(e) => setGithubUrl(e.target.value)}
-                            className="w-full pl-9 pr-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald outline-none text-xs sm:text-sm font-mono"
+                            // handleSave prefers the verified handle and ignores
+                            // this field whenever one exists, so typing here had
+                            // no effect on the saved profile and the dev could not
+                            // tell. Disable it and say why rather than quietly
+                            // discarding the edit on save.
+                            disabled={Boolean(finalGithubUsernameOnRecord)}
+                            aria-describedby="settings-github-url-hint"
+                            onChange={(e) => {
+                              setGithubUrl(e.target.value);
+                              dismissFieldError('githubUrl');
+                            }}
+                            className="w-full pl-9 pr-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald outline-none text-xs sm:text-sm font-mono disabled:opacity-60 disabled:cursor-not-allowed"
                           />
                         </div>
-                        {errors.githubUrl && (
+                        <p id="settings-github-url-hint" className="text-[11px] text-text-1 font-mono mt-1">
+                          {finalGithubUsernameOnRecord
+                            ? `Managed by your verified GitHub connection (@${finalGithubUsernameOnRecord}). To claim a different handle, disconnect GitHub first — otherwise this field is not saved.`
+                            : 'No verified GitHub handle on record. This URL is stored as entered.'}
+                        </p>
+                        {fieldError("githubUrl") && (
                           <p className="text-xs text-rose-600 dark:text-rose-400 mt-1 font-mono">
-                            {errors.githubUrl}
+                            {fieldError("githubUrl")}
                           </p>
                         )}
                       </div>
@@ -1143,9 +1252,12 @@ export default function SettingsPage() {
                           <input
                             id="settings-contact-email"
                             type="email"
-                            placeholder={user.email || 'alex@devledgr.me'}
+                            placeholder={user.email || 'alex@devledgr.xyz'}
                             value={contactEmail}
-                            onChange={(e) => setContactEmail(e.target.value)}
+                            onChange={(e) => {
+                                setContactEmail(e.target.value);
+                                dismissFieldError('contactEmail');
+                              }}
                             className="w-full pl-9 pr-3 py-2 rounded-radius border border-line bg-ink-0 text-text-0 focus:border-emerald outline-none text-xs sm:text-sm font-mono"
                           />
                         </div>
@@ -1163,9 +1275,9 @@ export default function SettingsPage() {
                             </>
                           )}
                         </span>
-                        {errors.contactEmail && (
+                        {fieldError("contactEmail") && (
                           <p className="text-xs text-rose-600 dark:text-rose-400 mt-1 font-mono">
-                            {errors.contactEmail}
+                            {fieldError("contactEmail")}
                           </p>
                         )}
                       </div>
@@ -1229,9 +1341,9 @@ export default function SettingsPage() {
                           No skills selected yet. Choose from the catalog below or add a custom skill.
                         </div>
                       )}
-                      {errors.statedSkills && (
+                      {fieldError("statedSkills") && (
                         <p className="text-xs text-rose-600 dark:text-rose-400 mt-1 font-mono">
-                          {errors.statedSkills}
+                          {fieldError("statedSkills")}
                         </p>
                       )}
                     </div>
@@ -1385,7 +1497,7 @@ export default function SettingsPage() {
                           </span>
                         </div>
                         <p className="text-xs text-text-1 leading-relaxed">
-                          DevLedgr manages automated CI test runner instances, AI analysis clusters, and uninterrupted portfolio uptime.
+                          DevLedgr manages reviewer operations, AI analysis clusters, mock infrastructure, and uninterrupted portfolio uptime.
                         </p>
                       </div>
                     </div>
@@ -1516,14 +1628,35 @@ export default function SettingsPage() {
                       <div className="p-3.5 rounded-radius border border-line bg-ink-0/60 space-y-1">
                         <div className="text-text-1">PORTFOLIO GUARANTEE EXPIRY</div>
                         <div className="text-sm font-bold text-text-0">
-                          {new Date(user.portfolioValidUntil).toLocaleDateString(undefined, {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
+                          {Number.isNaN(new Date(user.portfolioValidUntil).getTime())
+                            ? 'Not recorded'
+                            : new Date(user.portfolioValidUntil).toLocaleDateString(undefined, {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                              })}
                         </div>
-                        <div className="text-emerald-text font-medium">
-                          364 Days Remaining
+                        <div className="font-medium">
+                          {(() => {
+                            // Was hardcoded to "364 Days Remaining" regardless of
+                            // the real expiry, so a certificate issued months ago
+                            // still claimed a year. Derive it, and report an
+                            // elapsed certificate rather than a negative count.
+                            const expiry = new Date(user.portfolioValidUntil);
+                            if (Number.isNaN(expiry.getTime())) {
+                              return <span className="text-text-1">Expiry not recorded</span>;
+                            }
+                            const msRemaining = expiry.getTime() - now;
+                            if (msRemaining <= 0) {
+                              return <span className="text-rose-500">Expired</span>;
+                            }
+                            const days = Math.floor(msRemaining / 86400000);
+                            return (
+                              <span className="text-emerald-text">
+                                {days} Day{days === 1 ? '' : 's'} Remaining
+                              </span>
+                            );
+                          })()}
                         </div>
                       </div>
 
@@ -1825,7 +1958,9 @@ export default function SettingsPage() {
                     <ShieldCheck className="w-3.5 h-3.5" />
                     Verified Guarantee
                   </span>
-                  <span>Sep 2027</span>
+                  {/* Was a hardcoded "Sep 2027" in both the settings list and the
+                      mobile preview, so it did not track the real certificate. */}
+                  <span>{guaranteeExpiryLabel || 'Not recorded'}</span>
                 </div>
               </div>
 
@@ -1940,7 +2075,9 @@ export default function SettingsPage() {
                     <ShieldCheck className="w-3 h-3" />
                     Verified Guarantee
                   </span>
-                  <span>Sep 2027</span>
+                  {/* Was a hardcoded "Sep 2027" in both the settings list and the
+                      mobile preview, so it did not track the real certificate. */}
+                  <span>{guaranteeExpiryLabel || 'Not recorded'}</span>
                 </div>
               </div>
 

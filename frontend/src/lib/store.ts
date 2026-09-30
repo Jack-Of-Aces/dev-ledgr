@@ -94,7 +94,9 @@ interface AppState {
   saveGeneratedCv: (jobId: string, cv: { cvMarkdown: string; coverLetter: string }) => void;
 
   // Active notification toast
-  activeToast: { title: string; message: string; hash?: string } | null;
+  /** `pending` marks a toast for an entry awaiting review, so the overlay can
+   *  render "pending review" instead of a green "verified ✓" badge. */
+  activeToast: { title: string; message: string; hash?: string; pending?: boolean } | null;
   showToast: (toast: { title: string; message: string; hash?: string }) => void;
   clearToast: () => void;
 }
@@ -188,6 +190,13 @@ export const useAppStore = create<AppState>()(
         clearAuthCookies();
         set({
           isLoggedIn: false,
+          authReady: false,
+          // Reset the profile so a subsequent login can't inherit the previous
+          // session's data from the persisted store. Without this, opening a
+          // different account on the same device kept the previous dev's username,
+          // avatar and ledger in every component that reads from the store.
+          user: DEFAULT_USER,
+          submissions: [],
           activeToast: {
             title: 'Logged Out',
             message: 'Signed out of DevLedgr session.',
@@ -273,16 +282,15 @@ export const useAppStore = create<AppState>()(
           hash,
           proofSignature: subData.proofSignature,
           timestamp: new Date().toISOString(),
-          status: 'verified',
+          // A new submission is pending and unmeasured. It used to default to
+          // 'verified' with 20/20 and 34ms/260 req/s/96.4%, which meant a
+          // freshly created entry rendered as a fast, fully passing proof on
+          // the dev's dashboard before any review had happened.
+          status: 'pending',
           testResults: subData.testResults || {
-            passed: 20,
-            total: 20,
-            suiteName: 'Automated CI & Contract Test Suite v2.0',
-          },
-          metrics: subData.metrics || {
-            latencyP99: '34ms',
-            throughput: '260 req/s',
-            coverage: '96.4%',
+            passed: 0,
+            total: 0,
+            suiteName: 'Not yet verified',
           },
         };
 
@@ -295,8 +303,11 @@ export const useAppStore = create<AppState>()(
           ),
           activeToast: {
             title: `Entry Recorded: #${hash}`,
-            message: `Solution verified and permanently stamped into the DevLedgr.`,
+            // Not "verified and stamped". A reviewer has not looked at this
+            // yet; the record is pending with no recorded results.
+            message: `Solution submitted for review. A reviewer has to check it before it can be verified and signed.`,
             hash,
+            pending: true,
           },
         }));
 
@@ -304,13 +315,16 @@ export const useAppStore = create<AppState>()(
       },
 
       verifySubmission: (hash) => {
+        // Local-only store action. The authoritative stamp goes through
+        // submissionService, which records the reviewer's test results and
+        // mints the certificate. This only mirrors the status change.
         set((state) => ({
           submissions: state.submissions.map((s) =>
             s.hash === hash ? { ...s, status: 'verified' } : s
           ),
           activeToast: {
             title: `Proof Verified: #${hash}`,
-            message: 'Reviewed and permanently stamped with consensus mark ✓.',
+            message: 'Reviewed and stamped with a certificate.',
             hash,
           },
         }));
@@ -430,8 +444,8 @@ export const useAppStore = create<AppState>()(
           score += Math.min(userSubs.length * 8, 25);
         }
 
-        // Clamp between 20% and 98%
-        score = Math.min(Math.max(score, matchedSkills.length > 0 ? 45 : 20), 98);
+        // Clamp honestly between 0% and 98% (no artificial floor when skills/proofs are absent)
+        score = Math.min(Math.max(score, 0), 98);
         const hasGap = score < 80 || missingSkills.length > 0;
 
         // Find best gap-closing problem in Idea Bank

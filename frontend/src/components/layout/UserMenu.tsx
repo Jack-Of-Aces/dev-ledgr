@@ -9,6 +9,7 @@ import {
   User,
   Settings,
   LayoutDashboard,
+  ClipboardList,
   ShieldCheck,
   LogOut,
   ChevronDown,
@@ -149,6 +150,16 @@ export const UserMenu: React.FC = () => {
             >
               <LayoutDashboard className="w-3.5 h-3.5 text-text-1" />
               <span>Developer Dashboard</span>
+            </Link>
+
+            <Link
+              href="/claims"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-2 rounded-radius text-text-0 hover:bg-ink-1 transition-colors"
+              role="menuitem"
+            >
+              <ClipboardList className="w-3.5 h-3.5 text-text-1" />
+              <span>My Claims</span>
             </Link>
 
             <Link

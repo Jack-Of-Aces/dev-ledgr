@@ -19,9 +19,15 @@ export class MockPortfolioService implements IPortfolioService {
       (s) => s.authorUsername.toLowerCase() === dev.username.toLowerCase()
     );
 
+    // isOwner is true only when no specific username was requested (i.e. the
+    // caller is viewing their own profile) or the requested username matches
+    // the default mock user.  Unconditional true caused the Edit Profile button
+    // and other owner-gated controls to show for every portfolio in mock mode.
+    const isOwner = !username || username === DEFAULT_USER.username;
+
     return {
       dev,
-      isOwner: true,
+      isOwner,
       skills: dev.statedSkills,
       provenSkills: ['Go', 'PostgreSQL', 'Redis', 'Docker'],
       stats: {

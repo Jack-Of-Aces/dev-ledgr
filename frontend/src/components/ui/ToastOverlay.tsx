@@ -33,11 +33,19 @@ export const ToastOverlay: React.FC = () => {
           <div>
             <div className="font-mono text-sm lg:text-base font-semibold text-text-0 flex items-center gap-2">
               {activeToast.title}
-              {activeToast.hash && (
-                <span className="text-xs md:text-sm font-mono text-diff-green bg-diff-green/10 px-2 py-0.5 rounded border border-diff-green/20">
-                  verified ✓
-                </span>
-              )}
+              {/* Only a reviewed entry may say "verified". This badge used to
+                  render for any toast carrying a hash, so a pending 0/0
+                  submission was announced as verified. */}
+              {activeToast.hash &&
+                (activeToast.pending ? (
+                  <span className="text-xs md:text-sm font-mono text-amber-700 dark:text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
+                    pending review
+                  </span>
+                ) : (
+                  <span className="text-xs md:text-sm font-mono text-diff-green bg-diff-green/10 px-2 py-0.5 rounded border border-diff-green/20">
+                    verified ✓
+                  </span>
+                ))}
             </div>
             <div className="font-mono text-xs md:text-sm text-text-1 mt-1 leading-relaxed">
               {activeToast.message}

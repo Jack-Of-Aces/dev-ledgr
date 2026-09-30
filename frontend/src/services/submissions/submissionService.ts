@@ -3,7 +3,11 @@
  * @description Primary Submission Service with resilient fallback.
  */
 
-import { ISubmissionService, CreateSubmissionInput } from './ISubmissionService';
+import {
+  ISubmissionService,
+  CreateSubmissionInput,
+  VerifySubmissionInput,
+} from './ISubmissionService';
 import { mockSubmissionService } from './mockSubmissionService';
 import { SubmissionEntry } from '@/types';
 import { envConfig } from '@/lib/config';
@@ -68,21 +72,38 @@ export class SubmissionService implements ISubmissionService {
     return await this.http.post<SubmissionEntry>('/api/v1/submissions', input);
   }
 
-  async verifySubmission(hash: string): Promise<SubmissionEntry> {
+  async verifySubmission(hash: string, input: VerifySubmissionInput): Promise<SubmissionEntry> {
     if (envConfig.useMocks) {
-      return this.mock.verifySubmission(hash);
+      return this.mock.verifySubmission(hash, input);
     }
 
-    return await this.http.post<SubmissionEntry>(`/api/v1/submissions/${encodeURIComponent(hash)}/verify`);
+    // The body is mandatory, not decorative. The backend's gate refuses a
+    // certificate for a zero test total, so an empty POST is guaranteed to
+    // fail rather than silently stamping an unverified submission.
+    return await this.http.post<SubmissionEntry>(
+      `/api/v1/submissions/${encodeURIComponent(hash)}/verify`,
+      {
+        testResults: {
+          passed: input.testResults.passed,
+          total: input.testResults.total,
+          ...(input.testResults.suiteName ? { suiteName: input.testResults.suiteName } : {}),
+        },
+        ...(input.metrics && Object.values(input.metrics).some(Boolean) ? { metrics: input.metrics } : {}),
+        ...(input.notes ? { notes: input.notes } : {}),
+      }
+    );
   }
 
-  async rejectSubmission(hash: string, reviewNotes?: string): Promise<SubmissionEntry> {
+  async rejectSubmission(hash: string, notes: string): Promise<SubmissionEntry> {
     if (envConfig.useMocks) {
-      return this.mock.rejectSubmission(hash, reviewNotes);
+      return this.mock.rejectSubmission(hash, notes);
     }
 
+    // The backend field is `notes`, and the request decoder rejects unknown
+    // keys, so the previous `reviewNotes` payload was a hard 400: the reject
+    // button in the review console could not have worked against a live API.
     return await this.http.post<SubmissionEntry>(`/api/v1/submissions/${encodeURIComponent(hash)}/reject`, {
-      reviewNotes,
+      notes,
     });
   }
 

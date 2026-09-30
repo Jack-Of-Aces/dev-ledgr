@@ -4,17 +4,49 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { SubmissionEntry } from '@/types';
 import { Check, Copy, ExternalLink } from 'lucide-react';
+import { recordedMetric, recordedTestResult } from '@/lib/telemetry';
 
 interface LedgerEntryRowProps {
   entry: SubmissionEntry;
   showIdeaLink?: boolean;
 }
 
+/**
+ * Status presentation. A submission is only "verified" once a reviewer has
+ * stamped it; pending and rejected rows must say so, because this row is
+ * rendered on public portfolios and in the dev dashboard.
+ */
+const STATUS_BADGE: Record<
+  SubmissionEntry['status'],
+  { className: string; dot: string }
+> = {
+  verified: {
+    className: 'bg-emerald-tint border-emerald-border text-emerald-text',
+    dot: 'bg-emerald',
+  },
+  pending: {
+    className: 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300',
+    dot: 'bg-amber-500',
+  },
+  rejected: {
+    className: 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300',
+    dot: 'bg-rose-500',
+  },
+};
+
 export const LedgerEntryRow: React.FC<LedgerEntryRowProps> = ({
   entry,
   showIdeaLink = true,
 }) => {
   const [copied, setCopied] = useState(false);
+
+  // A metrics object can exist with every field blank, which would otherwise
+  // render an empty row.
+  const hasMetrics = Boolean(
+    recordedMetric(entry.metrics?.latencyP99) ||
+      recordedMetric(entry.metrics?.throughput) ||
+      recordedMetric(entry.metrics?.coverage)
+  );
 
   const handleCopyHash = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -82,9 +114,19 @@ export const LedgerEntryRow: React.FC<LedgerEntryRowProps> = ({
             @{entry.authorUsername}
           </Link>
 
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400 text-xs md:text-sm font-mono font-medium ml-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-600 dark:bg-green-500" aria-hidden="true" />
-            verified
+          {/* Reflects entry.status. This badge was hardcoded to "verified",
+              so a pending or rejected submission was displayed as sealed. */}
+          <span
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded border text-xs md:text-sm font-mono font-medium ml-1 ${
+              STATUS_BADGE[entry.status]?.className ??
+              'bg-card border-line text-text-1'
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${STATUS_BADGE[entry.status]?.dot ?? 'bg-text-1'}`}
+              aria-hidden="true"
+            />
+            {entry.status}
           </span>
         </div>
 
@@ -92,27 +134,39 @@ export const LedgerEntryRow: React.FC<LedgerEntryRowProps> = ({
           {entry.architectureNotes}
         </p>
 
-        {/* Metrics Row */}
-        {entry.metrics && (
+        {/* Metrics. Only recorded values render, and the test line is
+            suppressed entirely when no suite has run — 0/0 is not a result. */}
+        {(hasMetrics || recordedTestResult(entry.testResults)) && (
           <div className="flex flex-wrap items-center gap-3 pt-1 text-xs md:text-sm font-mono text-text-1">
-            {entry.metrics.latencyP99 && (
+            {recordedMetric(entry.metrics?.latencyP99) && (
               <span>
-                p99: <b className="text-text-0 font-medium">{entry.metrics.latencyP99}</b>
+                p99:{' '}
+                <b className="text-text-0 font-medium">
+                  {recordedMetric(entry.metrics?.latencyP99)}
+                </b>
               </span>
             )}
-            {entry.metrics.throughput && (
+            {recordedMetric(entry.metrics?.throughput) && (
               <span>
-                throughput: <b className="text-text-0 font-medium">{entry.metrics.throughput}</b>
+                throughput:{' '}
+                <b className="text-text-0 font-medium">
+                  {recordedMetric(entry.metrics?.throughput)}
+                </b>
               </span>
             )}
-            {entry.metrics.coverage && (
+            {recordedMetric(entry.metrics?.coverage) && (
               <span>
-                coverage: <b className="text-text-0 font-medium">{entry.metrics.coverage}</b>
+                coverage:{' '}
+                <b className="text-text-0 font-medium">
+                  {recordedMetric(entry.metrics?.coverage)}
+                </b>
               </span>
             )}
-            <span className="text-text-1">
-              CI: {entry.testResults.passed}/{entry.testResults.total} tests passed
-            </span>
+            {recordedTestResult(entry.testResults) && (
+              <span className="text-text-1">
+                Tests: {recordedTestResult(entry.testResults)} passed
+              </span>
+            )}
           </div>
         )}
       </div>

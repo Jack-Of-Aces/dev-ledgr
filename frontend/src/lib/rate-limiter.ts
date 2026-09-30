@@ -2,12 +2,26 @@
  * @file rate-limiter.ts
  * @description Sliding window in-memory rate limiter for DevLedgr API routes.
  * Protects AI and external API endpoints against abuse and DoS with IP-level tracking.
+ *
+ * Client identification is only as good as the trust placed in the proxy chain,
+ * so headers are consulted at all only when an operator says a trusted hop is
+ * in front of the app. See getClientIp.
  */
 
 interface RateLimitRecord {
   timestamps: number[];
 }
 
+/**
+ * The counter store is a process-local Map, which means the effective limit is
+ * per instance, not per deployment: N replicas behind a load balancer admit N ×
+ * `limit` requests per window. That is a real weakening and it is not fixable
+ * here — a shared store (Redis, or a limiter at the edge) is the fix, and
+ * adding one is a dependency this file is not authorised to take. Until then,
+ * treat these numbers as per-replica and put a shared limiter in front of a
+ * multi-replica deployment. The same caveat is documented on the Go backend's
+ * own rateLimiter.
+ */
 const rateLimitStore = new Map<string, RateLimitRecord>();
 
 // Clean up stale entries every 5 minutes to prevent memory leak
@@ -39,6 +53,10 @@ export interface RateLimitOptions {
    * Sliding window duration in milliseconds. Default: 60,000 (1 minute).
    */
   windowMs?: number;
+  /**
+   * Overrides TRUSTED_PROXY_HOPS for this call. See getClientIp.
+   */
+  trustedProxyHops?: number;
 }
 
 export interface RateLimitResult {
@@ -50,23 +68,95 @@ export interface RateLimitResult {
 }
 
 /**
- * Extracts the client IP address from standard proxy headers.
+ * Key used when the caller's address cannot be established.
+ *
+ * A Next.js route handler receives a Web `Request`, which carries no socket
+ * address, so there is no way to fall back to the peer connection the way a
+ * plain net/http handler can. Everything else is a client-supplied header.
+ * Rather than pick one of those headers and call it an IP address, every caller
+ * shares this bucket: an attacker cannot rotate a forged header to get fresh
+ * quota, which is the failure this file exists to prevent, at the cost of the
+ * bucket being shared. Operators behind a proxy should set TRUSTED_PROXY_HOPS
+ * to get per-client limiting back.
  */
-export function getClientIp(req: Request): string {
-  const headers = req.headers;
-  const forwarded = headers.get('x-forwarded-for');
-  if (forwarded) {
-    return forwarded.split(',')[0].trim();
+export const UNATTRIBUTED_CLIENT_KEY = 'unattributed';
+
+let cachedProxyHops: number | null = null;
+
+/**
+ * Number of reverse proxies trusted to have appended to x-forwarded-for.
+ *
+ * Read from TRUSTED_PROXY_HOPS and cached: this is deployment configuration,
+ * not a per-request value, and re-reading it on every call would be wasteful.
+ */
+function envTrustedProxyHops(): number {
+  if (cachedProxyHops !== null) return cachedProxyHops;
+  const parsed = Number.parseInt(process.env.TRUSTED_PROXY_HOPS ?? '', 10);
+  cachedProxyHops = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  if (cachedProxyHops === 0) {
+    console.warn(
+      '[rate-limiter] TRUSTED_PROXY_HOPS is not set, so all callers share one rate-limit bucket. ' +
+        'Set it to the number of proxies in front of this app to get per-client limiting.'
+    );
   }
-  const realIp = headers.get('x-real-ip');
-  if (realIp) return realIp.trim();
-  const cfIp = headers.get('cf-connecting-ip');
-  if (cfIp) return cfIp.trim();
-  return '127.0.0.1';
+  return cachedProxyHops;
+}
+
+function parseForwardedFor(header: string | null): string[] {
+  if (!header) return [];
+  return header
+    .split(',')
+    .map((part) => part.trim())
+    // Strip an optional port so "1.2.3.4:5678" buckets the same as "1.2.3.4".
+    .map((part) => part.replace(/^\[([^\]]+)](?::\d+)$/, '$1').replace(/:\d+$/, ''))
+    .filter(Boolean);
 }
 
 /**
- * Checks and increments rate limit for a specific IP and endpoint identifier.
+ * Extracts the client IP address.
+ *
+ * The old version took the first entry of x-forwarded-for unconditionally.
+ * That entry is the one the *client* wrote: any caller can send
+ * `x-forwarded-for: <fresh ip>` and walk straight through a per-IP limit, or
+ * send a victim's address to have their quota burned. x-real-ip and
+ * cf-connecting-ip are attacker-controlled for the same reason unless a proxy
+ * overwrites them.
+ *
+ * x-forwarded-for is built left to right as `client, proxy1, proxy2, …`, so only
+ * the entries a trusted hop appended are worth reading. With TRUSTED_PROXY_HOPS
+ * set to the number of proxies in front of the app, the client address is that
+ * many entries from the right, and everything to its left is ignored as forged.
+ *
+ * With no trusted hop configured there is nothing left to trust, so the caller
+ * is bucketed under UNATTRIBUTED_CLIENT_KEY rather than under a header it
+ * chose. Set TRUSTED_PROXY_HOPS=1 for a single nginx/Cloudflare/Vercel-style
+ * proxy in front of the app.
+ */
+export function getClientIp(req: Request, options: RateLimitOptions = {}): string {
+  const hops = options.trustedProxyHops ?? envTrustedProxyHops();
+
+  if (hops > 0) {
+    const chain = parseForwardedFor(req.headers.get('x-forwarded-for'));
+    if (chain.length > 0) {
+      const chosen = chain[Math.max(0, chain.length - hops)];
+      if (chosen) return chosen;
+    }
+
+    // The configured proxy did not forward a usable chain. These two headers
+    // are only meaningful when that same proxy overwrites them, which is
+    // exactly the assertion TRUSTED_PROXY_HOPS makes, so they are read under
+    // the same condition and never outside it.
+    const realIp = req.headers.get('x-real-ip')?.trim();
+    if (realIp) return realIp;
+    const cfIp = req.headers.get('cf-connecting-ip')?.trim();
+    if (cfIp) return cfIp;
+  }
+
+  return UNATTRIBUTED_CLIENT_KEY;
+}
+
+/**
+ * Checks and increments rate limit for a specific client and endpoint identifier.
  */
 export function checkRateLimit(
   req: Request,
@@ -76,7 +166,7 @@ export function checkRateLimit(
   const limit = options.limit ?? 20;
   const windowMs = options.windowMs ?? 60_000;
   const now = Date.now();
-  const clientIp = getClientIp(req);
+  const clientIp = getClientIp(req, options);
   const key = `${routeIdentifier}:${clientIp}`;
 
   cleanupStaleEntries(windowMs);

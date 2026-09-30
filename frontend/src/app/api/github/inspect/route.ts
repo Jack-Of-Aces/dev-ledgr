@@ -94,6 +94,12 @@ export async function POST(req: Request) {
       next: { revalidate: 60 },
     });
 
+    // Note on the status codes below. 404 and "private" answer 200 with
+    // valid:false on purpose: SubmitSolutionModal branches on data.valid and
+    // never reads res.status, so a non-2xx here surfaces as "failed to connect
+    // to the inspection service" instead of the actionable message. The
+    // rate-limit case does use 429, because that is worth a distinct status.
+
     if (repoRes.status === 404) {
       return NextResponse.json({
         valid: false,
@@ -101,26 +107,24 @@ export async function POST(req: Request) {
       });
     }
 
-    if (repoRes.status === 403) {
-      // Rate-limited: provide graceful fallback with notice
-      return NextResponse.json({
-        valid: true,
-        isSimulated: true,
-        owner,
-        repo,
-        fullName: `${owner}/${repo}`,
-        stars: 12,
-        defaultBranch: 'main',
-        latestCommit: {
-          sha: 'a3f9d21e847c1b0928d3f5e12084c781a9283e10',
-          shortSha: 'a3f9d21',
-          message: 'chore: production verification release',
-          author: owner,
-          date: new Date().toISOString(),
+    if (repoRes.status === 403 || repoRes.status === 429) {
+      // Rate limited. This used to answer with a fabricated commit SHA, 12
+      // stars, a "Go 92.4%" language split and a message reading "chore:
+      // production verification release", all marked valid: true. The modal
+      // rendered that SHA under a green "Public Repository Verified" banner
+      // and fingerprinted the submission against it, so a dev whose repo was
+      // never fetched got a proof citing a commit that does not exist.
+      //
+      // Failing closed is the only honest option: a proof that cannot be
+      // checked is not yet a proof, and the dev can retry.
+      return NextResponse.json(
+        {
+          valid: false,
+          error:
+            'GitHub API rate limit reached, so this repository could not be inspected. Wait a moment and try again, or add a GITHUB_TOKEN to raise the limit.',
         },
-        languages: [{ name: 'Go', percentage: 92.4 }, { name: 'Dockerfile', percentage: 7.6 }],
-        notice: 'GitHub API rate limit reached. Simulated verification telemetry applied.',
-      });
+        { status: 429 }
+      );
     }
 
     if (!repoRes.ok) {
@@ -140,12 +144,22 @@ export async function POST(req: Request) {
     }
 
     // 2. Fetch Latest Commit
-    let latestCommit = {
-      sha: 'a3f9d21',
-      shortSha: 'a3f9d21',
-      message: 'Initial verified implementation',
-      author: owner,
-      date: new Date().toISOString(),
+    type CommitInfo = {
+      sha: string | null;
+      shortSha: string | null;
+      message: string | null;
+      author: string | null;
+      date: string | null;
+    };
+    let latestCommit: CommitInfo = {
+      // Stays null if the commit listing fails below. It used to default to
+      // the invented sha "a3f9d21" / "Initial verified implementation", so a
+      // failed commit lookup silently became a plausible-looking commit.
+      sha: null,
+      shortSha: null,
+      message: null,
+      author: null,
+      date: null,
     };
 
     try {
@@ -196,9 +210,13 @@ export async function POST(req: Request) {
       // Non-critical, continue without detailed language breakdown
     }
 
-    if (languages.length === 0) {
-      languages.push({ name: 'Source Code', percentage: 100 });
-    }
+    // An empty breakdown is the honest answer when /languages could not be
+    // read. This used to push { name: 'Source Code', percentage: 100 }, so a
+    // failed call — or a repository GitHub reports as having no detected
+    // languages — rendered as a confident "Stack: Source Code 100%" on the
+    // submission modal, which reads as a language split the platform never
+    // obtained. The modal only draws the stack line when the list is non-empty,
+    // so an empty array shows nothing instead of something false.
 
     return NextResponse.json({
       valid: true,

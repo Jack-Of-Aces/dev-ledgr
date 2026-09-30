@@ -2,6 +2,7 @@
 //
 //	api [serve]   run migrations, then serve HTTP (default)
 //	api migrate   apply database migrations and exit
+//	api migrations list migration status and exit
 //	api seed      apply migrations, load the coaching tracks and exit
 //	api seed demo also add the sample problems and jobs (not in production)
 //	api promote <username> <role>   set a dev's role (user|reviewer|admin)
@@ -49,8 +50,17 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// Handled before config.Load: promoting the first admin must not require the
+	// Handled before config.Load: database-only commands must not require the
 	// Supabase and signing secrets that only the HTTP server actually uses.
+	if cmd == "migrate" {
+		return runMigrate(ctx)
+	}
+	if cmd == "migrations" {
+		return runMigrationsStatus(ctx)
+	}
+	if cmd == "approve-problems" {
+		return runApproveProblems(ctx)
+	}
 	if cmd == "promote" {
 		return promote(ctx, os.Args[2:])
 	}
@@ -94,6 +104,85 @@ func run() error {
 	default:
 		return fmt.Errorf("unknown command %q (want serve, migrate, seed, promote or users)", cmd)
 	}
+}
+
+// runMigrate connects using only DATABASE_URL, runs any pending migrations,
+// and exits. It does not require Supabase or signing credentials.
+func runMigrate(ctx context.Context) error {
+	databaseURL, err := config.DatabaseURL()
+	if err != nil {
+		return err
+	}
+	pool, err := db.Connect(ctx, databaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	if err := db.Migrate(ctx, pool); err != nil {
+		return err
+	}
+	slog.Info("migrations up to date")
+	return nil
+}
+
+// runMigrationsStatus connects using only DATABASE_URL, queries schema_migrations,
+// and prints the status of all embedded migrations.
+func runMigrationsStatus(ctx context.Context) error {
+	databaseURL, err := config.DatabaseURL()
+	if err != nil {
+		return err
+	}
+	pool, err := db.Connect(ctx, databaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	records, err := db.Status(ctx, pool)
+	if err != nil {
+		return err
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+	fmt.Fprintln(w, "VERSION\tSTATUS\tAPPLIED AT")
+	for _, r := range records {
+		status := "pending"
+		applied := "-"
+		if r.AppliedAt != nil {
+			status = "applied"
+			applied = r.AppliedAt.Format("2006-01-02 15:04:05 UTC")
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\n", r.Version, status, applied)
+	}
+	return w.Flush()
+}
+
+// runApproveProblems marks all unapproved problems in the database as approved.
+func runApproveProblems(ctx context.Context) error {
+	databaseURL, err := config.DatabaseURL()
+	if err != nil {
+		return err
+	}
+	pool, err := db.Connect(ctx, databaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	var total, approved, unapproved int
+	if err := pool.QueryRow(ctx, `select count(*), count(*) filter (where admin_approved = true), count(*) filter (where admin_approved = false) from public.problems`).Scan(&total, &approved, &unapproved); err != nil {
+		return err
+	}
+	slog.Info("problems before approval", "total", total, "approved", approved, "unapproved", unapproved)
+
+	st := store.New(pool)
+	n, err := st.ApproveAllProblems(ctx)
+	if err != nil {
+		return err
+	}
+	slog.Info("approved problems", "newly_approved", n)
+	return nil
 }
 
 // promote bootstraps or repairs a role directly in the database. The admin

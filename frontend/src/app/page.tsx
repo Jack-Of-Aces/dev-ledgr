@@ -47,7 +47,7 @@ export default function HomePage() {
           </h1>
 
           <p className="text-lg sm:text-xl text-text-1 leading-relaxed max-w-xl font-normal">
-            Real production challenges. Automated CI test harnesses. Permanent cryptographic proof that gets you hired.
+            Real production challenges. Reviewed against a real spec. Permanent cryptographic proof that gets you hired.
           </p>
 
           <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -85,9 +85,9 @@ export default function HomePage() {
           <div className="px-4 py-2.5 bg-ink-0 border-b border-line flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald shrink-0" />
-              <span className="text-text-0 font-medium">DevLedgr CI Attestation Engine v2.4</span>
+              <span className="text-text-0 font-medium">DevLedgr Review &amp; Signing</span>
               <span className="text-line">/</span>
-              <span className="text-emerald-text font-semibold">100% CI HARNESS PASSED</span>
+              <span className="text-emerald-text font-semibold">REVIEWED &amp; SIGNED</span>
             </div>
             <div className="text-text-1 text-[11px]">
               SHA-256 Stamped · 365-Day Guarantee
@@ -133,7 +133,13 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Micro-Telemetry Grid */}
+            {/* Micro-Telemetry Grid.
+                Labelled as an illustration: these are the figures a real entry
+                carries once a reviewer has measured them, not live numbers and
+                not a claim about any particular submission. */}
+            <p className="text-[11px] font-mono text-text-1 italic">
+              Illustrative specimen — an example of a reviewed entry
+            </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
               <div className="p-3 rounded border border-line/60 bg-ink-0/40">
                 <div className="text-[11px] text-text-1 uppercase">P99 Latency</div>
@@ -144,7 +150,7 @@ export default function HomePage() {
                 <div className="text-base font-semibold text-text-0 mt-0.5">220 req/s</div>
               </div>
               <div className="p-3 rounded border border-line/60 bg-ink-0/40">
-                <div className="text-[11px] text-text-1 uppercase">Test Vectors</div>
+                <div className="text-[11px] text-text-1 uppercase">Test Results</div>
                 <div className="text-base font-semibold text-emerald-text mt-0.5">500/500 passed</div>
               </div>
               <div className="p-3 rounded border border-line/60 bg-ink-0/40">
@@ -215,10 +221,11 @@ export default function HomePage() {
                 <Cpu className="w-5 h-5 text-emerald-text" />
               </div>
               <h3 className="text-lg font-semibold text-text-0">
-                2. Automated CI Stress Harnesses
+                2. Real Failure Modes, Honestly Measured
               </h3>
               <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
-                Solutions undergo synthetic traffic bursts, chaos injection, and latency SLA checks. Pass the harness to earn an immutable SHA-256 commit stamp.
+                Each problem spec covers synthetic traffic bursts, chaos injection, and latency budgets. A reviewer works through them with
+                your implementation and records the results. Satisfy the spec to earn an immutable SHA-256 commit stamp.
               </p>
             </div>
             <div className="pt-2">
@@ -226,7 +233,7 @@ export default function HomePage() {
                 href="/ideas/webhook-idempotency-engine"
                 className="text-xs sm:text-sm text-emerald-text font-mono font-medium hover:underline inline-flex items-center gap-1.5"
               >
-                <span>Inspect Test Vector Specs</span>
+                <span>Inspect Test Criteria</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
@@ -293,7 +300,7 @@ export default function HomePage() {
             Live Verified Ledger Entries
           </h2>
           <p className="text-xs sm:text-sm lg:text-base text-text-1 max-w-sm">
-            Real developers passing automated CI test harnesses and stamping permanent proofs.
+            Real developers having their work reviewed against a problem spec and signed into a permanent record.
           </p>
         </div>
 
@@ -309,7 +316,7 @@ export default function HomePage() {
 
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs md:text-sm pt-1">
           <span className="text-text-1">
-            All entries signed with SHA-256 and verified through automated CI test harnesses.
+            Every entry is signed, and every test result on it was recorded by a reviewer who checked it.
           </span>
           <Link
             href="/p/junior_dev"
@@ -329,7 +336,7 @@ export default function HomePage() {
             Ready to build real proof?
           </h2>
           <p className="text-sm sm:text-base text-text-1 leading-relaxed max-w-lg mx-auto">
-            Solve production failure modes. Pass automated CI. Stamp your permanent public ledger.
+            Solve production failure modes. Get it reviewed. Stamp your permanent public ledger.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">

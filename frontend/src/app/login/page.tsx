@@ -20,6 +20,24 @@ const GithubIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   </svg>
 );
 
+/**
+ * Only same-origin relative paths are allowed as post-login destinations.
+ * `callbackUrl` arrives from the query string and is handed to
+ * `window.location.replace`, so anything that could be read as an absolute or
+ * protocol-relative URL (`//evil.com`, `/\evil.com`, `https://evil.com`,
+ * `javascript:...`) would be an open redirect / XSS vector.
+ */
+function safeCallbackUrl(raw: string | null): string {
+  if (!raw) return '/dashboard';
+  if (!raw.startsWith('/')) return '/dashboard';
+  // `//host` and `/\host` are treated as protocol-relative by browsers.
+  if (raw.startsWith('//') || raw.startsWith('/\\')) return '/dashboard';
+  // Reject control characters that could be used to smuggle a scheme past the
+  // checks above (e.g. `/%09/evil.com` or `/ \t/evil.com`).
+  if (/[\u0000-\u001f\u007f]/.test(raw)) return '/dashboard';
+  return raw;
+}
+
 const GoogleIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
     <path
@@ -43,7 +61,7 @@ const GoogleIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
 
 function LoginForm() {
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+  const callbackUrl = safeCallbackUrl(searchParams.get('callbackUrl'));
   const authError = searchParams.get('error');
   const { isLoggedIn, user, loginWithGitHub, loginWithGoogle } = useAuth();
 

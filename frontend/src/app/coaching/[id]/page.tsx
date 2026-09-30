@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
@@ -37,7 +37,22 @@ export default function CoachingDetailPage() {
   const userSubmissions = submissions.filter(
     (s) => s.authorUsername.toLowerCase() === user.username.toLowerCase()
   );
-  const userSolvedIdeaIds = new Set(userSubmissions.map((s) => s.ideaId));
+  // Stable string key so useMemo fires only when the actual set of solved IDs changes.
+  const solvedKey = userSubmissions.map((s) => s.ideaId).sort().join(',');
+  const userSolvedIdeaIds = React.useMemo(
+    () => new Set(userSubmissions.map((s) => s.ideaId)),
+    // solvedKey is a primitive derived from the same array; using the full array
+    // would produce a new dependency on every render and refetch forever.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [solvedKey]
+  );
+
+  // Ref mirror so the fetch effect can read the solved set without listing it
+  // as a dependency (it is rebuilt every render and would refetch forever).
+  const userSolvedIdeaIdsRef = useRef(userSolvedIdeaIds);
+  useEffect(() => {
+    userSolvedIdeaIdsRef.current = userSolvedIdeaIds;
+  }, [userSolvedIdeaIds]);
 
   // Default to first unsolved milestone if exists
   const initialWeek = itinerary.milestones.find(
@@ -56,12 +71,49 @@ export default function CoachingDetailPage() {
     setMounted(true);
     if (id) {
       coachingService.getItineraryById(id).then((found) => {
-        if (found) {
-          setItinerary(found);
-        }
+        if (!found) return;
+        setItinerary(found);
+        // Recompute the starting week against the itinerary that actually
+        // arrived. It used to be computed once from the bundled fixture and
+        // never revisited, so opening a track showed the fixture's week
+        // numbering over the live milestone list — often pointing at a week
+        // that does not exist.
+        const firstUnsolved = found.milestones.find(
+          (m) => !m.ideaIdRef || !userSolvedIdeaIdsRef.current.has(m.ideaIdRef)
+        );
+        setActiveWeek(firstUnsolved?.week || found.milestones[0]?.week || 1);
       }).catch(() => {});
     }
   }, [id]);
+
+  // Arrow-key navigation across the milestone tablist (WAI-ARIA tabs pattern).
+  // The stepper used to be mouse-only: every tab was in the tab order but no
+  // key changed selection, so a keyboard user could not reach later weeks.
+  const handleMilestoneKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const weeks = itinerary.milestones.map((m) => m.week);
+    if (weeks.length === 0) return;
+    const currentIndex = weeks.indexOf(activeWeek);
+    if (currentIndex === -1) return;
+
+    let nextIndex: number | null = null;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      nextIndex = (currentIndex + 1) % weeks.length;
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      nextIndex = (currentIndex - 1 + weeks.length) % weeks.length;
+    } else if (e.key === 'Home') {
+      nextIndex = 0;
+    } else if (e.key === 'End') {
+      nextIndex = weeks.length - 1;
+    }
+
+    if (nextIndex === null) return;
+    e.preventDefault();
+    const nextWeek = weeks[nextIndex];
+    setActiveWeek(nextWeek);
+    setPromptOutput(null);
+    setActivePromptLabel(null);
+    document.getElementById(`tab-week-${nextWeek}`)?.focus();
+  };
 
   const selectedMilestone =
     itinerary.milestones.find((m) => m.week === activeWeek) || itinerary.milestones[0];
@@ -178,6 +230,7 @@ export default function CoachingDetailPage() {
         role="tablist"
         aria-label="Curriculum milestone sequence"
         className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-2.5 pb-2"
+        onKeyDown={handleMilestoneKeyDown}
       >
         {itinerary.milestones.map((m) => {
           const isDone = m.ideaIdRef ? userSolvedIdeaIds.has(m.ideaIdRef) : false;
@@ -190,6 +243,9 @@ export default function CoachingDetailPage() {
               role="tab"
               aria-selected={isCurrent}
               aria-controls={`panel-week-${m.week}`}
+              // Roving tabindex: only the active tab is tabbable, so arrows are
+              // the way to move between milestones.
+              tabIndex={isCurrent ? 0 : -1}
               onClick={() => {
                 setActiveWeek(m.week);
                 setPromptOutput(null);

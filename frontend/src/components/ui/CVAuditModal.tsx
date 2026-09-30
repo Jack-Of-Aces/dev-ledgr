@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   FileCheck2,
@@ -45,14 +45,78 @@ export const CVAuditModal: React.FC<CVAuditModalProps> = ({
   const [activeTab, setActiveTab] = useState<'audit' | 'curated'>('audit');
   const [copied, setCopied] = useState(false);
 
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // Remembered so focus can be handed back to whatever opened the modal.
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  // Escape closes. The listener is bound only while the modal is open so a
+  // closed modal cannot swallow Escape from the page underneath it.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
+  // Move focus into the dialog on open and restore it to the trigger on close,
+  // otherwise keyboard and screen-reader users are dropped at the top of the
+  // document when the modal unmounts.
+  useEffect(() => {
+    if (isOpen) {
+      previouslyFocusedRef.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      dialogRef.current?.focus();
+    } else {
+      previouslyFocusedRef.current?.focus();
+      previouslyFocusedRef.current = null;
+    }
+  }, [isOpen]);
+
+  // Keep Tab inside the dialog. Without this, Tab walks out of the modal into
+  // the page behind it, which is still rendered and still focusable.
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const node = dialogRef.current;
+      if (!node) return;
+      const focusable = Array.from(
+        node.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleTab);
+    return () => document.removeEventListener('keydown', handleTab);
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    // Reset the input so picking the same oversize file again still fires change.
+    e.target.value = '';
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      setError('File size exceeds 5MB limit.');
+      // Drop the selection too: leaving `selectedFile`/`fileName` in place would
+      // still show "Selected: <file>" and would let the oversize file be sent to
+      // the audit endpoint even though the upload box claims it was rejected.
+      setSelectedFile(null);
+      setFileName(null);
+      setError(`"${file.name}" is ${(file.size / (1024 * 1024)).toFixed(1)}MB, over the 5MB limit. Choose a smaller file.`);
       return;
     }
 
@@ -143,17 +207,43 @@ export const CVAuditModal: React.FC<CVAuditModalProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  // The audit endpoint omits these arrays entirely on some responses, so read
+  // them defensively rather than assuming the payload shape.
+  const matchedKeywords = auditResult?.matchedKeywords ?? [];
+  const missingKeywords = auditResult?.missingKeywords ?? [];
+  // Keyword lists can legitimately repeat a term, so the keyword alone is not a
+  // unique key — pair it with its position to keep React from reusing the wrong
+  // chip when two entries match.
+  const keywordKey = (kw: string, i: number) => `${kw}-${i}`;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-0/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-radius border border-line bg-card p-6 shadow-xl space-y-5 font-sans">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="cv-audit-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-0/80 backdrop-blur-sm animate-in fade-in duration-200"
+      onMouseDown={(e) => {
+        // Only a click on the backdrop itself dismisses; clicks that bubble up
+        // from the panel or the file-drop zone must not.
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-radius border border-line bg-card p-6 shadow-xl space-y-5 font-sans outline-none"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-line pb-4">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded bg-emerald/10 text-emerald-text">
-              <FileCheck2 className="w-5 h-5" />
+              <FileCheck2 className="w-5 h-5" aria-hidden="true" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-text-0 font-sans">
+              <h2
+                id="cv-audit-modal-title"
+                className="text-base font-semibold text-text-0 font-sans"
+              >
                 ATS Resume Audit & AI Tailoring
               </h2>
               <p className="text-xs text-text-1 font-mono">
@@ -162,10 +252,12 @@ export const CVAuditModal: React.FC<CVAuditModalProps> = ({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close resume audit"
             className="p-1.5 rounded-radius text-text-1 hover:text-text-0 hover:bg-card-hover transition-colors"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
 
@@ -367,12 +459,12 @@ export const CVAuditModal: React.FC<CVAuditModalProps> = ({
                   <div className="p-3 rounded border border-line bg-card space-y-2">
                     <div className="flex items-center gap-1.5 text-emerald-text font-semibold">
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Matched Keywords ({auditResult.matchedKeywords.length})</span>
+                      <span>Matched Keywords ({matchedKeywords.length})</span>
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {auditResult.matchedKeywords.map((kw, i) => (
+                      {matchedKeywords.map((kw, i) => (
                         <span
-                          key={i}
+                          key={keywordKey(kw, i)}
                           className="px-2 py-0.5 rounded bg-emerald/10 text-emerald-text text-[11px]"
                         >
                           {kw}
@@ -384,12 +476,12 @@ export const CVAuditModal: React.FC<CVAuditModalProps> = ({
                   <div className="p-3 rounded border border-line bg-card space-y-2">
                     <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-semibold">
                       <Tag className="w-3.5 h-3.5" />
-                      <span>Recommended Keywords ({auditResult.missingKeywords.length})</span>
+                      <span>Recommended Keywords ({missingKeywords.length})</span>
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {auditResult.missingKeywords.map((kw, i) => (
+                      {missingKeywords.map((kw, i) => (
                         <span
-                          key={i}
+                          key={keywordKey(kw, i)}
                           className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[11px]"
                         >
                           {kw}

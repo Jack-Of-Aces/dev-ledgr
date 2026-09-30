@@ -14,12 +14,13 @@ import {
   CheckCircle2,
   ArrowUpDown,
   Check,
+  ClipboardList,
 } from 'lucide-react';
 import { getDomainStyle, getDifficultyStyle } from '@/lib/colors';
 import { IdeaGridSkeleton } from '@/components/ui/skeletons';
 import { getTrackById } from '@/lib/tracks';
 import { launchpadService } from '@/services/launchpad/launchpadService';
-import { IdeaItem } from '@/types';
+import { IdeaItem, LaunchpadProblem } from '@/types';
 
 type SortOption = 'relevance' | 'proofs-desc' | 'hours-asc' | 'hours-desc';
 type StatusOption = 'solved' | 'unsolved';
@@ -78,13 +79,20 @@ function facetCounts(
 }
 
 export default function IdeasPage() {
-  const { ideas, user, submissions, setIdeas } = useAppStore();
+  const { ideas, user, submissions, setIdeas, isLoggedIn } = useAppStore();
   const [mounted, setMounted] = useState(false);
   const [liveProblems, setLiveProblems] = useState<IdeaItem[]>([]);
+  // Tracks whether the list above is a real fetch or the bundled sample bank.
+  const [problemsStatus, setProblemsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [problemsRetry, setProblemsRetry] = useState(0);
 
   // Multi-select and search states
   const [search, setSearch] = useState('');
   const [filterMyTrack, setFilterMyTrack] = useState(false);
+  const [filterMyClaims, setFilterMyClaims] = useState(false);
+  // Problems this dev has claimed. Kept as full problems rather than a bare
+  // id set so the bank can show a claim's status without a second request.
+  const [myClaims, setMyClaims] = useState<LaunchpadProblem[]>([]);
   const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
   const [selectedDifficulties, setSelectedDifficulties] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -101,10 +109,68 @@ export default function IdeasPage() {
         setLiveProblems(problems);
         setIdeas(problems);
       }
-    }).catch(() => {});
+      setProblemsStatus('ready');
+    }).catch(() => {
+      // Swallowing this used to leave the bundled bank rendering as if it were
+      // live, so record the failure and disclose it below.
+      setProblemsStatus('error');
+    });
   }, [setIdeas]);
 
-  const activeIdeas = liveProblems.length > 0 ? liveProblems : ideas;
+  useEffect(() => {
+    if (problemsRetry === 0) return;
+    let active = true;
+    setProblemsStatus('loading');
+    launchpadService
+      .getProblems()
+      .then((problems) => {
+        if (!active) return;
+        if (problems && problems.length > 0) {
+          setLiveProblems(problems);
+          setIdeas(problems);
+        }
+        setProblemsStatus('ready');
+      })
+      .catch(() => {
+        if (active) setProblemsStatus('error');
+      });
+    return () => {
+      active = false;
+    };
+  }, [problemsRetry, setIdeas]);
+
+  // Claims are per-dev and only meaningful once signed in. The list endpoint is
+  // 401 for an anonymous caller, and launchpadService falls back to the sample
+  // bank on a failed read, which would show a signed-out visitor a filter
+  // counting problems they never claimed. So this is deliberately gated on the
+  // session and a failure leaves the list empty rather than inventing claims.
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setMyClaims([]);
+      setFilterMyClaims(false);
+      return;
+    }
+    let cancelled = false;
+    launchpadService
+      .getMyClaims()
+      .then((claims) => {
+        if (!cancelled) setMyClaims(Array.isArray(claims) ? claims : []);
+      })
+      .catch(() => {
+        if (!cancelled) setMyClaims([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn]);
+
+  const usingSampleData = liveProblems.length === 0;
+  const activeIdeas = usingSampleData ? ideas : liveProblems;
+
+  const claimedIdeaIds = useMemo(
+    () => new Set(myClaims.map((c) => c.id)),
+    [myClaims]
+  );
 
   // Compute user solved set
   const solvedIdeaIds = useMemo(() => {
@@ -217,7 +283,21 @@ export default function IdeasPage() {
         currentTrack.recommendedIdeaIds.includes(idea.id) ||
         skills.some((t) => currentTrack.defaultSkills.includes(t));
 
-      return matchesSearch && matchesDomain && matchesDifficulty && matchesTag && matchesStatus && matchesTrack;
+      // 7. Claims Filter: only the problems this dev has actually claimed.
+      // Deliberately not a "status" check: claiming is what puts a problem on
+      // this list, and a dev who has since marked one solved still wants to
+      // see it here.
+      const matchesClaims = !filterMyClaims || claimedIdeaIds.has(idea.id);
+
+      return (
+        matchesSearch &&
+        matchesDomain &&
+        matchesDifficulty &&
+        matchesTag &&
+        matchesStatus &&
+        matchesTrack &&
+        matchesClaims
+      );
     });
 
     // Sorting
@@ -244,12 +324,15 @@ export default function IdeasPage() {
     selectedStatuses,
     sortBy,
     solvedIdeaIds,
+    claimedIdeaIds,
+    filterMyClaims,
   ]);
 
   // Check if any non-default filters are active
   const hasActiveFilters =
     search.trim() !== '' ||
     filterMyTrack ||
+    filterMyClaims ||
     selectedDomains.length > 0 ||
     selectedDifficulties.length > 0 ||
     selectedTags.length > 0 ||
@@ -259,6 +342,7 @@ export default function IdeasPage() {
   const resetAllFilters = () => {
     setSearch('');
     setFilterMyTrack(false);
+    setFilterMyClaims(false);
     setSelectedDomains([]);
     setSelectedDifficulties([]);
     setSelectedTags([]);
@@ -269,6 +353,7 @@ export default function IdeasPage() {
   const activeFilterCount =
     (search.trim() !== '' ? 1 : 0) +
     (filterMyTrack ? 1 : 0) +
+    (filterMyClaims ? 1 : 0) +
     selectedDomains.length +
     selectedDifficulties.length +
     selectedTags.length +
@@ -280,11 +365,19 @@ export default function IdeasPage() {
       {/* Header */}
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-mono uppercase tracking-wider text-emerald-text font-semibold px-2.5 py-0.5 rounded-full bg-emerald-tint border border-emerald-border">
-            Curated Engineering Specs
+          <span
+            className={`text-xs font-mono uppercase tracking-wider font-semibold px-2.5 py-0.5 rounded-full border ${
+              usingSampleData
+                ? 'text-amber-700 dark:text-amber-400 border-amber-500/30 bg-amber-500/10'
+                : 'text-emerald-text border-emerald-border bg-emerald-tint'
+            }`}
+          >
+            {usingSampleData ? 'Sample Engineering Specs' : 'Curated Engineering Specs'}
           </span>
           <span className="text-xs font-mono text-text-1">
-            {activeIdeas.length} production problems ready to seal
+            {usingSampleData
+              ? `${activeIdeas.length} sample problems — not fetched from the live bank`
+              : `${activeIdeas.length} production problems ready to seal`}
           </span>
         </div>
         <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight text-text-0">
@@ -293,6 +386,27 @@ export default function IdeasPage() {
         <p className="text-sm lg:text-base text-text-1 max-w-2xl leading-relaxed">
           Real-world operational problems sourced from production environments, translated into technical specs with mock infrastructure ready to build against.
         </p>
+
+        {/* The list silently falls back to the bundled bank when the fetch fails. */}
+        {mounted && problemsStatus !== 'loading' && usingSampleData && (
+          <div
+            role="status"
+            className="p-3 rounded-radius border border-amber-500/30 bg-amber-500/10 text-xs font-mono text-text-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+          >
+            <span>
+              {problemsStatus === 'error'
+                ? 'Could not reach the problem bank API, so these are bundled sample specs — not live problems.'
+                : 'The problem bank returned no specs, so these are bundled sample specs — not live problems.'}
+            </span>
+            <button
+              type="button"
+              onClick={() => setProblemsRetry((n) => n + 1)}
+              className="btn-outline text-xs py-1 px-2.5 shrink-0 self-start sm:self-auto"
+            >
+              Retry
+            </button>
+          </div>
+        )}
       </div>
 
       <hr className="rule" />
@@ -357,7 +471,7 @@ export default function IdeasPage() {
         <div
           role="group"
           aria-label="Filter problems by engineering domains"
-          className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 -mx-4 px-4 sm:mx-0 sm:px-0 min-w-0"
+          className="flex items-center gap-1.5 overflow-x-auto py-1 -mx-4 px-4 sm:mx-0 sm:px-0 min-w-0"
         >
           {/* "All" Reset Button */}
           <button
@@ -373,6 +487,34 @@ export default function IdeasPage() {
               ({activeIdeas.length})
             </span>
           </button>
+
+          {/* Claims Filter Pill. Only rendered once signed in: an anonymous
+              visitor has no claims, and a zero-count filter would imply the
+              bank can see them. */}
+          {isLoggedIn && (
+            <button
+              onClick={() => setFilterMyClaims((prev) => !prev)}
+              aria-pressed={filterMyClaims}
+              className={`px-3 py-1.5 rounded-radius transition-all cursor-pointer text-xs font-sans whitespace-nowrap shrink-0 border inline-flex items-center gap-1.5 ${
+                filterMyClaims
+                  ? 'bg-emerald text-white font-semibold border-emerald shadow-xs'
+                  : myClaims.length === 0
+                  ? 'bg-card border-line text-text-1/50 hover:text-text-0'
+                  : 'bg-card border-line text-emerald-text hover:text-emerald-text hover:border-emerald/40'
+              }`}
+              title={
+                myClaims.length === 0
+                  ? 'You have not claimed any problems yet'
+                  : `Show the ${myClaims.length} problem${
+                      myClaims.length === 1 ? '' : 's'
+                    } you have claimed`
+              }
+            >
+              {filterMyClaims && <Check className="w-3 h-3 shrink-0" />}
+              <ClipboardList className="w-3 h-3 shrink-0" />
+              <span>My Claims ({myClaims.length})</span>
+            </button>
+          )}
 
           {/* Personalized Track Filter Pill */}
           <button
@@ -769,7 +911,11 @@ export default function IdeasPage() {
                         hasMockInfra ? 'bg-emerald' : 'bg-line'
                       }`}
                     />
-                    {hasMockInfra ? 'Mock Infra Ready' : 'Self-Hosted Fixture'}
+                    {/* "Mock Infra Ready" claimed a deployment that does not
+                        exist for admin-authored problems (their spec is written
+                        as an empty object), and "Self-Hosted Fixture" implied a
+                        fallback that nothing provisions. State what is true. */}
+                    {hasMockInfra ? 'Mock Spec Attached' : 'Self-Provided Harness'}
                   </span>
                   <Link
                     href={`/ideas/${idea.id}`}

@@ -150,7 +150,7 @@ func getbool(key string, fallback bool) bool {
 func splitList(s string) []string {
 	var out []string
 	for _, part := range strings.Split(s, ",") {
-		if p := strings.TrimRight(strings.TrimSpace(part), "/"); p != "" {
+		if p := strings.TrimRight(strings.TrimSpace(part), "/"); p != "" && !strings.EqualFold(p, "null") {
 			out = append(out, p)
 		}
 	}

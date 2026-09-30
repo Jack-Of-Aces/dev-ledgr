@@ -3,7 +3,11 @@
  * @description Mock service for managing cryptographically stamped submissions.
  */
 
-import { ISubmissionService, CreateSubmissionInput } from './ISubmissionService';
+import {
+  ISubmissionService,
+  CreateSubmissionInput,
+  VerifySubmissionInput,
+} from './ISubmissionService';
 import { SubmissionEntry } from '@/types';
 import { INITIAL_SUBMISSIONS } from '@/lib/mock-data';
 
@@ -42,38 +46,51 @@ export class MockSubmissionService implements ISubmissionService {
       ...input,
       hash,
       timestamp: new Date().toISOString(),
-      status: 'verified',
-      testResults: {
-        passed: 20,
-        total: 20,
-        suiteName: 'Automated CI & Contract Test Suite v2.0',
-      },
-      metrics: {
-        latencyP99: '34ms',
-        throughput: '260 req/s',
-        coverage: '96.4%',
-      },
+      // A new submission is pending and unmeasured, exactly as the backend
+      // creates it. It used to be born 'verified' carrying 20/20 and
+      // 34ms/260 req/s, which is how unmeasured proof reached the portfolio.
+      status: 'pending',
+      testResults: { passed: 0, total: 0, suiteName: 'Not yet verified' },
     };
 
     this.submissions = [newEntry, ...this.submissions];
     return newEntry;
   }
 
-  async verifySubmission(hash: string): Promise<SubmissionEntry> {
+  async verifySubmission(hash: string, input: VerifySubmissionInput): Promise<SubmissionEntry> {
     const sub = this.submissions.find((s) => s.hash === hash);
     if (!sub) throw new Error(`Submission #${hash} not found`);
 
+    // Mirror the backend gate so the mock cannot be a kinder contract than the
+    // real thing: a zero total is refused rather than read as a pass.
+    if (input.testResults.total <= 0) {
+      throw new Error(
+        'A certificate cannot be minted without recorded test results: total must be greater than zero'
+      );
+    }
+    if (input.testResults.passed !== input.testResults.total) {
+      throw new Error('All tests must pass before a submission can be stamped');
+    }
+
     sub.status = 'verified';
+    sub.testResults = {
+      passed: input.testResults.passed,
+      total: input.testResults.total,
+      suiteName: input.testResults.suiteName || 'Manual Reviewer Audit',
+    };
+    if (input.metrics && Object.values(input.metrics).some(Boolean)) {
+      sub.metrics = input.metrics;
+    }
     return sub;
   }
 
-  async rejectSubmission(hash: string, reviewNotes?: string): Promise<SubmissionEntry> {
+  async rejectSubmission(hash: string, notes: string): Promise<SubmissionEntry> {
     const sub = this.submissions.find((s) => s.hash === hash);
     if (!sub) throw new Error(`Submission #${hash} not found`);
 
     sub.status = 'rejected';
-    if (reviewNotes) {
-      sub.architectureNotes = `${sub.architectureNotes}\n\n[Reviewer Feedback]: ${reviewNotes}`;
+    if (notes) {
+      sub.architectureNotes = `${sub.architectureNotes}\n\n[Reviewer Feedback]: ${notes}`;
     }
     return sub;
   }

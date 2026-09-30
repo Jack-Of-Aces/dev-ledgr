@@ -15,6 +15,12 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
   const [simulating, setSimulating] = useState(false);
   const [responseLog, setResponseLog] = useState<string | null>(null);
   const [latency, setLatency] = useState<number | null>(null);
+  const [status, setStatus] = useState<{
+    ok: boolean;
+    code: number | null;
+    label: string;
+    detail?: string;
+  } | null>(null);
 
   // Every field is optional in practice: a problem scraped from an external
   // report arrives with no mock server at all. Without this guard an empty
@@ -34,18 +40,59 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
     setTimeout(() => setCopiedCurl(false), 2000);
   };
 
-  const handleSimulate = () => {
-    if (!currentEndpoint) return;
+  /**
+   * Issues a real request to the problem's mock server and reports what came
+   * back.
+   *
+   * This used to make no request at all: it slept 400ms, generated a latency
+   * with Math.random(), and printed the responseSample that had already been
+   * shipped to the browser, then reported "HTTP/1.1 200 OK" and "p95 within
+   * SLA" for a call that never happened. When no mock server is deployed the
+   * failure is surfaced rather than papered over.
+   */
+  const handlePing = async () => {
+    if (!currentEndpoint || !mockInfra?.baseUrl) return;
     setSimulating(true);
     setResponseLog(null);
     setLatency(null);
+    setStatus(null);
 
-    const randomLatency = Math.floor(Math.random() * 45) + 18;
-    setTimeout(() => {
+    const url = `${mockInfra.baseUrl.replace(/\/$/, '')}${currentEndpoint.path}`;
+    const startedAt = performance.now();
+
+    try {
+      const res = await fetch(url, {
+        method: currentEndpoint.method === 'GET' ? 'GET' : 'POST',
+        headers: { Accept: 'application/json' },
+      });
+      const elapsed = Math.round(performance.now() - startedAt);
+      const body = await res.text();
+
+      setLatency(elapsed);
+      setStatus({ ok: res.ok, code: res.status, label: res.statusText });
+      try {
+        setResponseLog(JSON.stringify(JSON.parse(body), null, 2));
+      } catch {
+        setResponseLog(body);
+      }
+    } catch (err) {
+      // A missing mock server is the expected state today: no fleet is
+      // deployed. Say so rather than showing a synthetic 200.
+      setStatus({
+        ok: false,
+        code: null,
+        label: 'No response',
+        detail:
+          err instanceof Error && err.message
+            ? err.message
+            : 'The mock server could not be reached.',
+      });
+      setResponseLog(
+        `Could not reach ${url}\n\n${mockInfra.baseUrl} is not currently serving. The example below is the documented shape, not a live response.`
+      );
+    } finally {
       setSimulating(false);
-      setLatency(randomLatency);
-      setResponseLog(JSON.stringify(currentEndpoint.responseSample, null, 2));
-    }, 400);
+    }
   };
 
   const getMethodBadgeClass = (method: string) => {
@@ -70,7 +117,7 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
         <div className="flex items-center gap-2">
           <Terminal className="w-4 h-4 text-brass shrink-0" />
           <span className="font-semibold text-text-0 text-xs md:text-sm tracking-tight">
-            Mock Infrastructure & Test Harness
+            Mock Infrastructure &amp; Problem Spec
           </span>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
@@ -106,9 +153,9 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
             No mock infrastructure provided
           </p>
           <p className="text-xs md:text-sm text-text-1 max-w-md mx-auto leading-relaxed">
-            This problem was published from a field report and has no hosted
-            sandbox attached. Read the problem statement and build against your
-            own fixtures.
+            This problem was published from a field report and ships without a
+            mock specification. Read the problem statement and build against
+            your own fixtures.
           </p>
         </div>
       ) : (
@@ -155,7 +202,7 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs md:text-sm">
           <p style={{ maxWidth: '65ch' }} className="text-text-1 leading-relaxed">{currentEndpoint?.description}</p>
           <button
-            onClick={handleSimulate}
+            onClick={() => void handlePing()}
             disabled={simulating}
             className="btn-brass text-xs md:text-sm py-1.5 px-3 self-start sm:self-auto cursor-pointer shrink-0"
           >
@@ -171,14 +218,38 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
         >
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-line text-xs md:text-sm text-text-1">
             <span className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${simulating ? 'bg-amber-500 animate-ping' : 'bg-diff-green'}`} />
-              <span>{simulating ? 'DISPATCHING STREAM...' : 'HTTP/1.1 200 OK'}</span>
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  simulating
+                    ? 'bg-amber-500 animate-ping'
+                    : status
+                    ? status.ok
+                      ? 'bg-diff-green'
+                      : 'bg-rose-500'
+                    : 'bg-text-1'
+                }`}
+              />
+              <span>
+                {simulating
+                  ? 'REQUESTING...'
+                  : status
+                  ? status.code
+                    ? `HTTP ${status.code} ${status.label}`
+                    : status.label
+                  : 'NOT YET REQUESTED'}
+              </span>
             </span>
             {simulating ? (
               <span className="text-text-1 animate-pulse">measuring roundtrip...</span>
-            ) : latency ? (
+            ) : status?.ok && latency !== null ? (
+              // Only ever a real measurement now. The "(p95 within SLA)" claim
+              // was asserted on a randomised number with no percentile behind it.
               <span className="text-diff-green font-semibold">
-                latency: {latency}ms (p95 within SLA)
+                latency: {latency}ms
+              </span>
+            ) : status && !status.ok ? (
+              <span className="text-rose-600 dark:text-rose-400 font-semibold">
+                no response
               </span>
             ) : null}
           </div>
@@ -197,11 +268,21 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
               <Skeleton variant="rectangular" className="h-3.5 w-12" />
             </div>
           ) : (
-            <pre className="overflow-x-auto text-xs md:text-sm leading-relaxed text-text-0">
-              <code>
-                {responseLog || JSON.stringify(currentEndpoint?.responseSample, null, 2)}
-              </code>
-            </pre>
+            <div className="space-y-2">
+              {/* Before any request, this is the documented shape. Labelled as
+                  such so it is never mistaken for a response. */}
+              {responseLog === null && (
+                <p className="text-[11px] text-text-1 italic">
+                  Documented example response — not a live result. Press “Ping
+                  Mock API” to send a real request.
+                </p>
+              )}
+              <pre className="overflow-x-auto text-xs md:text-sm leading-relaxed text-text-0">
+                <code>
+                  {responseLog || JSON.stringify(currentEndpoint?.responseSample, null, 2)}
+                </code>
+              </pre>
+            </div>
           )}
         </div>
 
@@ -209,8 +290,12 @@ export const TerminalExplorer: React.FC<TerminalExplorerProps> = ({ mockInfra })
         {testCriteria.length > 0 && (
           <div className="pt-2">
             <div className="text-xs md:text-sm font-semibold text-text-1 mb-1.5">
-              Verification Test Criteria (CI Gates):
+              Test Criteria:
             </div>
+            {/* These are prose written by the problem author. Nothing currently
+                executes them: there is no runner, and a reviewer records the
+                results by hand. The heading used to call them "CI Gates",
+                which implied an automatic check that does not exist. */}
             <ul className="space-y-1 text-xs md:text-sm text-text-0 max-w-2xl">
               {testCriteria.map((crit, i) => (
                 <li key={i} className="flex items-center gap-2">

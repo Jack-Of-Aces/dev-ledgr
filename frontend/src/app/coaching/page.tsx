@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { INITIAL_COACHING } from '@/lib/mock-data';
@@ -29,15 +29,56 @@ export default function CoachingListPage() {
   const [itineraries, setItineraries] = useState<CoachingItinerary[]>(INITIAL_COACHING);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [expandedTrackId, setExpandedTrackId] = useState<string | null>(null);
+  // Distinguishes a real fetch from the bundled itinerary fixture, and separates
+  // "failed" from "published nothing" so the page never renders sample tracks
+  // under a heading that implies live data.
+  const [itineraryStatus, setItineraryStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [itineraryRetry, setItineraryRetry] = useState(0);
 
   useEffect(() => {
     setMounted(true);
-    coachingService.getItineraries().then((data) => {
-      if (data && data.length > 0) {
-        setItineraries(data);
-      }
-    }).catch(() => {});
+    let active = true;
+    coachingService
+      .getItineraries()
+      .then((data) => {
+        if (!active) return;
+        if (data && data.length > 0) {
+          setItineraries(data);
+        }
+        setItineraryStatus('ready');
+      })
+      .catch(() => {
+        if (active) setItineraryStatus('error');
+      });
+    return () => {
+      active = false;
+    };
   }, []);
+
+  useEffect(() => {
+    if (itineraryRetry === 0) return;
+    let active = true;
+    setItineraryStatus('loading');
+    coachingService
+      .getItineraries()
+      .then((data) => {
+        if (!active) return;
+        if (data && data.length > 0) {
+          setItineraries(data);
+        }
+        setItineraryStatus('ready');
+      })
+      .catch(() => {
+        if (active) setItineraryStatus('error');
+      });
+    return () => {
+      active = false;
+    };
+  }, [itineraryRetry]);
+
+  // On a failed fetch `itineraries` is still the bundled fixture, so the page is
+  // showing sample tracks and must say so.
+  const usingSampleTracks = itineraryStatus === 'error';
 
   const userSubmissions = submissions.filter(
     (s) => s.authorUsername.toLowerCase() === user.username.toLowerCase()
@@ -71,6 +112,16 @@ export default function CoachingListPage() {
   );
   const overallReadinessPct = totalCurriculumMilestones > 0 ? Math.round((totalSolvedInCurriculum / totalCurriculumMilestones) * 100) : 0;
 
+  // Highest-scoring role overall, used when no role currently has an open gap.
+  const topJobMatch = (() => {
+    let best: { job: (typeof jobs)[number]; details: ReturnType<typeof getJobMatchDetails> } | null = null;
+    for (const job of jobs) {
+      const details = getJobMatchDetails(job);
+      if (!best || details.score > best.details.score) best = { job, details };
+    }
+    return best;
+  })();
+
   // Multi-select toggle helper
   const toggleFilter = (id: string) => {
     if (id === 'all') {
@@ -81,6 +132,28 @@ export default function CoachingListPage() {
       prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
     );
   };
+
+  // Domain facets and their counts, derived from the itineraries actually loaded.
+  // The filter predicate below keys off the same track-id substrings.
+  const trackFacets = useMemo(() => {
+    const matches = {
+      fintech: (id: string) => id.includes('fintech') || id === 'backend-fundamentals',
+      systems: (id: string) => id === 'backend-fundamentals',
+      devtools: (id: string) => id === 'devtools-infrastructure',
+    } as const;
+    const defs = [
+      { id: 'fintech', label: 'Fintech & Payments' },
+      { id: 'systems', label: 'Distributed Systems' },
+      { id: 'devtools', label: 'DevTools & Reliability' },
+    ] as const;
+    return [
+      { id: 'all', label: 'All Curriculums', count: itineraries.length },
+      ...defs.map((d) => ({
+        ...d,
+        count: itineraries.filter((t) => matches[d.id](t.id)).length,
+      })),
+    ];
+  }, [itineraries]);
 
   // Filtered tracks with multi-selection support
   const filteredTracks = itineraries.filter((track) => {
@@ -151,6 +224,26 @@ export default function CoachingListPage() {
             <span>Resume Target Track</span>
           </Link>
         </div>
+      {/* The bundled itinerary fixture is still rendered when the fetch fails,
+            so disclose it rather than presenting sample tracks as live. */}
+        {itineraryStatus !== 'loading' && usingSampleTracks && (
+          <div
+            role="alert"
+            className="p-3 rounded-radius border border-amber-500/30 bg-amber-500/10 text-xs font-mono text-text-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+          >
+            <span>
+              Could not reach the coaching service, so these are bundled sample
+              curriculums — not live tracks.
+            </span>
+            <button
+              type="button"
+              onClick={() => setItineraryRetry((n) => n + 1)}
+              className="btn-outline text-xs py-1 px-2.5 shrink-0 self-start sm:self-auto"
+            >
+              Retry
+            </button>
+          </div>
+        )}
       </section>
 
       {/* ========================================================= */}
@@ -176,10 +269,17 @@ export default function CoachingListPage() {
             <Target className="w-4 h-4 text-emerald-text" />
           </div>
           <div className="text-2xl font-bold font-mono text-text-0">
-            {primaryJobWithGap ? `${primaryJobWithGap.details.score}%` : '94%'}
+            {/* Previously fell back to a hardcoded "94%" whenever no role with a
+                gap was found — a score that was never measured. Report the real
+                best match across the board instead, or say there is none. */}
+            {topJobMatch ? `${topJobMatch.details.score}%` : '--'}
           </div>
           <div className="text-xs text-emerald-text font-mono truncate">
-            {primaryJobWithGap ? `Unlocks: ${primaryJobWithGap.job.company}` : 'Production Ready'}
+            {primaryJobWithGap
+              ? `Unlocks: ${primaryJobWithGap.job.company}`
+              : topJobMatch
+                ? `Best match: ${topJobMatch.job.company}`
+                : 'No roles to match against'}
           </div>
         </div>
 
@@ -252,13 +352,10 @@ export default function CoachingListPage() {
       {/* ========================================================= */}
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-line">
-          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 py-1 min-w-0">
-            {[
-              { id: 'all', label: 'All Curriculums', count: itineraries.length },
-              { id: 'fintech', label: 'Fintech & Payments', count: 2 },
-              { id: 'systems', label: 'Distributed Systems', count: 1 },
-              { id: 'devtools', label: 'DevTools & Reliability', count: 1 },
-            ].map((f) => {
+          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 py-1 min-w-0">
+            {/* Facet counts are computed from the loaded itineraries. They were
+                hardcoded to 2/1/1 and drifted whenever the track list changed. */}
+            {trackFacets.map((f) => {
               const isSelected = f.id === 'all' ? selectedFilters.length === 0 : selectedFilters.includes(f.id);
               return (
                 <button
@@ -303,7 +400,9 @@ export default function CoachingListPage() {
               (m) => m.ideaIdRef && solvedIdeaIds.has(m.ideaIdRef)
             ).length;
             const totalMilestones = track.milestones.length;
-            const progressPercent = Math.round((solvedMilestones / totalMilestones) * 100);
+            // A track with no milestones divides by zero and rendered "NaN%".
+            const progressPercent =
+              totalMilestones > 0 ? Math.round((solvedMilestones / totalMilestones) * 100) : 0;
             const isRecommended = track.id === recommendedTrackId;
             const isExpanded = expandedTrackId === track.id;
 
