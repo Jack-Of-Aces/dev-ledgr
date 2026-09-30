@@ -12,6 +12,7 @@ import { aiService } from '@/services/ai/aiService';
 import { CoachingSkeleton } from '@/components/ui/skeletons';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { SubmitSolutionModal } from '@/components/ui/SubmitSolutionModal';
+import { getMilestoneConcept } from '@/lib/coaching-content';
 import {
   ArrowLeft,
   Sparkles,
@@ -30,9 +31,16 @@ import {
   Copy,
   Check,
   Terminal,
+  BookOpen,
+  Layers,
+  AlertTriangle,
+  Cpu,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 
 type ConsoleTab = 'socratic' | 'custom' | 'patterns' | 'harness';
+type ConceptTab = 'diagram' | 'invariants' | 'failure-modes' | 'blueprint';
 
 interface ChatMessage {
   id: string;
@@ -94,6 +102,9 @@ export default function CoachingDetailPage() {
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
   const [copiedCurl, setCopiedCurl] = useState(false);
   const [checkedCriteria, setCheckedCriteria] = useState<Record<string, boolean>>({});
+  const [conceptTab, setConceptTab] = useState<ConceptTab>('diagram');
+  const [isDiagramExpanded, setIsDiagramExpanded] = useState(false);
+  const [copiedBlueprint, setCopiedBlueprint] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const handleCopyCurl = (text: string) => {
@@ -101,6 +112,14 @@ export default function CoachingDetailPage() {
       navigator.clipboard.writeText(text);
       setCopiedCurl(true);
       setTimeout(() => setCopiedCurl(false), 2000);
+    }
+  };
+
+  const handleCopyBlueprint = (code: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(code);
+      setCopiedBlueprint(true);
+      setTimeout(() => setCopiedBlueprint(false), 2000);
     }
   };
 
@@ -183,6 +202,13 @@ export default function CoachingDetailPage() {
   const pairedIdea = selectedMilestone.ideaIdRef
     ? ideas.find((i) => i.id === selectedMilestone.ideaIdRef)
     : undefined;
+
+  const milestoneConcept = getMilestoneConcept(itinerary.id, selectedMilestone.week);
+
+  useEffect(() => {
+    setConceptTab('diagram');
+    setIsDiagramExpanded(false);
+  }, [activeWeek]);
 
   const handleRunPrompt = async (promptText: string) => {
     if (!promptText.trim() || isLoadingCoach) return;
@@ -392,6 +418,266 @@ export default function CoachingDetailPage() {
                 <p className="text-xs sm:text-sm text-text-0 leading-relaxed font-medium">
                   {selectedMilestone.deliverable}
                 </p>
+              </div>
+
+              {/* ========================================================= */}
+              {/* CONCEPT MASTERCLASS & VISUAL ARCHITECTURE BLUEPRINT       */}
+              {/* ========================================================= */}
+              {milestoneConcept && (
+                <div className="rounded-radius border border-line bg-card space-y-4 p-4 sm:p-5">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-line">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-emerald-tint border border-emerald-border text-emerald-text uppercase flex items-center gap-1">
+                          <BookOpen className="w-3 h-3" />
+                          <span>System Masterclass</span>
+                        </span>
+                        <span className="text-xs font-mono text-text-1 flex items-center gap-1">
+                          <Cpu className="w-3 h-3 text-text-1/70" />
+                          <span>Week 0{selectedMilestone.week} Core Engineering</span>
+                        </span>
+                      </div>
+                      <h3 className="text-base sm:text-lg font-bold tracking-tight text-text-0">
+                        {milestoneConcept.conceptTitle}
+                      </h3>
+                    </div>
+
+                    {/* Mode Tabs */}
+                    <div className="flex items-center gap-1 bg-ink-0 p-1 rounded border border-line text-xs font-mono shrink-0 overflow-x-auto">
+                      <button
+                        type="button"
+                        onClick={() => setConceptTab('diagram')}
+                        className={`px-2.5 py-1 rounded transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                          conceptTab === 'diagram'
+                            ? 'bg-card text-text-0 font-medium border border-line shadow-xs'
+                            : 'text-text-1 hover:text-text-0'
+                        }`}
+                      >
+                        <Layers className="w-3.5 h-3.5 text-emerald-text" />
+                        <span>Visual Architecture</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConceptTab('invariants')}
+                        className={`px-2.5 py-1 rounded transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                          conceptTab === 'invariants'
+                            ? 'bg-card text-text-0 font-medium border border-line shadow-xs'
+                            : 'text-text-1 hover:text-text-0'
+                        }`}
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-text" />
+                        <span>Invariants ({milestoneConcept.coreConcepts.length})</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConceptTab('failure-modes')}
+                        className={`px-2.5 py-1 rounded transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                          conceptTab === 'failure-modes'
+                            ? 'bg-card text-text-0 font-medium border border-line shadow-xs'
+                            : 'text-text-1 hover:text-text-0'
+                        }`}
+                      >
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Failure Modes ({milestoneConcept.failureModes.length})</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConceptTab('blueprint')}
+                        className={`px-2.5 py-1 rounded transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                          conceptTab === 'blueprint'
+                            ? 'bg-card text-text-0 font-medium border border-line shadow-xs'
+                            : 'text-text-1 hover:text-text-0'
+                        }`}
+                      >
+                        <Code2 className="w-3.5 h-3.5 text-emerald-text" />
+                        <span>Blueprint</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Executive Summary Callout */}
+                  <div className="p-3.5 rounded bg-ink-0/60 border-l-2 border-emerald text-xs sm:text-sm text-text-0 leading-relaxed font-sans">
+                    <p className="italic">{milestoneConcept.executiveSummary}</p>
+                  </div>
+
+                  {/* Tab 1: Visual Architecture Diagram */}
+                  {conceptTab === 'diagram' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-xs font-mono text-text-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-text-0">{milestoneConcept.diagramTitle}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-ink-0 border border-line">
+                            Vector SVG
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsDiagramExpanded(!isDiagramExpanded)}
+                          className="btn-outline text-[11px] py-0.5 px-2 inline-flex items-center gap-1 font-mono cursor-pointer"
+                        >
+                          {isDiagramExpanded ? (
+                            <>
+                              <Minimize2 className="w-3 h-3" />
+                              <span>Compact View</span>
+                            </>
+                          ) : (
+                            <>
+                              <Maximize2 className="w-3 h-3" />
+                              <span>Wide View</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      <div
+                        className={`p-4 sm:p-6 rounded border border-line bg-ink-0/80 overflow-x-auto transition-all ${
+                          isDiagramExpanded ? 'max-h-none' : 'max-h-[520px]'
+                        }`}
+                      >
+                        <div
+                          className="w-full min-w-[700px] flex items-center justify-center text-text-0"
+                          dangerouslySetInnerHTML={{ __html: milestoneConcept.diagramSvg }}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] font-mono pt-1 text-text-1">
+                        <div className="flex items-center gap-2 p-2 rounded bg-ink-0/40 border border-line/40">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald shrink-0" />
+                          <span>Emerald: Verified Ingestion & Atomic Commit Boundary</span>
+                        </div>
+                        <div className="flex items-center gap-2 p-2 rounded bg-ink-0/40 border border-line/40">
+                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
+                          <span>Amber / Red: Network Dropped Timeouts & Traps</span>
+                        </div>
+                        <div className="flex items-center gap-2 p-2 rounded bg-ink-0/40 border border-line/40">
+                          <span className="w-2.5 h-2.5 rounded-full bg-sky-400 shrink-0" />
+                          <span>Cyan: Memory Caches, Filters & State Buffers</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tab 2: Core Engineering Invariants */}
+                  {conceptTab === 'invariants' && (
+                    <div className="space-y-3">
+                      <p className="text-xs text-text-1">
+                        Principal invariants that must never be violated when implementing this milestone:
+                      </p>
+                      <div className="grid grid-cols-1 gap-3">
+                        {milestoneConcept.coreConcepts.map((c, idx) => (
+                          <div key={idx} className="p-3.5 rounded border border-line bg-ink-0/40 space-y-2">
+                            <h4 className="text-xs sm:text-sm font-semibold text-text-0 flex items-center gap-2">
+                              <span className="text-emerald-text font-mono font-bold">0{idx + 1}.</span>
+                              <span>{c.title}</span>
+                            </h4>
+                            <p className="text-xs text-text-1 leading-relaxed">
+                              {c.description}
+                            </p>
+                            <div className="pt-2 border-t border-line/40 space-y-1">
+                              <div className="text-[11px] font-mono text-emerald-text font-semibold uppercase">
+                                Non-Negotiable Invariants:
+                              </div>
+                              <ul className="space-y-1">
+                                {c.invariants.map((inv, invIdx) => (
+                                  <li key={invIdx} className="flex items-start gap-2 text-xs text-text-0">
+                                    <span className="text-emerald font-bold">✓</span>
+                                    <span>{inv}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tab 3: Production Failure Modes */}
+                  {conceptTab === 'failure-modes' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-xs text-text-1">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                        <span>Real-world postmortems from scaled production systems:</span>
+                      </div>
+                      <div className="space-y-3">
+                        {milestoneConcept.failureModes.map((fm, idx) => (
+                          <div
+                            key={idx}
+                            className="p-3.5 rounded border border-line bg-ink-0/40 space-y-2 text-xs"
+                          >
+                            <div className="flex items-start gap-2">
+                              <span className="px-1.5 py-0.5 rounded bg-rose-500/10 border border-rose-500/20 text-rose-500 font-mono text-[10px] uppercase font-bold shrink-0">
+                                Common Trap
+                              </span>
+                              <span className="font-medium text-text-0">{fm.trap}</span>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <span className="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 font-mono text-[10px] uppercase font-bold shrink-0">
+                                System Impact
+                              </span>
+                              <span className="text-text-1">{fm.impact}</span>
+                            </div>
+                            <div className="flex items-start gap-2 pt-1 border-t border-line/40">
+                              <span className="px-1.5 py-0.5 rounded bg-emerald-tint border border-emerald-border text-emerald-text font-mono text-[10px] uppercase font-bold shrink-0">
+                                Production Fix
+                              </span>
+                              <span className="text-text-0 font-medium">{fm.remediation}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tab 4: Reference Implementation Blueprint */}
+                  {conceptTab === 'blueprint' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-xs font-mono">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-text-0">{milestoneConcept.codeSnippet.filename}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-ink-0 border border-line uppercase">
+                            {milestoneConcept.codeSnippet.language}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyBlueprint(milestoneConcept.codeSnippet.code)}
+                          className="btn-outline text-[11px] py-0.5 px-2 inline-flex items-center gap-1 font-mono cursor-pointer"
+                        >
+                          {copiedBlueprint ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald" />
+                              <span>Copied Blueprint</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              <span>Copy Blueprint</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      <pre className="p-3.5 rounded bg-ink-0 border border-line text-xs font-mono text-text-0 overflow-x-auto whitespace-pre leading-relaxed">
+                        {milestoneConcept.codeSnippet.code}
+                      </pre>
+
+                      <div className="p-2.5 rounded bg-ink-0/40 border border-line/40 text-xs text-text-1">
+                        <span className="font-semibold text-text-0">Architectural Rationale: </span>
+                        {milestoneConcept.codeSnippet.explanation}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Prompt transition to Paired Problem */}
+              <div className="flex items-center justify-between pt-1">
+                <div className="flex items-center gap-2 text-xs font-mono text-text-1">
+                  <ArrowRight className="w-3.5 h-3.5 text-emerald-text" />
+                  <span className="font-semibold text-text-0">Paired Verifiable Implementation Challenge</span>
+                  <span className="hidden sm:inline text-[11px] opacity-75">— Apply these invariants to pass automated verification:</span>
+                </div>
               </div>
 
               {/* Paired Problem Spec Card */}
