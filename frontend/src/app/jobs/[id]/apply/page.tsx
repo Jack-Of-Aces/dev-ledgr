@@ -14,6 +14,7 @@ import {
   Sparkles,
   ShieldCheck,
   AlertCircle,
+  AlertTriangle,
   ArrowRight,
   ArrowLeft,
   Copy,
@@ -75,7 +76,11 @@ export default function JobApplyPage() {
 
   // ─── Audit State ────────────────────────────────────────────────────────────
   const [scrutinizing, setScrutinizing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<'ready' | 'gap' | null>(null);
+  // 'error' is distinct from 'gap': a gap is a real finding about the candidate's
+  // portfolio, a failure is a finding about the request. Collapsing the two made
+  // every network or parse failure render as "you have a skill gap".
+  const [analysisResult, setAnalysisResult] = useState<'ready' | 'gap' | 'error' | null>(null);
+  const [auditError, setAuditError] = useState<string | null>(null);
   const [scanLog, setScanLog] = useState<string[]>([]);
 
   // ─── Generated Docs (only populated after a 'ready' result) ────────────────
@@ -85,6 +90,37 @@ export default function JobApplyPage() {
   const [activeTab, setActiveTab] = useState<'cv' | 'coverLetter'>('cv');
   const [copied, setCopied] = useState(false);
 
+  const PACKAGE_TABS = [
+    { id: 'cv' as const, label: 'ATS-Compliant CV Draft' },
+    { id: 'coverLetter' as const, label: 'Tailored Cover Letter' },
+  ];
+
+  // Arrow-key navigation for the package tablist. Without it the tabs are
+  // unreachable by keyboard for sighted users: roving tabindex puts every
+  // inactive tab out of the tab order, so arrows are the only way across.
+  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const currentIndex = PACKAGE_TABS.findIndex((t) => t.id === activeTab);
+    if (currentIndex === -1) return;
+
+    let nextIndex: number | null = null;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      nextIndex = (currentIndex + 1) % PACKAGE_TABS.length;
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      nextIndex = (currentIndex - 1 + PACKAGE_TABS.length) % PACKAGE_TABS.length;
+    } else if (e.key === 'Home') {
+      nextIndex = 0;
+    } else if (e.key === 'End') {
+      nextIndex = PACKAGE_TABS.length - 1;
+    }
+
+    if (nextIndex === null) return;
+    e.preventDefault();
+    const nextTab = PACKAGE_TABS[nextIndex];
+    setActiveTab(nextTab.id);
+    // Move focus with the selection, per the WAI-ARIA tabs pattern.
+    document.getElementById(`tab-${nextTab.id}`)?.focus();
+  };
+
   /**
    * runScrutiny
    *
@@ -93,9 +129,10 @@ export default function JobApplyPage() {
    * audit steps back to the terminal UI in real-time. The ScrutinyResult drives
    * which branch is rendered - the service hides the AI/fallback implementation detail.
    *
-   * forceGap=true is only used for demo/test purposes to exercise the gap branch.
+   * A thrown error means the audit never completed, so it renders as 'error'
+   * with a retry. It is never reported as a 'gap' finding about the candidate.
    */
-  const runScrutiny = async (forceGap = false, overrideGap = false) => {
+  const runScrutiny = async () => {
     // The callers all sit behind the `if (!job)` return below, but this is a
     // closure, so TypeScript cannot narrow `job` through the render gate.
     // Auditing against a null job is meaningless, so bail rather than assert.
@@ -103,21 +140,28 @@ export default function JobApplyPage() {
 
     setScrutinizing(true);
     setAnalysisResult(null);
+    setAuditError(null);
     setScanLog([]);
     setGeneratedDocs(null);
 
     try {
       const result = await aiService.runScrutinyAudit(
-        { job, user, userSubmissions, forceGap, overrideGap },
+        { job, user, userSubmissions },
         (log) => setScanLog((prev) => [...prev, log])
       );
       setAnalysisResult(result.status);
       if (result.status === 'ready') {
         setGeneratedDocs({ cvMarkdown: result.cvMarkdown, coverLetter: result.coverLetter });
       }
-    } catch {
-      // Surface failure explicitly - never silently continue with stale mock docs
-      setAnalysisResult('gap');
+    } catch (err: unknown) {
+      // Surface failure explicitly. Reporting it as 'gap' would assert something
+      // about the candidate's portfolio that was never measured.
+      setAnalysisResult('error');
+      setAuditError(
+        err instanceof Error && err.message
+          ? err.message
+          : 'The audit service could not be reached or returned an unreadable response.'
+      );
     } finally {
       setScrutinizing(false);
     }
@@ -215,6 +259,34 @@ export default function JobApplyPage() {
         />
       </div>
 
+      {/* Audit failure. This is not a portfolio finding, so it must not be
+          rendered in the gap branch and must offer a retry. */}
+      {analysisResult === 'error' && (
+        <div
+          role="alert"
+          className="p-5 rounded-radius border border-rose-500/30 bg-rose-500/10 space-y-3"
+        >
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" aria-hidden="true" />
+            <div className="space-y-1">
+              <div className="font-semibold text-text-0 text-sm lg:text-base">
+                The portfolio audit did not complete
+              </div>
+              <p className="text-text-1 text-xs md:text-sm leading-relaxed break-words">
+                {auditError} No match result was produced, so nothing here should be
+                read as a finding about your portfolio.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => runScrutiny()}
+            className="btn-outline text-xs md:text-sm py-2 px-4 cursor-pointer"
+          >
+            Retry audit
+          </button>
+        </div>
+      )}
+
       {/* Step 1: Audit Trigger Card */}
       {!analysisResult && !scrutinizing && (
         <div className="p-5 sm:p-8 rounded-radius border border-line bg-card text-center space-y-5">
@@ -231,19 +303,11 @@ export default function JobApplyPage() {
 
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <button
-              onClick={() => runScrutiny(false)}
+              onClick={() => runScrutiny()}
               className="btn-brass text-xs md:text-sm py-2 px-5 cursor-pointer"
             >
               <span>Run Automated Audit</span>
               <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-
-            <button
-              onClick={() => runScrutiny(true)}
-              className="btn-outline text-xs md:text-sm py-2 px-4 cursor-pointer text-text-1 hover:text-text-0"
-              title="Test the Skill Gap routing branch"
-            >
-              Simulate Skill Gap Branch
             </button>
           </div>
         </div>
@@ -259,8 +323,11 @@ export default function JobApplyPage() {
             </span>
           </div>
           <div className="space-y-1.5 text-xs md:text-sm text-text-0 font-mono">
+            {/* The log is append-only, but the same step can legitimately be emitted
+                twice (retries, per-criterion repeats). Pair text with position so
+                a repeat gets its own node. */}
             {scanLog.map((log, idx) => (
-              <div key={idx} className="flex items-center gap-2">
+              <div key={`${idx}-${log}`} className="flex items-center gap-2">
                 <span className="text-green-700 dark:text-green-400">›</span>
                 <span>{log}</span>
               </div>
@@ -280,11 +347,15 @@ export default function JobApplyPage() {
             <ShieldCheck className="w-5 h-5 text-green-700 dark:text-green-400 shrink-0 mt-0.5" />
             <div>
               <div className="font-semibold text-text-0 text-sm lg:text-base">
-                Portfolio Audit Passed: 100% Requirements Verified
+                Portfolio Audit Passed
               </div>
+              {/* Was "100% Requirements Verified", which contradicted the match
+                  scorer, which caps any score at 98 — a perfect score was not
+                  representable even in principle. State the passing condition
+                  instead of a percentage that could never be measured. */}
               <p className="text-text-1 mt-0.5 leading-relaxed text-xs md:text-sm">
-                Your verified submissions satisfy all high-concurrency and latency requirements for{' '}
-                {job.company}. Your application package is ready below.
+                Every audited criterion passed for {job.company}. Your application package
+                is ready below.
               </p>
             </div>
           </div>
@@ -292,35 +363,32 @@ export default function JobApplyPage() {
           {/* Package Tabs */}
           <div className="rounded-radius border border-line bg-card/40 overflow-hidden">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-2.5 bg-card border-b border-line">
-              <div role="tablist" aria-label="Application package tabs" className="flex flex-wrap items-center gap-2">
-                <button
-                  id="tab-cv"
-                  role="tab"
-                  aria-selected={activeTab === 'cv'}
-                  aria-controls="panel-application-package"
-                  onClick={() => setActiveTab('cv')}
-                  className={`px-3 py-1 rounded-radius text-xs md:text-sm font-semibold cursor-pointer ${
-                    activeTab === 'cv'
-                      ? 'bg-ink-0 text-text-0 border border-line'
-                      : 'text-text-1 hover:text-text-0'
-                  }`}
-                >
-                  ATS-Compliant CV Draft
-                </button>
-                <button
-                  id="tab-coverLetter"
-                  role="tab"
-                  aria-selected={activeTab === 'coverLetter'}
-                  aria-controls="panel-application-package"
-                  onClick={() => setActiveTab('coverLetter')}
-                  className={`px-3 py-1 rounded-radius text-xs md:text-sm font-semibold cursor-pointer ${
-                    activeTab === 'coverLetter'
-                      ? 'bg-ink-0 text-text-0 border border-line'
-                      : 'text-text-1 hover:text-text-0'
-                  }`}
-                >
-                  Tailored Cover Letter
-                </button>
+              <div
+                role="tablist"
+                aria-label="Application package tabs"
+                className="flex flex-wrap items-center gap-2"
+                onKeyDown={handleTabKeyDown}
+              >
+                {PACKAGE_TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    id={`tab-${tab.id}`}
+                    role="tab"
+                    aria-selected={activeTab === tab.id}
+                    aria-controls="panel-application-package"
+                    // Roving tabindex: only the selected tab is in the tab order,
+                    // so Tab moves past the group and arrows move within it.
+                    tabIndex={activeTab === tab.id ? 0 : -1}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`px-3 py-1 rounded-radius text-xs md:text-sm font-semibold cursor-pointer ${
+                      activeTab === tab.id
+                        ? 'bg-ink-0 text-text-0 border border-line'
+                        : 'text-text-1 hover:text-text-0'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
 
               <div className="flex items-center justify-end gap-2">
@@ -363,7 +431,7 @@ export default function JobApplyPage() {
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
             <button
-              onClick={() => runScrutiny(false)}
+              onClick={() => runScrutiny()}
               className="text-text-1 hover:underline text-left cursor-pointer"
             >
               Re-run analysis
@@ -430,7 +498,7 @@ export default function JobApplyPage() {
 
                 <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <button
-                    onClick={() => runScrutiny(false, true)}
+                    onClick={() => runScrutiny()}
                     className="text-text-1 hover:underline text-xs md:text-sm cursor-pointer text-left"
                   >
                     Generate the tailored package anyway
@@ -458,7 +526,7 @@ export default function JobApplyPage() {
                 </p>
                 <div className="pt-2 flex flex-col sm:flex-row sm:items-center gap-3">
                   <button
-                    onClick={() => runScrutiny(false, true)}
+                    onClick={() => runScrutiny()}
                     className="text-text-1 hover:underline text-xs md:text-sm cursor-pointer text-left"
                   >
                     Generate the tailored package anyway

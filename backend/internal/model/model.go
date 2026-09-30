@@ -109,12 +109,31 @@ type UserProfile struct {
 }
 
 // Public strips fields that only the profile owner should see.
+//
+// This is a denylist, not an allowlist, so every new field added to
+// UserProfile must be audited here. The safe default is to include it in the
+// public view; omit it only if it is private.
+//
+// Fields hidden from public view:
+//   - Email / ContactEmail: contact addresses are opt-in to share
+//   - HasAPIKey: internal billing / key management status
+//   - Role: publishing the staff roster lets anyone enumerate admins
+//   - Plan: billing tier is not a public attribute
+//   - AuthProvider: which OAuth provider the account was created with is not
+//     public, and combined with role can identify service accounts
 func (u UserProfile) Public() UserProfile {
 	u.Email = ""
 	// An address the dev chose for recruiter contact is still their address;
 	// the public portfolio does not need to publish it.
 	u.ContactEmail = ""
 	u.HasAPIKey = false
+	// Role and Plan are internal. Surfacing them lets any caller enumerate the
+	// staff roster and billing tiers for every user on the platform.
+	u.Role = ""
+	u.Plan = ""
+	// AuthProvider reveals how the account was created; not relevant to the
+	// public view and could be used to fingerprint service accounts.
+	u.AuthProvider = ""
 	return u
 }
 

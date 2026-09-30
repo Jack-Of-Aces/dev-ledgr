@@ -161,13 +161,16 @@ func heuristicScrutiny(in ScrutinyInput, emit func(string)) ScrutinyResult {
 	}
 }
 
-func metricOr(m *model.Metrics, pick func(*model.Metrics) string, def string) string {
-	if m != nil {
-		if v := pick(m); v != "" {
-			return v
-		}
+// recordedMetric returns a performance figure only when one was actually
+// recorded, and whether it was. Callers must omit the surrounding sentence when
+// ok is false: an absent metric is not evidence of a good one, and this text is
+// read by recruiters. Never substitute a default here.
+func recordedMetric(m *model.Metrics, pick func(*model.Metrics) string) (string, bool) {
+	if m == nil {
+		return "", false
 	}
-	return def
+	v := strings.TrimSpace(pick(m))
+	return v, v != ""
 }
 
 func p99(m *model.Metrics) string        { return m.LatencyP99 }
@@ -186,15 +189,15 @@ func contactEmail(u model.UserProfile) string {
 	if u.Email != "" {
 		return u.Email
 	}
-	return u.Username + "@devledgr.me"
+	return u.Username + "@devledgr.xyz"
 }
 
 func buildCV(u model.UserProfile, subs []model.Submission) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "# %s\n%s\nEmail: %s | Portfolio: https://%s.devledgr.io\n", u.Name, u.Headline, contactEmail(u), u.Username)
+	fmt.Fprintf(&b, "# %s\n%s\nEmail: %s | Portfolio: https://%s.devledgr.xyz\n", u.Name, u.Headline, contactEmail(u), u.Username)
 	fmt.Fprintf(&b, "GitHub: %s | Verification: Stamped on DevLedgr (1-Year Certificate)\n\n---\n\n", u.GitHubURL)
 	b.WriteString("## EXECUTIVE SUMMARY\nEngineer with a track record of building resilient, low-latency services. ")
-	b.WriteString("All highlighted competencies are supported by cryptographically verified ledger entries with CI telemetry.\n\n---\n\n")
+	b.WriteString("All highlighted competencies are supported by cryptographically signed ledger entries, and any performance figure below was measured and recorded during review.\n\n---\n\n")
 	b.WriteString("## VERIFIED ENGINEERING PROOF (DEVLEDGR COMMITS)\n\n")
 	for i, s := range subs {
 		if i > 0 {
@@ -202,12 +205,21 @@ func buildCV(u model.UserProfile, subs []model.Submission) string {
 		}
 		fmt.Fprintf(&b, "### %s\n**Commit #%s** · Verified Proof of Work | Code: %s\n", s.IdeaTitle, s.Hash, s.RepoURL)
 		fmt.Fprintf(&b, "- **Architecture & Implementation:** %s\n", s.ArchitectureNotes)
-		fmt.Fprintf(&b, "- **Performance & Constraints:** Sustained p99 latency of %s at %s.\n",
-			metricOr(s.Metrics, p99, "n/a"), metricOr(s.Metrics, throughput, "n/a"))
+		// Only state performance when it was measured. Listing the entry's
+		// subject matter instead is honest where a number would be invented.
+		if lat, ok := recordedMetric(s.Metrics, p99); ok {
+			if thr, ok := recordedMetric(s.Metrics, throughput); ok {
+				fmt.Fprintf(&b, "- **Performance & Constraints:** Sustained p99 latency of %s at %s.\n", lat, thr)
+			} else {
+				fmt.Fprintf(&b, "- **Performance & Constraints:** Sustained p99 latency of %s.\n", lat)
+			}
+		} else {
+			fmt.Fprintf(&b, "- **Performance & Constraints:** No latency was measured for this entry.\n")
+		}
 		if s.TestResults.Total > 0 {
 			fmt.Fprintf(&b, "- **Verification Suite:** Passed %d/%d tests in %s.\n", s.TestResults.Passed, s.TestResults.Total, s.TestResults.SuiteName)
 		}
-		fmt.Fprintf(&b, "- **Permanent Ledger Link:** https://%s.devledgr.io/p/%s\n", u.Username, s.Hash)
+		fmt.Fprintf(&b, "- **Permanent Ledger Link:** https://%s.devledgr.xyz/p/%s\n", u.Username, s.Hash)
 	}
 
 	skills := u.StatedSkills[:min(3, len(u.StatedSkills))]
@@ -222,7 +234,7 @@ func buildCV(u model.UserProfile, subs []model.Submission) string {
 func buildCoverLetter(job model.Job, u model.UserProfile, subs []model.Submission) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Dear Hiring Team at %s,\n\nI am writing to express my strong interest in the %s position.\n\n", job.Company, job.Title)
-	fmt.Fprintf(&b, "Unlike applications built on unverified claims, my experience is backed by verifiable proof-of-work recorded on DevLedgr (https://%s.devledgr.io).\n\n", u.Username)
+	fmt.Fprintf(&b, "Unlike applications built on unverified claims, my experience is backed by verifiable proof-of-work recorded on DevLedgr (https://%s.devledgr.xyz).\n\n", u.Username)
 
 	// Lead with entries that match the job's target problems.
 	ordered := slices.Clone(subs)
@@ -239,13 +251,21 @@ func buildCoverLetter(job model.Job, u model.UserProfile, subs []model.Submissio
 	if len(ordered) > 0 {
 		fmt.Fprintf(&b, "To demonstrate the engineering requirements essential for %s, I built:\n", job.Company)
 		for _, s := range ordered[:min(2, len(ordered))] {
-			fmt.Fprintf(&b, "• %s (Commit #%s), achieving %s p99 latency under simulated production load.\n",
-				s.IdeaTitle, s.Hash, metricOr(s.Metrics, p99, "verified"))
+			// Previously an unmeasured p99 rendered as the literal word
+			// "verified", producing "achieving verified p99 latency under
+			// simulated production load" for entries with no measurement.
+			if lat, ok := recordedMetric(s.Metrics, p99); ok {
+				fmt.Fprintf(&b, "• %s (Commit #%s), achieving %s p99 latency under simulated production load.\n",
+					s.IdeaTitle, s.Hash, lat)
+				continue
+			}
+			fmt.Fprintf(&b, "• %s (Commit #%s), built to the specification's failure-mode and correctness criteria.\n",
+				s.IdeaTitle, s.Hash)
 		}
 		b.WriteString("\n")
 	}
-	fmt.Fprintf(&b, "My technical documentation, test harness results, and code repositories are permanently verifiable on my ledger. I welcome the opportunity to discuss how I can add immediate value to %s.\n\n", job.Company)
-	fmt.Fprintf(&b, "Sincerely,\n%s\nhttps://%s.devledgr.io\n", u.Name, u.Username)
+	fmt.Fprintf(&b, "My technical documentation and code repositories are permanently verifiable on my ledger, along with the test results a reviewer measured. I welcome the opportunity to discuss how I can add immediate value to %s.\n\n", job.Company)
+	fmt.Fprintf(&b, "Sincerely,\n%s\nhttps://%s.devledgr.xyz\n", u.Name, u.Username)
 	return b.String()
 }
 

@@ -20,7 +20,7 @@ import {
 export const metadata: Metadata = {
   title: 'Terms of Service',
   description:
-    'Terms of Service and Master Platform Agreement for DevLedgr: verifiable proof of work, cryptographic portfolio guarantees, CI sandboxing, and AI compute.',
+    'Terms of Service and Master Platform Agreement for DevLedgr: verifiable proof of work, cryptographic portfolio guarantees, the Idea Bank and mock infrastructure, and AI compute.',
   alternates: {
     canonical: '/terms',
   },
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 const SECTIONS = [
   { id: 'acceptance', title: '1. Acceptance & Overview' },
   { id: 'eligibility-identity', title: '2. Identity & Account Integrity' },
-  { id: 'platform-services', title: '3. Problem Specs & CI Sandboxes' },
+  { id: 'platform-services', title: '3. Problem Specs, Mock Infra & Verification' },
   { id: 'cryptographic-ledger', title: '4. Cryptographic Stamping & Guarantees' },
   { id: 'ip-ownership', title: '5. Intellectual Property & Code Rights' },
   { id: 'acceptable-use', title: '6. Acceptable Use & Security Rules' },
@@ -73,7 +73,7 @@ export default function TermsOfServicePage() {
 
         <p className="text-base sm:text-lg text-text-1 leading-relaxed max-w-3xl">
           Welcome to <strong className="text-text-0">DevLedgr</strong> (&ldquo;DevLedgr,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;).
-          These Terms of Service govern your access to and use of devledgr.xyz, our automated continuous integration (CI) test runners,
+          These Terms of Service govern your access to and use of devledgr.xyz, our Idea Bank and mock infrastructure,
           cryptographic consensus stamping, Bring-Your-Own-Key (BYOK) AI evaluation mesh, public portfolio URLs (<code className="font-mono text-xs bg-card px-1.5 py-0.5 rounded border border-line">/p/[username]</code>),
           and developer matching systems.
         </p>
@@ -109,11 +109,11 @@ export default function TermsOfServicePage() {
           </li>
           <li className="flex items-start gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald shrink-0 mt-0.5" />
-            <span><strong>Proof, not tutorial clones:</strong> We run automated test harnesses against your code to issue cryptographic SHA-256 validity guarantees.</span>
+            <span><strong>Proof, not tutorial clones:</strong> A human reviewer records the test results and issues a signed 365-day certificate. We plan to add automated test execution later.</span>
           </li>
           <li className="flex items-start gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald shrink-0 mt-0.5" />
-            <span><strong>Zero sandbox exploits:</strong> Denial-of-service, escape attacks, or cryptomining on mock infrastructure result in permanent ban and hash revocation.</span>
+            <span><strong>Only measured claims:</strong> Test results and performance figures appear only when someone actually measured them. Unmeasured values are shown as unrecorded, never as an estimate.</span>
           </li>
           <li className="flex items-start gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald shrink-0 mt-0.5" />
@@ -151,7 +151,7 @@ export default function TermsOfServicePage() {
           </div>
           <p>
             By accessing, browsing, registering for, or using DevLedgr (including any subdomains, public APIs, command-line interfaces,
-            and verification test runners), you acknowledge that you have read, understood, and agreed to be bound by these Terms of Service
+            and any automated verification we introduce), you acknowledge that you have read, understood, and agreed to be bound by these Terms of Service
             and our accompanying <Link href="/privacy" className="text-emerald-text underline hover:text-text-0">Privacy Policy</Link>.
             If you do not agree to these terms, you must immediately terminate use of the platform.
           </p>
@@ -189,7 +189,7 @@ export default function TermsOfServicePage() {
         <section id="platform-services" className="space-y-4 pt-6 border-t border-line">
           <div className="flex items-center gap-2 text-text-0 font-semibold text-lg sm:text-xl">
             <Terminal className="w-5 h-5 text-emerald-text" />
-            <h2>3. Problem Specifications, Mock Fleets & CI Sandboxes</h2>
+            <h2>3. Problem Specifications, Mock Infrastructure & Verification</h2>
           </div>
           <p>
             <strong>3.1 Operational Challenges:</strong> DevLedgr provides complex system design and engineering specifications via our Idea Bank
@@ -197,13 +197,24 @@ export default function TermsOfServicePage() {
             These specifications are designed to evaluate engineering rigor under realistic edge cases.
           </p>
           <p>
-            <strong>3.2 Live Mock Infrastructure:</strong> When you submit a solution via git repository URL or commit reference, DevLedgr orchestrates
-            isolated containerized environments running live test harnesses and simulated mock infrastructure. These test suites inspect functional
-            correctness, algorithmic efficiency, memory consumption, latency percentiles, and resilience under fault injection.
+            <strong>3.2 Mock Infrastructure Specifications:</strong> Some problems in the Idea Bank publish a mock infrastructure specification
+            describing the service your solution is expected to provide, together with a set of test criteria written as prose. Where a mock server
+            is deployed, DevLedgr may host it at the stated URL so you can develop and self-test against it. A mock specification and its test
+            criteria are documentation; they are not automatically executed on your behalf.
           </p>
           <p>
-            <strong>3.3 Automated Telemetry:</strong> Execution results, stderr/stdout logs, test metrics, and benchmark percentiles are collected
-            into an immutable execution trace used to substantiate ledger issuance.
+            <strong>3.3 Current State of Automated Verification — Please Read:</strong> DevLedgr does not currently execute submitted code.
+            There is no automated test runner, no isolated build environment, and no automatic benchmark. Verification today is performed by a human
+            reviewer, who records the test results they checked and any performance figures they measured. Those results are recorded in an
+            execution trace and signed as part of ledger issuance. A reviewer cannot stamp a submission that has no recorded test results.
+          </p>
+          <p>
+            <strong>3.4 Intended Future Verification:</strong> DevLedgr intends to introduce automated verification in which a submitted repository
+            is built and exercised against a problem&apos;s test criteria, with execution logs and benchmark percentiles captured automatically.
+            We expect to do this by replaying the problem&apos;s assertions against a service endpoint you deploy, and by adding sandboxed
+            repository execution for a later phase. <strong>These capabilities are not available today.</strong> No performance figure or test
+            result appears on your portfolio, in a generated CV, or in a certificate unless it was actually measured and recorded, and figures
+            that were never measured are displayed as unrecorded rather than estimated.
           </p>
         </section>
 
@@ -214,8 +225,9 @@ export default function TermsOfServicePage() {
             <h2>4. Cryptographic Stamping, Ledger Immutability & 365-Day Validity</h2>
           </div>
           <p>
-            <strong>4.1 The Ledger Record:</strong> Once a submitted solution satisfies all mandatory test suites and verification constraints,
-            DevLedgr stamps the verified solution with a deterministic SHA-256 checksum and signs the entry using Ed25519 platform root keys.
+            <strong>4.1 The Ledger Record:</strong> A submitted solution becomes verified when a reviewer confirms it against the problem&apos;s
+            requirements and records the test results they checked. DevLedgr then signs the entry, binding the certificate to the submission
+            identity, repository, commit, and recorded results. A submission with no recorded test results cannot be stamped.
           </p>
           <p>
             <strong>4.2 365-Day Portfolio URL Guarantee:</strong> For active stamped entries, DevLedgr guarantees public portfolio availability
@@ -225,6 +237,8 @@ export default function TermsOfServicePage() {
           </p>
           <p>
             <strong>4.3 Certificate Integrity & Tamper-Evidence:</strong> Every public portfolio entry features a verifiable certificate payload.
+            Certificates are cryptographically signed using server-side HMAC-SHA256 and require an API call (e.g., <code className="font-mono text-xs bg-card px-1 py-0.5 rounded border border-line">GET /api/v1/submissions/[hash]/certificate</code>)
+            to verify; offline verification without contacting the DevLedgr API is not supported in the current implementation.
             DevLedgr reserves the right to rotate root signing keys in accordance with cryptographic best practices while maintaining backward-verifiable
             signature chains.
           </p>
@@ -245,8 +259,10 @@ export default function TermsOfServicePage() {
             non-exclusive license to:
           </p>
           <ul className="list-disc pl-6 space-y-1.5 text-xs sm:text-sm">
-            <li>Fetch, compile, and execute your submitted repository code inside isolated CI test sandboxes;</li>
-            <li>Extract telemetry, compute cryptographic checksums, and generate test assertions;</li>
+            <li>Inspect the repository and commit metadata you link in order to record a reviewable entry, and — once automated verification is
+              introduced as described in section 3.4 — to fetch, build, and execute your submitted repository code inside isolated CI test
+              sandboxes;</li>
+            <li>Extract the test results and performance figures recorded during review, compute cryptographic checksums, and generate test assertions;</li>
             <li>Render your code snippets, commit metadata, and verification badges on your public portfolio page (<code className="font-mono text-xs bg-card px-1.5 py-0.5 rounded border border-line">/p/[username]</code>);</li>
             <li>Synthesize anonymized, aggregated benchmarking metrics to calibrate industry difficulty curves.</li>
           </ul>
@@ -263,15 +279,20 @@ export default function TermsOfServicePage() {
             <h2>6. Acceptable Use & Infrastructure Security</h2>
           </div>
           <p>
-            DevLedgr executes untrusted code inside sandboxed execution runners. We maintain strict zero-tolerance policies regarding malicious actions.
-            You agree NOT to:
+            DevLedgr does not currently execute submitted code, so the prohibitions below largely govern conduct on the platform itself: the Idea
+            Bank, the mock servers we host, submissions you link, and any automated verification we introduce in future. We maintain strict
+            zero-tolerance policies regarding malicious actions. You agree NOT to:
           </p>
           <div className="p-4 rounded-radius border border-line bg-card/50 space-y-2 text-xs sm:text-sm">
             <ul className="list-disc pl-5 space-y-1.5">
-              <li>Attempt container escapes, kernel privilege escalation, or host filesystem traversal on our CI runner clusters;</li>
-              <li>Execute cryptocurrency mining, distributed denial-of-service (DDoS) traffic, network scans, or spam floods;</li>
-              <li>Exfiltrate environment secrets, neighbor container memory, or proprietary test harness validation secrets;</li>
-              <li>Bypass, reverse engineer, or defeat anti-cheat harnesses, rate-limiters, or automated grading oracles;</li>
+              <li>Attack our infrastructure. If we introduce automated verification, this expressly includes attempting container escapes, kernel
+                privilege escalation, or host filesystem traversal on our CI runner clusters;</li>
+              <li>Execute cryptocurrency mining, distributed denial-of-service (DDoS) traffic, network scans, or spam floods against DevLedgr or any
+                mock server we host;</li>
+              <li>Exfiltrate environment secrets or proprietary mock infrastructure and test criteria validation material;</li>
+              <li>Bypass, reverse engineer, or defeat rate-limiters, review workflows, or any automated grading oracles introduced in future;</li>
+              <li>Misrepresent proof of work — for example by claiming test results or performance figures that were not measured. DevLedgr records
+                only measured results and displays unmeasured values as unrecorded;</li>
               <li>Submit malicious code containing ransomware, trojans, worms, rootkits, or destructive payloads;</li>
               <li>Scrape, bulk-harvest, or mirror other developers&apos; private data or ATS resumes without authorization.</li>
             </ul>
@@ -337,7 +358,7 @@ export default function TermsOfServicePage() {
           </div>
           <p>
             <strong>9.1 Tiers:</strong> DevLedgr provides both free tiers (including BYOK compute) and paid Full-Service subscriptions
-            (e.g., ~₦5,000 / month or local currency equivalent) that provide managed cloud CI runners, accelerated test queues, and hosted AI scrutiny.
+            (e.g., ~₦5,000 / month or local currency equivalent) that provide managed reviewer operations, accelerated review queues, and hosted AI scrutiny.
           </p>
           <p>
             <strong>9.2 Billing & Renewal:</strong> Paid subscriptions are billed in advance on a recurring monthly or annual basis.

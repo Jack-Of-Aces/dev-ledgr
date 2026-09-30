@@ -119,7 +119,7 @@ export default function OpenGraphImage() {
               maxWidth: '850px',
             }}
           >
-            A ledger, not a resume. Real-world challenges, automated CI test telemetry, and guaranteed 1-year public portfolio URLs.
+            A ledger, not a resume. Real-world challenges, reviewer-recorded results, and guaranteed 1-year public portfolio URLs.
           </p>
         </div>
 

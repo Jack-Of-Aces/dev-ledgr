@@ -178,6 +178,15 @@ func (s *Store) SetApproved(ctx context.Context, id string, approved bool) (*mod
 	return s.GetIdea(ctx, id)
 }
 
+// ApproveAllProblems marks all currently unapproved problems as admin_approved = true.
+func (s *Store) ApproveAllProblems(ctx context.Context) (int64, error) {
+	tag, err := s.pool.Exec(ctx, `update public.problems set admin_approved = true where admin_approved = false`)
+	if err != nil {
+		return 0, mapErr(err)
+	}
+	return tag.RowsAffected(), nil
+}
+
 // ClaimIdea makes a dev the builder of an approved, available problem and
 // moves it to In Progress. maxActive caps a dev's in-flight claims.
 func (s *Store) ClaimIdea(ctx context.Context, ideaID, devID string, maxActive int) (*model.Idea, error) {
@@ -250,8 +259,15 @@ func (s *Store) SetIdeaStatus(ctx context.Context, ideaID, from, to string) (*mo
 		}
 		switch {
 		case to == model.StatusOpen:
+			// Release the in-progress claim only. This used to delete rows
+			// where collaboration_status in ('Active', 'Completed'), which
+			// destroyed the permanent record of every dev who had previously
+			// completed this problem — including their timestamps, and with
+			// them the basis for the skills ProvenSkills grants. A Completed
+			// row is history, not a claim, and reopening a problem is an
+			// admin action that must not silently rewrite who built what.
 			_, err = tx.Exec(ctx, `delete from public.claimed_projects
-				where problem_id = $1 and collaboration_status in ('Active', 'Completed')`, ideaID)
+				where problem_id = $1 and collaboration_status = 'Active'`, ideaID)
 		case to == model.StatusComplete:
 			_, err = tx.Exec(ctx, `update public.claimed_projects set collaboration_status = 'Completed'
 				where problem_id = $1 and collaboration_status = 'Active'`, ideaID)
@@ -270,11 +286,26 @@ func (s *Store) SetIdeaStatus(ctx context.Context, ideaID, from, to string) (*mo
 
 // ProvenSkills returns the tags and stack of problems a dev has proven:
 // verified submissions or completed Launchpad builds.
+//
+// A Completed claim only counts when the same dev also has a verified
+// submission for that problem. updateProblemStatus already enforces that at
+// the API, but the claim row is what this query reads, and a row written
+// before that rule existed — or by a migration, or by hand — would otherwise
+// still grant skills for work nobody can point a reviewer at. Proven skills
+// feed the job match score and the AI cover letter, so it has to mean
+// something was actually verified.
 func (s *Store) ProvenSkills(ctx context.Context, devID string) ([]string, error) {
 	rows, err := s.pool.Query(ctx, `
 		select distinct t from public.problems pr, unnest(coalesce(pr.tags, '{}') || pr.suggested_stack) t
 		where pr.id in (select problem_id from public.submissions where profile_id = $1 and status = 'verified')
-		   or pr.id in (select problem_id from public.claimed_projects where profile_id = $1 and collaboration_status = 'Completed')
+		   or pr.id in (
+				select cp.problem_id from public.claimed_projects cp
+				where cp.profile_id = $1 and cp.collaboration_status = 'Completed'
+				  and exists (select 1 from public.submissions su
+				              where su.profile_id = cp.profile_id
+				                and su.problem_id = cp.problem_id
+				                and su.status = 'verified')
+		   )
 		order by t`, devID)
 	if err != nil {
 		return nil, err

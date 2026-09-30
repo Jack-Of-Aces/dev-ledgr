@@ -9,6 +9,10 @@ import "testing"
 // it ships. ContactEmail is the one that prompted this: it is a new column, and
 // the whole reason the auth address is already stripped is that these are real,
 // reachable addresses rather than display text.
+//
+// Role, Plan, and AuthProvider were stripped in the same pass: surfacing them
+// let any caller enumerate the staff roster, billing tiers and identity
+// providers for every dev on the platform.
 func TestPublicStripsPrivateFields(t *testing.T) {
 	t.Parallel()
 
@@ -20,6 +24,8 @@ func TestPublicStripsPrivateFields(t *testing.T) {
 		ContactEmail: "michael@work.example.com",
 		HasAPIKey:    true,
 		AuthProvider: "github",
+		Role:         RoleAdmin,
+		Plan:         "full-service",
 		GitHubURL:    "https://github.com/michojekunle",
 	}
 
@@ -32,9 +38,12 @@ func TestPublicStripsPrivateFields(t *testing.T) {
 	}{
 		{"Email", public.Email, true},
 		{"ContactEmail", public.ContactEmail, true},
+		{"AuthProvider", public.AuthProvider, true},
+		{"Role", string(public.Role), true},
+		{"Plan", public.Plan, true},
 	} {
 		if tc.wantGone && tc.got != "" {
-			t.Errorf("public %s = %q, want it stripped: it is the dev's real address", tc.field, tc.got)
+			t.Errorf("public %s = %q, want stripped (private field)", tc.field, tc.got)
 		}
 	}
 
@@ -48,9 +57,6 @@ func TestPublicStripsPrivateFields(t *testing.T) {
 	}
 	if public.GitHubURL != owner.GitHubURL {
 		t.Errorf("public GitHubURL = %q, want %q", public.GitHubURL, owner.GitHubURL)
-	}
-	if public.AuthProvider != owner.AuthProvider {
-		t.Errorf("public AuthProvider = %q, want %q", public.AuthProvider, owner.AuthProvider)
 	}
 }
 

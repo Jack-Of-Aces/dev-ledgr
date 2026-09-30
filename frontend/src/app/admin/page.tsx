@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { LaunchpadProblem, JobOpportunity, AdminJobFilters, SubmissionEntry } from '@/types';
 import { IdeaDraft } from '@/services/ideas/IIdeaService';
@@ -19,6 +19,7 @@ import {
 import Link from 'next/link';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { submissionService } from '@/services/submissions/submissionService';
+import { VerifySubmissionInput } from '@/services/submissions/ISubmissionService';
 import { launchpadService } from '@/services/launchpad/launchpadService';
 import { ideaService } from '@/services/ideas/ideaService';
 import { jobService } from '@/services/jobs/jobService';
@@ -226,11 +227,19 @@ export default function AdminPage() {
     }
   };
 
-  const handleVerify = async (hash: string) => {
+  // Both review actions open a dialog. Stamping now has to record what was
+  // checked, and rejecting has always required a reason that the old
+  // single-click button never collected.
+  const [reviewTarget, setReviewTarget] = useState<{
+    submission: SubmissionEntry;
+    action: 'verify' | 'reject';
+  } | null>(null);
+
+  const handleVerify = async (hash: string, input: VerifySubmissionInput) => {
     setPending(setQueueBusy, hash, true);
     setNotice(null);
     try {
-      const updated = await submissionService.verifySubmission(hash);
+      const updated = await submissionService.verifySubmission(hash, input);
       setQueue((prev) =>
         prev ? prev.map((s) => (s.hash === hash ? { ...s, ...updated } : s)) : prev
       );
@@ -238,14 +247,15 @@ export default function AdminPage() {
       setNotice({ tone: 'error', text: describeError(err) });
     } finally {
       setPending(setQueueBusy, hash, false);
+      setReviewTarget(null);
     }
   };
 
-  const handleReject = async (hash: string) => {
+  const handleReject = async (hash: string, notes: string) => {
     setPending(setQueueBusy, hash, true);
     setNotice(null);
     try {
-      const updated = await submissionService.rejectSubmission(hash);
+      const updated = await submissionService.rejectSubmission(hash, notes);
       setQueue((prev) =>
         prev ? prev.map((s) => (s.hash === hash ? { ...s, ...updated } : s)) : prev
       );
@@ -253,6 +263,7 @@ export default function AdminPage() {
       setNotice({ tone: 'error', text: describeError(err) });
     } finally {
       setPending(setQueueBusy, hash, false);
+      setReviewTarget(null);
     }
   };
 
@@ -510,8 +521,16 @@ export default function AdminPage() {
                       <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
                         <div className="flex items-center gap-3">
                           <button
-                            onClick={() => void handleVerify(sub.hash)}
-                            disabled={busy || sub.status === 'verified'}
+                            type="button"
+                            aria-label={
+                              sub.status === 'verified'
+                                ? `Submission for ${sub.ideaTitle} is already stamped`
+                                : `Stamp submission for ${sub.ideaTitle}`
+                            }
+                            onClick={() =>
+                              setReviewTarget({ submission: sub, action: 'verify' })
+                            }
+                            disabled={busy || sub.status !== 'pending'}
                             className={`font-medium flex items-center gap-1 ${
                               busy
                                 ? 'opacity-50 cursor-not-allowed'
@@ -528,8 +547,16 @@ export default function AdminPage() {
                             </span>
                           </button>
                           <button
-                            onClick={() => void handleReject(sub.hash)}
-                            disabled={busy || sub.status === 'rejected'}
+                            type="button"
+                            aria-label={
+                              sub.status === 'rejected'
+                                ? `Submission for ${sub.ideaTitle} is already rejected`
+                                : `Reject submission for ${sub.ideaTitle}`
+                            }
+                            onClick={() =>
+                              setReviewTarget({ submission: sub, action: 'reject' })
+                            }
+                            disabled={busy || sub.status !== 'pending'}
                             className={`font-medium flex items-center gap-1 ${
                               busy
                                 ? 'opacity-50 cursor-not-allowed'
@@ -728,8 +755,388 @@ export default function AdminPage() {
             onConfirm={() => void handleDeleteJob(jobPendingDelete)}
           />
         )}
+
+        {reviewTarget && (
+          <ReviewSubmissionDialog
+            submission={reviewTarget.submission}
+            action={reviewTarget.action}
+            busy={queueBusy.has(reviewTarget.submission.hash)}
+            onCancel={() => setReviewTarget(null)}
+            onVerify={(input) =>
+              void handleVerify(reviewTarget.submission.hash, input)
+            }
+            onReject={(notes) =>
+              void handleReject(reviewTarget.submission.hash, notes)
+            }
+          />
+        )}
       </div>
     </AuthGuard>
+  );
+}
+
+/**
+ * Collects what a reviewer is attesting to before a decision is recorded.
+ *
+ * The backend refuses to mint a certificate whose test total is zero, and
+ * requires a reason to reject. Both are enforced here too, so the reviewer is
+ * told what is missing before a round trip, and so the "Stamp" button cannot
+ * silently post a body that the API will reject.
+ *
+ * Performance figures are opt-in and left blank unless the reviewer measured
+ * them. There is no placeholder: an unmeasured value stays unmeasured, which is
+ * what stops a fabricated 28ms from reaching a public portfolio.
+ */
+function ReviewSubmissionDialog({
+  submission,
+  action,
+  busy,
+  onCancel,
+  onVerify,
+  onReject,
+}: {
+  submission: SubmissionEntry;
+  action: 'verify' | 'reject';
+  busy: boolean;
+  onCancel: () => void;
+  onVerify: (input: VerifySubmissionInput) => void;
+  onReject: (notes: string) => void;
+}) {
+  const [passed, setPassed] = useState('');
+  const [total, setTotal] = useState('');
+  const [suiteName, setSuiteName] = useState('');
+  const [latencyP99, setLatencyP99] = useState('');
+  const [throughput, setThroughput] = useState('');
+  const [coverage, setCoverage] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !busy) onCancel();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onCancel, busy]);
+
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, []);
+
+  const passedN = Number.parseInt(passed, 10);
+  const totalN = Number.parseInt(total, 10);
+  const countsParse =
+    passed.trim() !== '' &&
+    total.trim() !== '' &&
+    Number.isInteger(passedN) &&
+    Number.isInteger(totalN);
+  // A total of zero is refused, and 0/0 is the shape the server rejects as a
+  // vacuous pass, so the form will not let a reviewer submit it.
+  const countsValid =
+    countsParse && totalN > 0 && passedN >= 0 && passedN <= totalN;
+  const countsComplete = countsParse && passedN === totalN;
+  const notesValid = notes.trim().length > 0 && notes.trim().length <= 2000;
+
+  const canConfirm =
+    action === 'verify'
+      ? countsValid && countsComplete
+      : notesValid;
+
+  const fieldClass =
+    'w-full px-2.5 py-1.5 rounded-radius border border-line bg-card text-text-0 text-xs sm:text-sm font-mono focus:border-emerald focus:ring-1 focus:ring-emerald/30 outline-none';
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="review-submission"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-0/70 backdrop-blur-sm overflow-y-auto"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !busy) onCancel();
+      }}
+    >
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className="w-full max-w-lg rounded-radius border border-line bg-card p-5 sm:p-6 space-y-4 my-auto outline-none"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <h2
+            id="review-submission"
+            className="text-base font-semibold text-text-0 tracking-tight"
+          >
+            {action === 'verify' ? 'Stamp this proof' : 'Reject this proof'}
+          </h2>
+          <button
+            onClick={onCancel}
+            disabled={busy}
+            aria-label="Close"
+            className="text-text-1 hover:text-text-0 cursor-pointer disabled:opacity-50"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="space-y-1.5 text-xs md:text-sm text-text-1 leading-relaxed">
+          <p className="text-text-0 font-medium break-words">
+            {submission.ideaTitle}
+          </p>
+          <p className="font-mono text-[11px] break-all">
+            {submission.repoUrl}
+          </p>
+        </div>
+
+        {action === 'verify' ? (
+          <>
+            <p className="text-xs text-text-1 leading-relaxed">
+              A stamp issues a 365-day certificate bound to these results.
+              Record what you actually checked. There is no automated runner
+              yet, so these counts are your own attestation and they are signed
+              as such.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label
+                  htmlFor="review-passed"
+                  className="block text-[11px] font-mono uppercase tracking-wider text-text-1"
+                >
+                  Tests passed
+                </label>
+                <input
+                  id="review-passed"
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  value={passed}
+                  onChange={(e) => setPassed(e.target.value)}
+                  className={fieldClass}
+                  aria-invalid={countsParse && !countsComplete}
+                />
+              </div>
+              <div className="space-y-1">
+                <label
+                  htmlFor="review-total"
+                  className="block text-[11px] font-mono uppercase tracking-wider text-text-1"
+                >
+                  Tests total
+                </label>
+                <input
+                  id="review-total"
+                  type="number"
+                  min={1}
+                  inputMode="numeric"
+                  value={total}
+                  onChange={(e) => setTotal(e.target.value)}
+                  className={fieldClass}
+                  aria-invalid={countsParse && !countsComplete}
+                />
+              </div>
+            </div>
+
+            {countsParse && !countsComplete && (
+              <p className="text-[11px] text-rose-700 dark:text-rose-300 flex items-start gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+                <span>
+                  {passedN > totalN
+                    ? 'Passed cannot exceed total.'
+                    : 'Every test must pass before a submission can be stamped.'}
+                </span>
+              </p>
+            )}
+            {countsParse && totalN === 0 && (
+              <p className="text-[11px] text-rose-700 dark:text-rose-300 flex items-start gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+                <span>
+                  A certificate cannot be minted for a run of zero tests. If
+                  nothing was run, reject the submission instead.
+                </span>
+              </p>
+            )}
+
+            <div className="space-y-1">
+              <label
+                htmlFor="review-suite"
+                className="block text-[11px] font-mono uppercase tracking-wider text-text-1"
+              >
+                Suite name{' '}
+                <span className="normal-case opacity-70">(optional)</span>
+              </label>
+              <input
+                id="review-suite"
+                type="text"
+                value={suiteName}
+                onChange={(e) => setSuiteName(e.target.value)}
+                placeholder="Defaults to Manual Reviewer Audit"
+                className={fieldClass}
+              />
+            </div>
+
+            <details className="border border-line rounded-radius">
+              <summary className="px-2.5 py-2 text-[11px] font-mono uppercase tracking-wider text-text-1 cursor-pointer select-none">
+                Measured performance{' '}
+                <span className="normal-case opacity-70">
+                  (optional, leave blank if unmeasured)
+                </span>
+              </summary>
+              <div className="px-2.5 pb-2.5 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label
+                      htmlFor="review-latency"
+                      className="block text-[11px] font-mono uppercase tracking-wider text-text-1"
+                    >
+                      p99 latency
+                    </label>
+                    <input
+                      id="review-latency"
+                      type="text"
+                      value={latencyP99}
+                      onChange={(e) => setLatencyP99(e.target.value)}
+                      placeholder="e.g. 28ms"
+                      className={fieldClass}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label
+                      htmlFor="review-throughput"
+                      className="block text-[11px] font-mono uppercase tracking-wider text-text-1"
+                    >
+                      Throughput
+                    </label>
+                    <input
+                      id="review-throughput"
+                      type="text"
+                      value={throughput}
+                      onChange={(e) => setThroughput(e.target.value)}
+                      placeholder="e.g. 240 req/s"
+                      className={fieldClass}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label
+                    htmlFor="review-coverage"
+                    className="block text-[11px] font-mono uppercase tracking-wider text-text-1"
+                  >
+                    Coverage
+                  </label>
+                  <input
+                    id="review-coverage"
+                    type="text"
+                    value={coverage}
+                    onChange={(e) => setCoverage(e.target.value)}
+                    placeholder="e.g. 96.4%"
+                    className={fieldClass}
+                  />
+                </div>
+                <p className="text-[11px] text-text-1 leading-relaxed">
+                  These appear on the public portfolio and in generated CVs. Only
+                  enter figures you measured. Anything left blank stays blank
+                  rather than showing a placeholder.
+                </p>
+              </div>
+            </details>
+
+            <div className="space-y-1">
+              <label
+                htmlFor="review-notes-verify"
+                className="block text-[11px] font-mono uppercase tracking-wider text-text-1"
+              >
+                Review notes{' '}
+                <span className="normal-case opacity-70">(optional)</span>
+              </label>
+              <textarea
+                id="review-notes-verify"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                maxLength={2000}
+                rows={2}
+                className={`${fieldClass} resize-y`}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-text-1 leading-relaxed">
+              The developer sees this reason on their submission, so say what
+              did not hold up. A reason is required.
+            </p>
+            <div className="space-y-1">
+              <label
+                htmlFor="review-reason"
+                className="block text-[11px] font-mono uppercase tracking-wider text-text-1"
+              >
+                Reason for rejection
+              </label>
+              <textarea
+                id="review-reason"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                maxLength={2000}
+                rows={4}
+                autoFocus
+                className={`${fieldClass} resize-y`}
+                aria-invalid={notes.trim() !== '' && !notesValid}
+              />
+              <p className="text-[11px] text-text-1">
+                {notes.trim().length}/2000 characters
+              </p>
+            </div>
+          </>
+        )}
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-2 pt-2">
+          <button
+            onClick={onCancel}
+            disabled={busy}
+            className="btn-outline py-1.5 px-3 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              if (action === 'verify') {
+                const metrics = {
+                  ...(latencyP99.trim() ? { latencyP99: latencyP99.trim() } : {}),
+                  ...(throughput.trim() ? { throughput: throughput.trim() } : {}),
+                  ...(coverage.trim() ? { coverage: coverage.trim() } : {}),
+                };
+                onVerify({
+                  testResults: {
+                    passed: passedN,
+                    total: totalN,
+                    ...(suiteName.trim() ? { suiteName: suiteName.trim() } : {}),
+                  },
+                  // Omitted entirely when nothing was measured, rather than
+                  // sent as three empty strings.
+                  ...(Object.keys(metrics).length > 0 ? { metrics } : {}),
+                  ...(notes.trim() ? { notes: notes.trim() } : {}),
+                });
+              } else {
+                onReject(notes.trim());
+              }
+            }}
+            disabled={busy || !canConfirm}
+            className={`btn-brass py-1.5 px-3 inline-flex items-center gap-1.5 ${
+              busy || !canConfirm
+                ? 'opacity-50 cursor-not-allowed'
+                : 'cursor-pointer'
+            }`}
+          >
+            {busy ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+            ) : action === 'verify' ? (
+              <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
+            ) : (
+              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+            )}
+            <span>{action === 'verify' ? 'Stamp proof' : 'Reject proof'}</span>
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

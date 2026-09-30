@@ -47,9 +47,10 @@ export default function AboutPage() {
           Core Operating Principles
         </h2>
         <ul className="space-y-2 text-xs md:text-sm sm:text-sm lg:text-base text-text-1 list-disc pl-5">
-          <li>No video courses or passive quizzes. You build and debug against actual test harnesses.</li>
-          <li>No generic job listings. Roles surface only when your verified telemetry matches production constraints.</li>
-          <li>No unverified resume claims. Every highlighted competency links directly to committed code and test logs.</li>
+          <li>No video courses or passive quizzes. You build against a real specification with real failure modes.</li>
+          <li>No generic job listings. Roles surface based on the problems you have actually solved.</li>
+          <li>No unverified resume claims. Every highlighted competency links directly to your committed code, and every test result shown was
+            measured and recorded by a reviewer.</li>
         </ul>
       </div>
 

@@ -37,6 +37,11 @@ export default function JobsPage() {
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [liveJobs, setLiveJobs] = useState<JobOpportunity[]>([]);
+  // 'loading' until the first response, then 'ready' or 'error'. Drives the
+  // banner that discloses when the list is bundled sample data rather than a
+  // live fetch.
+  const [jobsStatus, setJobsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [jobsRetry, setJobsRetry] = useState(0);
 
   // Search and Filter States
   const [search, setSearch] = useState('');
@@ -74,9 +79,15 @@ export default function JobsPage() {
           setLiveJobs(fetched);
           setJobs(fetched);
         }
+        // A successful call that returns nothing is still "live", so the list
+        // below must not be described as seed data.
+        if (active) setJobsStatus('ready');
       })
-      .catch((err) => {
-        console.warn('Jobs fetch note:', err);
+      .catch(() => {
+        // Previously only logged a console warning and then rendered the
+        // bundled seed list as if it were live data. Record the failure so the
+        // page can say which of the two it is showing.
+        if (active) setJobsStatus('error');
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -87,7 +98,35 @@ export default function JobsPage() {
     };
   }, [setJobs]);
 
-  const activeJobs = liveJobs.length > 0 ? liveJobs : jobs;
+  // Re-run the fetch when the user retries from the banner.
+  useEffect(() => {
+    if (jobsRetry === 0) return;
+    let active = true;
+    setLoading(true);
+    setJobsStatus('loading');
+    jobService
+      .getJobs()
+      .then((fetched) => {
+        if (!active) return;
+        if (fetched && fetched.length > 0) {
+          setLiveJobs(fetched);
+          setJobs(fetched);
+        }
+        setJobsStatus('ready');
+      })
+      .catch(() => {
+        if (active) setJobsStatus('error');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [jobsRetry, setJobs]);
+
+  const usingSampleData = liveJobs.length === 0;
+  const activeJobs = usingSampleData ? jobs : liveJobs;
 
   // Extract all unique skills across opportunities for quick filtering
   const allSkills = useMemo(() => {
@@ -272,17 +311,28 @@ export default function JobsPage() {
   const userSubmissions = submissions.filter(
     (s) => s.authorUsername.toLowerCase() === user.username.toLowerCase()
   );
+  // Only reviewer-stamped proofs count as verified; pending/rejected ones must
+  // not be counted as "verified ledger proofs".
+  const verifiedSubmissions = userSubmissions.filter((s) => s.status === 'verified');
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 md:py-16 space-y-8 font-sans">
       {/* ─── 1. Header ────────────────────────────────────────── */}
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-mono uppercase tracking-wider text-emerald-text font-semibold px-2.5 py-0.5 rounded-full bg-emerald-tint border border-emerald-border">
-            Verified Opportunities
+          <span
+            className={`text-xs font-mono uppercase tracking-wider font-semibold px-2.5 py-0.5 rounded-full border ${
+              usingSampleData
+                ? 'text-amber-700 dark:text-amber-400 border-amber-500/30 bg-amber-500/10'
+                : 'text-emerald-text border-emerald-border bg-emerald-tint'
+            }`}
+          >
+            {usingSampleData ? 'Sample Opportunities' : 'Verified Opportunities'}
           </span>
           <span className="text-xs font-mono text-text-1">
-            {activeJobs.length} live engineering roles ranked by proof-of-work
+            {usingSampleData
+              ? `${activeJobs.length} sample engineering roles — not fetched from a live board`
+              : `${activeJobs.length} live engineering roles ranked by proof-of-work`}
           </span>
         </div>
         <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight text-text-0">
@@ -291,6 +341,29 @@ export default function JobsPage() {
         <p className="text-sm lg:text-base text-text-1 max-w-3xl leading-relaxed">
           Real job openings matched against your cryptographic proofs and stated skills. Run automated AI Scrutiny to generate ATS-safe cover letters or benchmark your CV before applying.
         </p>
+
+        {/* The list below silently falls back to the bundled seed data when the
+            fetch fails. Say so rather than labelling seed rows as "live" and
+            "verified". */}
+        {!loading && jobsStatus !== 'loading' && usingSampleData && (
+          <div
+            role="status"
+            className="p-3 rounded-radius border border-amber-500/30 bg-amber-500/10 text-xs font-mono text-text-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+          >
+            <span>
+              {jobsStatus === 'error'
+                ? 'Could not reach the job board API, so these are bundled sample roles — not live openings.'
+                : 'The job board returned no roles, so these are bundled sample roles — not live openings.'}
+            </span>
+            <button
+              type="button"
+              onClick={() => setJobsRetry((n) => n + 1)}
+              className="btn-outline text-xs py-1 px-2.5 shrink-0 self-start sm:self-auto"
+            >
+              Retry
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ─── 2. Personalization Telemetry Summary Ribbon ─────────── */}
@@ -309,7 +382,7 @@ export default function JobsPage() {
               )}
             </div>
             <div className="text-xs font-mono text-text-1">
-              Evaluated against <span className="text-emerald-text font-bold">{userSubmissions.length} verified ledger proofs</span> and skills: <span className="text-text-0 font-medium">{(user.statedSkills || ['Go', 'TypeScript', 'PostgreSQL']).join(', ')}</span>.
+              Evaluated against <span className="text-emerald-text font-bold">{verifiedSubmissions.length} verified ledger proofs</span> and skills: <span className="text-text-0 font-medium">{(user.statedSkills || ['Go', 'TypeScript', 'PostgreSQL']).join(', ')}</span>.
             </div>
           </div>
         </div>
@@ -329,9 +402,11 @@ export default function JobsPage() {
         {/* Search Bar + Drawer Trigger */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-text-1" />
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-text-1" aria-hidden="true" />
             <input
+              id="job-search"
               type="text"
+              aria-label="Search roles by title, company, or skill"
               placeholder="Search roles by title, company, skills (e.g. Go, Python, Power Apps, Distributed)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -341,9 +416,10 @@ export default function JobsPage() {
               <button
                 type="button"
                 onClick={() => setSearch('')}
+                aria-label="Clear search query"
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-text-1 hover:text-text-0 p-0.5 cursor-pointer"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
             )}
           </div>
@@ -351,13 +427,15 @@ export default function JobsPage() {
           <button
             type="button"
             onClick={() => setShowAdvancedFilters((prev) => !prev)}
+            aria-expanded={showAdvancedFilters}
+            aria-controls="advanced-filters-panel"
             className={`btn-outline text-xs py-2 px-3.5 inline-flex items-center justify-center gap-1.5 cursor-pointer font-sans shrink-0 ${
               showAdvancedFilters || selectedSkills.length > 0 || levelFilter !== 'all' || matchFilter !== 'all'
                 ? 'border-emerald-border text-emerald-text bg-emerald-tint/30'
                 : ''
             }`}
           >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
+            <SlidersHorizontal className="w-3.5 h-3.5" aria-hidden="true" />
             <span>Filters</span>
             {(selectedSkills.length > 0 || levelFilter !== 'all' || matchFilter !== 'all' || trackFilter) && (
               <span className="w-1.5 h-1.5 rounded-full bg-emerald shrink-0" />
@@ -366,7 +444,7 @@ export default function JobsPage() {
         </div>
 
         {/* Quick Match Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 text-xs min-w-0">
+        <div className="flex items-center gap-2 overflow-x-auto py-1 text-xs min-w-0">
           <span className="font-mono text-text-1 text-[11px] uppercase tracking-wider shrink-0 mr-1">
             Match:
           </span>
@@ -411,13 +489,18 @@ export default function JobsPage() {
 
         {/* Advanced Filters Expandable Drawer */}
         {showAdvancedFilters && (
-          <div className="p-4 rounded-radius border border-line bg-card/60 space-y-4 text-xs">
+          <div
+            id="advanced-filters-panel"
+            className="p-4 rounded-radius border border-line bg-card/60 space-y-4 text-xs"
+          >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Experience Level */}
-              <div className="space-y-1.5">
-                <label className="font-mono text-[11px] uppercase text-text-1 font-semibold block">
+              {/* These are button groups, not form controls, so a <label> would
+                  be unassociated. Use role="group" + aria-label instead. */}
+              <div role="group" aria-label="Experience Level" className="space-y-1.5">
+                <span className="font-mono text-[11px] uppercase text-text-1 font-semibold block">
                   Experience Level
-                </label>
+                </span>
                 <div className="flex flex-wrap gap-1.5">
                   {[
                     { id: 'all', label: 'All Levels' },
@@ -444,10 +527,10 @@ export default function JobsPage() {
               </div>
 
               {/* Sorting Sequence */}
-              <div className="space-y-1.5">
-                <label className="font-mono text-[11px] uppercase text-text-1 font-semibold block">
+              <div role="group" aria-label="Sort Opportunities" className="space-y-1.5">
+                <span className="font-mono text-[11px] uppercase text-text-1 font-semibold block">
                   Sort Opportunities
-                </label>
+                </span>
                 <div className="flex flex-wrap gap-1.5">
                   {[
                     { id: 'personalized', label: 'Best Match (Personalized)' },
@@ -474,10 +557,10 @@ export default function JobsPage() {
 
             {/* Popular Skill Tags Filter */}
             {allSkills.length > 0 && (
-              <div className="space-y-1.5 pt-2 border-t border-line/60">
-                <label className="font-mono text-[11px] uppercase text-text-1 font-semibold block">
+              <div role="group" aria-label="Filter by Technology or Skill Requirement" className="space-y-1.5 pt-2 border-t border-line/60">
+                <span className="font-mono text-[11px] uppercase text-text-1 font-semibold block">
                   Filter by Technology / Skill Requirement
-                </label>
+                </span>
                 <div className="flex flex-wrap gap-1.5">
                   {allSkills.map((tag) => {
                     const isChecked = selectedSkills.includes(tag.name);
@@ -508,7 +591,7 @@ export default function JobsPage() {
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs font-mono">
           <div className="text-text-1">
             Showing <strong className="text-text-0 font-semibold">{filteredJobs.length}</strong> of{' '}
-            {activeJobs.length} verified opportunities
+            {activeJobs.length} {usingSampleData ? 'sample' : 'verified'} opportunities
           </div>
           {hasActiveFilters && (
             <button
@@ -629,15 +712,19 @@ export default function JobsPage() {
                   ) : (
                     <div className="text-xs sm:text-sm space-y-2">
                       {visibleBlocks.map((block, blockIdx) =>
+                        // Expanding grows this list from 2 to N entries, so a bare
+                        // index key would make React reuse the wrong DOM node for
+                        // every block after the second. Collapsing is a prefix
+                        // slice, so kind+index is stable across the toggle.
                         block.kind === 'heading' ? (
                           <h3
-                            key={blockIdx}
+                            key={`heading-${blockIdx}`}
                             className="text-sm font-semibold text-text-0 font-sans tracking-tight"
                           >
                             {block.text}
                           </h3>
                         ) : (
-                          <p key={blockIdx} className="text-text-1 leading-relaxed">
+                          <p key={`para-${blockIdx}`} className="text-text-1 leading-relaxed">
                             {block.text}
                           </p>
                         )

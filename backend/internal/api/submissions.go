@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,14 +19,32 @@ const certificateValidity = 365 * 24 * time.Hour
 
 var commitPattern = regexp.MustCompile(`^[0-9a-fA-F]{7,40}$`)
 
-// GET /api/v1/submissions?username=&status=
+// GET /api/v1/submissions?username=&status=&limit=&offset=
+//
+// Verified entries are public — a portfolio has to be readable by a recruiter —
+// but pending and rejected entries are a dev's unvetted work in progress, so
+// only the author may list those. Before this split, one anonymous call
+// returned every submission on the platform including everyone's pending ones,
+// because the query had neither an ownership check nor a LIMIT.
 func (s *Server) listSubmissions(w http.ResponseWriter, r *http.Request) error {
 	q := r.URL.Query()
-	f := store.SubmissionFilters{Username: q.Get("username"), Status: q.Get("status")}
-	if f.Status != "" && !slices.Contains([]string{"pending", "verified", "rejected"}, f.Status) {
-		v := validationErrors{}
-		v.add("status", "Status must be pending, verified or rejected")
-		return v.err()
+	f, err := submissionQuery(devFrom(r.Context()), q.Get("username"), q.Get("status"))
+	if err != nil {
+		return err
+	}
+	if l := q.Get("limit"); l != "" {
+		n, err := strconv.Atoi(l)
+		if err != nil || n < 1 || n > store.MaxSubmissionLimit {
+			return errBadRequest("limit must be 1-" + strconv.Itoa(store.MaxSubmissionLimit))
+		}
+		f.Limit = n
+	}
+	if o := q.Get("offset"); o != "" {
+		n, err := strconv.Atoi(o)
+		if err != nil || n < 0 {
+			return errBadRequest("offset must be zero or greater")
+		}
+		f.Offset = n
 	}
 	subs, err := s.store.ListSubmissions(r.Context(), f)
 	if err != nil {
@@ -33,6 +52,57 @@ func (s *Server) listSubmissions(w http.ResponseWriter, r *http.Request) error {
 	}
 	writeJSON(w, http.StatusOK, subs)
 	return nil
+}
+
+// submissionQuery turns the request's username/status into the filters the
+// store will run, refusing the combinations a caller is not entitled to.
+//
+// It returns the filters rather than only an error because the authorisation
+// decision and the scoping it implies have to be the same step. Checking
+// ownership and then querying on whatever username was sent leaves a hole: the
+// store reads an empty username as "no filter", so a signed-in dev who omitted
+// it would be handed every dev's entries in every status rather than their own.
+func submissionQuery(viewer *model.UserProfile, username, status string) (store.SubmissionFilters, error) {
+	f := store.SubmissionFilters{Username: username, Status: status, Limit: store.DefaultSubmissionLimit}
+	if err := submissionVisibility(viewer, username, status); err != nil {
+		return f, err
+	}
+	// Anything not explicitly requested for someone else is the viewer's own
+	// work, so pin the filter to them. An anonymous caller reading the public
+	// verified ledger is left unfiltered on purpose.
+	if f.Username == "" && viewer != nil {
+		f.Username = viewer.Username
+	}
+	return f, nil
+}
+
+// submissionVisibility decides who may list which status. viewer is nil for an
+// anonymous caller.
+//
+// Anything not explicitly verified is private. "No status filter" is therefore
+// not a way around the rule — an anonymous caller asking for everything is
+// refused rather than quietly served the public subset, because a filtered
+// result set that looks complete is worse than a clear error.
+func submissionVisibility(viewer *model.UserProfile, username, status string) error {
+	if status != "" && !slices.Contains([]string{"pending", "verified", "rejected"}, status) {
+		v := validationErrors{}
+		v.add("status", "Status must be pending, verified or rejected")
+		return v.err()
+	}
+	if status == "verified" {
+		return nil
+	}
+	// A signed-in dev may list their own work, with or without a status filter.
+	if viewer != nil && (username == "" || strings.EqualFold(username, viewer.Username)) {
+		return nil
+	}
+	v := validationErrors{}
+	if status == "" {
+		v.add("status", "Verified entries are public; sign in as a dev to list pending or rejected work")
+	} else {
+		v.add("status", "You can only list your own "+status+" submissions")
+	}
+	return v.err()
 }
 
 func (s *Server) getSubmission(w http.ResponseWriter, r *http.Request) error {
@@ -81,7 +151,14 @@ func (req *createSubmissionRequest) validate() error {
 	if req.DemoURL != "" && !isHTTPURL(req.DemoURL) {
 		v.add("demoUrl", "Demo URL must be a valid URL")
 	}
-	if req.CommitHash != "" && !commitPattern.MatchString(req.CommitHash) {
+	// Required, not optional. The commit is what identifies the work and is
+	// the de-duplication key; without it the same repo could be registered
+	// under a fresh ledger hash any number of times, each drawing its own
+	// signed certificate. submissions_dedup_key excludes NULL commit_sha, so
+	// an entry without one escapes the index entirely.
+	if req.CommitHash == "" {
+		v.add("commitHash", "Commit hash is required — it identifies the work and prevents duplicate entries")
+	} else if !commitPattern.MatchString(req.CommitHash) {
 		v.add("commitHash", "Commit hash must be 7-40 hex characters")
 	}
 	if req.PRNumber != nil && *req.PRNumber <= 0 {
@@ -117,12 +194,20 @@ func (s *Server) createSubmission(w http.ResponseWriter, r *http.Request) error 
 		IdeaID: req.IdeaID, AuthorID: author.ID, RepoURL: req.RepoURL, DemoURL: req.DemoURL,
 		CommitSHA: req.CommitHash, PRNumber: req.PRNumber, ArchitectureNotes: req.ArchitectureNotes,
 	})
-	if errors.Is(err, store.ErrNotFound) {
+	switch {
+	case errors.Is(err, store.ErrNotFound):
 		v := validationErrors{}
 		v.add("ideaId", "Unknown idea")
 		return v.err()
-	}
-	if err != nil {
+	// The check above is advisory; the dedup index is the guarantee. Losing the
+	// race means saying the same thing the pre-check would have.
+	case errors.Is(err, store.ErrDuplicateSubmission):
+		return errConflict("You have already submitted this commit for this idea")
+	case errors.Is(err, store.ErrCommitRequired):
+		v := validationErrors{}
+		v.add("commitHash", "Commit hash is required")
+		return v.err()
+	case err != nil:
 		return err
 	}
 	sub, err := s.store.GetSubmission(r.Context(), hash)
@@ -133,12 +218,39 @@ func (s *Server) createSubmission(w http.ResponseWriter, r *http.Request) error 
 	return nil
 }
 
-// verifyRequest optionally carries harness telemetry. When the automated CI
-// runner is live it will post these; a human reviewer may omit them.
+// verifyRequest carries the test results the reviewer is attesting to, plus
+// optional measured metrics. The automated runner will populate this from a
+// real replay; until that exists a reviewer supplies the counts they verified
+// by hand, and testResults is required either way (see testResultsError).
 type verifyRequest struct {
 	TestResults *model.TestResults `json:"testResults"`
 	Metrics     *model.Metrics     `json:"metrics"`
 	Notes       string             `json:"notes"`
+}
+
+// testResultsError validates the counts a reviewer is about to certify.
+// It reports an error string, or "" when the results may be signed.
+//
+// A total of zero is refused. The gate used to read "all tests passed" as
+// passed == total, which zero satisfies vacuously, so the default for a fresh
+// submission ({"passed":0,"total":0}) minted a certificate recording a
+// successful run of nothing. A certificate asserting 0/0 is indistinguishable
+// from a certificate asserting a real pass, so it is refused outright: if no
+// tests were run, there is nothing to certify.
+func testResultsError(t model.TestResults) string {
+	if t.Passed < 0 || t.Total < 0 {
+		return "passed and total must be zero or greater"
+	}
+	if t.Passed > t.Total {
+		return "passed must not exceed total"
+	}
+	if t.Total == 0 {
+		return "a certificate cannot be minted without recorded test results: total must be greater than zero"
+	}
+	if t.Passed != t.Total {
+		return "all tests must pass before a submission can be stamped"
+	}
+	return ""
 }
 
 // loadForReview fetches a pending submission and enforces reviewer rules.
@@ -172,15 +284,16 @@ func (s *Server) verifySubmission(w http.ResponseWriter, r *http.Request) error 
 		return err
 	}
 
+	// A reviewer must state the results they verified. Omitting testResults
+	// falls back to whatever the submission was created with, which is always
+	// 0/0 and now fails validation rather than passing silently.
 	tests := sub.TestResults
 	if req.TestResults != nil {
 		tests = *req.TestResults
 	}
 	v := validationErrors{}
-	if tests.Total < 0 || tests.Passed < 0 || tests.Passed > tests.Total {
-		v.add("testResults", "passed must be between 0 and total")
-	} else if tests.Passed != tests.Total {
-		v.add("testResults", "All harness tests must pass before a submission can be stamped")
+	if msg := testResultsError(tests); msg != "" {
+		v.add("testResults", msg)
 	}
 	if len(req.Notes) > 2000 {
 		v.add("notes", "Notes must be under 2000 characters")
@@ -200,7 +313,7 @@ func (s *Server) verifySubmission(w http.ResponseWriter, r *http.Request) error 
 		Hash: sub.Hash, ReviewerID: devFrom(r.Context()).ID, Status: "verified",
 		Tests: &tests, Metrics: req.Metrics, Notes: req.Notes, Certificate: cert,
 	}); err != nil {
-		return err
+		return reviewConflict(err)
 	}
 	return s.writeSubmission(w, r, sub.Hash)
 }
@@ -228,9 +341,20 @@ func (s *Server) rejectSubmission(w http.ResponseWriter, r *http.Request) error 
 	if err := s.store.RecordReview(r.Context(), store.ReviewDecision{
 		Hash: sub.Hash, ReviewerID: devFrom(r.Context()).ID, Status: "rejected", Notes: req.Notes,
 	}); err != nil {
-		return err
+		return reviewConflict(err)
 	}
 	return s.writeSubmission(w, r, sub.Hash)
+}
+
+// reviewConflict translates the store's compare-and-set failure into a 409.
+// loadForReview already rejects a non-pending entry, but that check and the
+// write are separate round trips, so a second reviewer arriving in between is
+// reported here rather than being told their decision was recorded.
+func reviewConflict(err error) error {
+	if errors.Is(err, store.ErrAlreadyReviewed) {
+		return errConflict("Another reviewer already decided this submission; reload to see the current state")
+	}
+	return err
 }
 
 func (s *Server) writeSubmission(w http.ResponseWriter, r *http.Request, hash string) error {

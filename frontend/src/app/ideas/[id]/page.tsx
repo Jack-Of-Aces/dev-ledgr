@@ -298,7 +298,7 @@ export default function IdeaDetailPage() {
           </h2>
           <p style={{ maxWidth: '60ch' }} className="text-xs md:text-sm text-text-1">
             {idea.mockInfra?.baseUrl
-              ? 'Build against this live mock server. You can simulate requests and verify JSON contract schemas directly below.'
+              ? 'This problem references a mock server. Requests are sent to the URL below and whatever comes back is shown as-is; if nothing is deployed there yet, the panel will say so.'
               : 'No mock server is attached to this problem yet, so there is nothing to ping here.'}
           </p>
         </div>

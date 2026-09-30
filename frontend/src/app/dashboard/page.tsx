@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { AuthGuard } from '@/components/auth/AuthGuard';
@@ -40,7 +40,8 @@ import { JobOpportunity } from '@/types';
 type DashboardTab = 'ledger' | 'opportunities' | 'coaching' | 'activity';
 
 interface NotificationItem {
-  id: number;
+  /** A string so an entry can be keyed by the submission it describes. */
+  id: string;
   title: string;
   time: string;
   desc: string;
@@ -49,6 +50,11 @@ interface NotificationItem {
 }
 
 import { launchpadService } from '@/services/launchpad/launchpadService';
+import {
+  recordedMetric,
+  recordedSuiteName,
+  recordedTestResult,
+} from '@/lib/telemetry';
 import { JobDescription } from '@/components/jobs/JobDescription';
 
 export default function DashboardPage() {
@@ -66,6 +72,27 @@ export default function DashboardPage() {
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [selectedAuditJob, setSelectedAuditJob] = useState<JobOpportunity | undefined>(undefined);
   const [activeCoaching, setActiveCoaching] = useState<CoachingItinerary | null>(null);
+  // Tri-state for the coaching fetch: 'loading' | 'ready' | 'error'. Without a
+  // distinct error/empty state the tab used to pulse "Loading…" forever when the
+  // request failed or returned nothing.
+  const [coachingStatus, setCoachingStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [coachingAttempt, setCoachingAttempt] = useState(0);
+
+  const loadCoaching = useCallback(() => {
+    setCoachingStatus('loading');
+    coachingService
+      .getItineraries()
+      .then((tracks) => {
+        // An empty list is a real answer ("no curriculum published"), not a
+        // failure, and must not be reported as one.
+        setActiveCoaching(tracks && tracks.length > 0 ? tracks[0] : null);
+        setCoachingStatus('ready');
+      })
+      .catch(() => {
+        setActiveCoaching(null);
+        setCoachingStatus('error');
+      });
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -80,11 +107,7 @@ export default function DashboardPage() {
     });
 
     // Fetch live coaching tracks (first track is active track for dashboard preview)
-    coachingService.getItineraries().then((tracks) => {
-      if (active && tracks && tracks.length > 0) {
-        setActiveCoaching(tracks[0]);
-      }
-    }).catch(() => {});
+    loadCoaching();
 
     // Fetch live submissions for authenticated users
     if (user.username) {
@@ -111,34 +134,113 @@ export default function DashboardPage() {
     return () => {
       active = false;
     };
-  }, [setJobs, setIdeas, setSubmissions, user.username]);
+  }, [setJobs, setIdeas, setSubmissions, user.username, loadCoaching]);
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>([
-    {
-      id: 1,
-      title: 'Commit Stamped & CI Attestation Verified',
-      time: '2 hours ago',
-      desc: 'Automated CI test suite completed with 100% pass rate for commit #c118e07.',
-      type: 'success',
-      read: false,
-    },
-    {
-      id: 2,
-      title: 'High-Match Opportunity: Moniepoint (94%)',
-      time: 'Yesterday',
-      desc: 'Your verified deduplication engine meets 100% of the platform switch requirements.',
-      type: 'info',
-      read: false,
-    },
-    {
-      id: 3,
-      title: '1-Year Cryptographic Guarantee Active',
-      time: '3 days ago',
-      desc: 'Public ledger URL is sealed and certified through September 2027.',
-      type: 'system',
-      read: true,
-    },
-  ]);
+  // Re-run the coaching fetch when the user asks to retry from the error state.
+  useEffect(() => {
+    if (coachingAttempt === 0) return;
+    loadCoaching();
+  }, [coachingAttempt, loadCoaching]);
+
+  /** "2 hours ago" / "3 days ago", or an honest fallback for a missing date. */
+  function relativeTime(iso: string | undefined): string {
+    if (!iso) return 'recently';
+    const then = new Date(iso).getTime();
+    if (Number.isNaN(then)) return 'recently';
+    const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days} day${days === 1 ? '' : 's'} ago`;
+    const months = Math.floor(days / 30);
+    return `${months} month${months === 1 ? '' : 's'} ago`;
+  }
+
+  // Derived from this dev's actual submissions rather than a static list.
+  // These three entries were hardcoded, and told every signed-in dev that a CI
+  // attestation had passed at 100% for a commit that does not exist, and that
+  // their certificate was sealed through a fixed date.
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+  useEffect(() => {
+    if (!user.username) return;
+    let active = true;
+    submissionService
+      .getSubmissions(user.username)
+      .then((rows) => {
+        if (!active) return;
+        const mine = rows.filter(
+          (s) => s.authorUsername.toLowerCase() === user.username.toLowerCase()
+        );
+
+        const derived: NotificationItem[] = [];
+
+        const pending = mine.filter((s) => s.status === 'pending');
+        if (pending.length > 0) {
+          const newest = pending[0];
+          derived.push({
+            id: `pending-${newest.hash}`,
+            title:
+              pending.length === 1
+                ? '1 proof awaiting review'
+                : `${pending.length} proofs awaiting review`,
+            time: relativeTime(newest.timestamp),
+            desc:
+              pending.length === 1
+                ? `${newest.ideaTitle} is in the review queue. A reviewer records the test results and issues the certificate.`
+                : `The oldest is ${newest.ideaTitle}. A reviewer records the test results and issues the certificate.`,
+            type: 'info',
+            read: false,
+          });
+        }
+
+        const verified = mine.filter((s) => s.status === 'verified');
+        if (verified.length > 0) {
+          const newest = verified[0];
+          const results = recordedTestResult(newest.testResults);
+          derived.push({
+            id: `verified-${newest.hash}`,
+            title: newest.ideaTitle,
+            time: relativeTime(newest.timestamp),
+            desc: results
+              ? `Stamped. A reviewer recorded ${results} tests passed${
+                  recordedSuiteName(newest.testResults)
+                    ? ` in ${recordedSuiteName(newest.testResults)}`
+                    : ''
+                }.`
+              : 'Stamped. A reviewer recorded no test results for this proof.',
+            type: 'success',
+            read: false,
+          });
+        }
+
+        const rejected = mine.filter((s) => s.status === 'rejected');
+        if (rejected.length > 0) {
+          const newest = rejected[0];
+          derived.push({
+            id: `rejected-${newest.hash}`,
+            title: `${newest.ideaTitle} was not accepted`,
+            time: relativeTime(newest.timestamp),
+            desc: 'The reviewer left feedback on the submission.',
+            type: 'info',
+            read: false,
+          });
+        }
+
+        setNotifications(derived);
+      })
+      .catch(() => {
+        // A failed read leaves the panel empty rather than filling it with
+        // sample activity.
+        if (active) setNotifications([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [user.username]);
 
   const notificationRef = useRef<HTMLDivElement>(null);
 
@@ -418,6 +520,12 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="space-y-2 max-h-72 overflow-y-auto divide-y divide-line/40">
+                      {notifications.length === 0 && (
+                        <p className="text-text-1 text-xs leading-relaxed py-2">
+                          Nothing yet. Activity appears here when you submit a
+                          proof or a reviewer responds to one.
+                        </p>
+                      )}
                       {notifications.map((item) => (
                         <div
                           key={item.id}
@@ -498,7 +606,7 @@ export default function DashboardPage() {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald" />
               </span>
               <span className="font-semibold text-text-0 uppercase tracking-wider">
-                CI Node v2.4
+                Ledger Node v2.4
               </span>
               <span className="text-line">/</span>
               <span className="text-emerald-text inline-flex items-center gap-1">
@@ -539,17 +647,22 @@ export default function DashboardPage() {
         {(() => {
           // Dynamic calculation of stats
           const hasProofs = userSubmissions.length > 0;
-          
-          // CI Pass Rate
+
+          // Test pass rate. A submission with no recorded results contributes
+          // 0/0, so `hasRecordedTests` is what gates display — a dev with
+          // submissions but nothing measured must not be shown a pass rate.
           const totalTests = userSubmissions.reduce((acc, s) => acc + (s.testResults?.total || 0), 0);
           const passedTests = userSubmissions.reduce((acc, s) => acc + (s.testResults?.passed || 0), 0);
-          const ciPassRate = totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 100;
+          const hasRecordedTests = totalTests > 0;
+          const ciPassRate = hasRecordedTests ? Math.round((passedTests / totalTests) * 100) : 0;
 
-          // Latency Calculation
+          // Latency. Only submissions a reviewer actually measured a p99 for
+          // count; the average is over those, not over all submissions.
           const latencies = userSubmissions
             .map((s) => parseInt(s.metrics?.latencyP99?.replace(/[^0-9]/g, '') || '', 10))
             .filter((l) => !isNaN(l));
-          const avgLatency = latencies.length > 0
+          const hasRecordedLatency = latencies.length > 0;
+          const avgLatency = hasRecordedLatency
             ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) + 'ms'
             : '--';
 
@@ -583,8 +696,12 @@ export default function DashboardPage() {
                   {userSubmissions.length}
                 </div>
                 <div className="mt-1 flex items-center justify-between text-xs">
-                  <span className={`font-medium font-mono ${hasProofs ? 'text-emerald-text' : 'text-text-1'}`}>
-                    {hasProofs ? `${ciPassRate}% CI pass rate` : 'Awaiting 1st proof'}
+                  <span className={`font-medium font-mono ${hasRecordedTests ? 'text-emerald-text' : 'text-text-1'}`}>
+                    {hasRecordedTests
+                      ? `${ciPassRate}% tests passed`
+                      : hasProofs
+                        ? 'No results recorded yet'
+                        : 'Awaiting 1st proof'}
                   </span>
                   <span className="text-text-1">View ledger →</span>
                 </div>
@@ -625,10 +742,10 @@ export default function DashboardPage() {
                 </div>
                 <div className="mt-1 flex items-center justify-between text-xs">
                   <span className="text-text-1 font-mono">
-                    {hasProofs ? 'p99 latency (CI attested)' : 'Awaiting CI telemetry'}
+                    {hasRecordedLatency ? 'avg p99 (reviewer-recorded)' : 'No latency recorded'}
                   </span>
-                  <span className={`font-mono font-medium ${hasProofs ? 'text-emerald-text' : 'text-text-1'}`}>
-                    {hasProofs ? 'Deterministic' : 'No runs'}
+                  <span className={`font-mono font-medium ${hasRecordedLatency ? 'text-emerald-text' : 'text-text-1'}`}>
+                    {hasRecordedLatency ? 'Measured' : 'Not recorded'}
                   </span>
                 </div>
               </div>
@@ -707,12 +824,14 @@ export default function DashboardPage() {
                 </h3>
                 <p className="text-xs sm:text-sm text-text-0 font-medium break-words">
                   Solve <span className="font-bold underline">{primaryJobWithGap.gapProblem.title}</span> to
-                  boost your <span className="font-bold">{primaryJobWithGap.job.company}</span>{' '}
-                  ({primaryJobWithGap.job.title}) match score from{' '}
+                  close the {primaryJobWithGap.details.missingSkills?.length ?? 0} still-missing skill
+                  {(primaryJobWithGap.details.missingSkills?.length ?? 0) === 1 ? '' : 's'} holding your{' '}
+                  <span className="font-bold">{primaryJobWithGap.job.company}</span>{' '}
+                  ({primaryJobWithGap.job.title}) match score at{' '}
                   <span className="font-mono text-amber-700 dark:text-amber-400 font-bold">
                     {primaryJobWithGap.details.score}%
-                  </span>{' '}
-                  to <span className="font-mono text-emerald-text font-bold">94%+</span>.
+                  </span>
+                  .
                 </p>
                 <p className="text-xs text-text-1">
                   {primaryJobWithGap.job.gapReason}
@@ -735,7 +854,7 @@ export default function DashboardPage() {
         {/* ========================================================= */}
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-line">
-            <div className="overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 min-w-0">
+            <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 min-w-0">
               <div
                 role="tablist"
                 aria-label="Dashboard views"
@@ -1002,10 +1121,32 @@ export default function DashboardPage() {
                                   </span>
                                 )}
 
-                                {/* Verified Status */}
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-tint border border-emerald-border text-emerald-text text-xs font-mono font-medium">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald" />
-                                  CI Verified
+                                {/* Status. Driven by entry.status, not hardcoded to
+                                    "verified" — a pending submission must not wear a
+                                    verified badge. */}
+                                <span
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-mono font-medium ${
+                                    entry.status === 'verified'
+                                      ? 'bg-emerald-tint border-emerald-border text-emerald-text'
+                                      : entry.status === 'rejected'
+                                        ? 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300'
+                                        : 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300'
+                                  }`}
+                                >
+                                  <span
+                                    className={`w-1.5 h-1.5 rounded-full ${
+                                      entry.status === 'verified'
+                                        ? 'bg-emerald'
+                                        : entry.status === 'rejected'
+                                          ? 'bg-rose-500'
+                                          : 'bg-amber-500'
+                                    }`}
+                                  />
+                                  {entry.status === 'verified'
+                                    ? 'Reviewed &amp; Signed'
+                                    : entry.status === 'rejected'
+                                      ? 'Rejected'
+                                      : 'Pending Review'}
                                 </span>
                               </div>
 
@@ -1027,33 +1168,37 @@ export default function DashboardPage() {
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-t border-line/40 text-xs font-mono">
                               {/* Metrics chips */}
                               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-text-1">
-                                {entry.metrics?.latencyP99 && (
+                                {recordedMetric(entry.metrics?.latencyP99) && (
                                   <span>
                                     Latency p99:{' '}
                                     <strong className="text-text-0 font-semibold">
-                                      {entry.metrics.latencyP99}
+                                      {recordedMetric(entry.metrics?.latencyP99)}
                                     </strong>
                                   </span>
                                 )}
-                                {entry.metrics?.throughput && (
+                                {recordedMetric(entry.metrics?.throughput) && (
                                   <span>
                                     Throughput:{' '}
                                     <strong className="text-text-0 font-semibold">
-                                      {entry.metrics.throughput}
+                                      {recordedMetric(entry.metrics?.throughput)}
                                     </strong>
                                   </span>
                                 )}
-                                {entry.metrics?.coverage && (
+                                {recordedMetric(entry.metrics?.coverage) && (
                                   <span>
                                     Coverage:{' '}
                                     <strong className="text-text-0 font-semibold">
-                                      {entry.metrics.coverage}
+                                      {recordedMetric(entry.metrics?.coverage)}
                                     </strong>
                                   </span>
                                 )}
-                                <span className="text-emerald-text font-medium">
-                                  ✓ {entry.testResults.passed}/{entry.testResults.total} tests passed
-                                </span>
+                                {recordedTestResult(entry.testResults) && (
+                                  <span className="text-emerald-text font-medium">
+                                    ✓{' '}
+                                    {recordedTestResult(entry.testResults)} tests
+                                    passed
+                                  </span>
+                                )}
                               </div>
 
                               {/* Action Links */}
@@ -1123,7 +1268,7 @@ export default function DashboardPage() {
                       Stamp Your First Verified Engineering Proof
                     </h3>
                     <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
-                      DevLedgr replaces resume claims with automated CI attestation. Choose a production-grade failure mode specification below, build a lightweight service with the provided mock harness, and stamp your commit hash to activate your 1-Year Guarantee.
+                      DevLedgr replaces resume claims with reviewed, signed entries. Choose a production-grade failure mode specification below, build a lightweight service against the provided mock spec, submit it for review, and stamp your commit hash to activate your 1-Year Guarantee.
                     </p>
                   </div>
 
@@ -1177,7 +1322,7 @@ export default function DashboardPage() {
                       href="/ideas"
                       className="text-emerald-text hover:underline inline-flex items-center gap-1 shrink-0 font-medium"
                     >
-                      <span>Explore all 4 problem specs</span>
+                      <span>Explore all {ideas.length} problem specs</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </Link>
                   </div>
@@ -1355,9 +1500,28 @@ export default function DashboardPage() {
               aria-labelledby="tab-coaching"
               className="space-y-6"
             >
-              {!activeCoaching ? (
+              {coachingStatus === 'loading' ? (
                 <div className="p-6 rounded-radius border border-line bg-card/60 text-center text-xs font-mono text-text-1 animate-pulse">
                   Loading coaching curriculum…
+                </div>
+              ) : coachingStatus === 'error' ? (
+                <div
+                  role="alert"
+                  className="p-6 rounded-radius border border-line bg-card/60 text-center text-xs font-mono text-text-1 space-y-3"
+                >
+                  <p>Could not load the coaching curriculum. Nothing is being shown in place of it.</p>
+                  <button
+                    type="button"
+                    onClick={() => setCoachingAttempt((n) => n + 1)}
+                    className="btn-outline text-xs py-1.5 px-3 font-mono"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : !activeCoaching ? (
+                <div className="p-6 rounded-radius border border-line bg-card/60 text-center text-xs font-mono text-text-1 space-y-1">
+                  <p className="text-text-0 font-semibold">No coaching curriculum is published yet.</p>
+                  <p>Tracks appear here once the coaching service returns at least one itinerary.</p>
                 </div>
               ) : (
               <>
@@ -1388,9 +1552,20 @@ export default function DashboardPage() {
                     (m) => m.ideaIdRef && userSolvedIdeaIds.has(m.ideaIdRef)
                   ).length;
                   const totalCount = activeCoaching.milestones.length;
-                  const pct = Math.round((solvedCount / totalCount) * 100);
+                  // An itinerary with no milestones would divide by zero and
+                  // render "NaN%"; report nothing stamped instead of a fake figure.
+                  const pct =
+                    totalCount > 0 ? Math.round((solvedCount / totalCount) * 100) : 0;
 
-                  return (
+                  return totalCount === 0 ? (
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center text-xs font-mono">
+                        <span className="text-text-1">Curriculum Completion</span>
+                        <span className="text-text-1">No milestones published yet</span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-line overflow-hidden" />
+                    </div>
+                  ) : (
                     <div className="space-y-1.5">
                       <div className="flex justify-between items-center text-xs font-mono">
                         <span className="text-text-1">Curriculum Completion</span>
@@ -1558,19 +1733,14 @@ export default function DashboardPage() {
                   </div>
                 ))}
 
-                {/* Additional platform verification log items */}
-                <div className="p-4 rounded-radius border border-line bg-card/40 space-y-1 text-xs opacity-75">
-                  <div className="flex items-center justify-between font-mono text-text-1">
-                    <span className="uppercase tracking-wider">CONSENSUS</span>
-                    <span>4 days ago</span>
+                {notifications.length === 0 && (
+                  <div className="p-4 rounded-radius border border-line bg-card/40 space-y-1 text-xs">
+                    <p className="text-text-1 leading-relaxed">
+                      No ledger activity yet. Submit a proof and it will appear
+                      here with its review state.
+                    </p>
                   </div>
-                  <div className="font-semibold text-text-0">
-                    ED25519 Root Key Rollover Completed
-                  </div>
-                  <p className="text-text-1 leading-relaxed">
-                    Identity public key signature refreshed across 12 independent auditing peers.
-                  </p>
-                </div>
+                )}
               </div>
             </div>
           )}

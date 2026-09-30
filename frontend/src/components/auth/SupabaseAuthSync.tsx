@@ -17,6 +17,7 @@ import {
   clearAuthCookies,
   getClientCookie,
   AUTH_COOKIE_NAME,
+  ROLE_COOKIE_NAME,
   REFRESH_COOKIE_NAME,
 } from '@/lib/cookies';
 import { DEFAULT_USER } from '@/lib/mock-data';
@@ -87,13 +88,20 @@ async function applySession(
     meta.user_name || meta.preferred_username || u.email?.split('@')[0] || 'developer';
 
   if (isRefresh) {
-    // A background token renewal. Keep the token cookie current so the Edge
-    // proxy and anything still reading it stay in step, and leave the profile
-    // alone: blanking the headline, bio or skills a dev is looking at, or
-    // resetting authReady so the page remounts from scratch, would both be
-    // wrong. Onboarding in particular would lose a half-filled wizard once an
-    // hour when Supabase renews silently.
-    setAuthCookies(session.access_token, 'user', session.refresh_token);
+    // A background token renewal. Keep the token and role cookies current.
+    // Preserve the dev's existing role from the store rather than hardcoding 'user'
+    // (which previously demoted admins and reviewers on hourly token refresh).
+    const currentRole = useAppStore.getState().user.role || 'user';
+    setAuthCookies(session.access_token, currentRole, session.refresh_token);
+
+    // Silently re-verify dev record in the background without resetting authReady
+    // or unmounting UI trees.
+    void authService.fetchDevProfile(session.access_token).then((dev) => {
+      if (dev) {
+        useAppStore.setState({ user: dev });
+        setAuthCookies(session.access_token, dev.role, session.refresh_token);
+      }
+    });
     return;
   }
 
@@ -102,33 +110,35 @@ async function applySession(
   }
   appliedAccessToken = session.access_token;
 
-  // Seed the store with Supabase metadata immediately so the UI responds.
-  // role is always 'user' here — user_metadata is user-editable, not trusted.
+  // Stale-while-revalidate: If we already have this dev's authoritative profile
+  // in the persisted store, keep it visible rather than immediately blowing it
+  // away with raw Supabase user_metadata placeholders and role: 'user'.
+  const existingUser = useAppStore.getState().user;
+  const isSameUser =
+    Boolean(existingUser?.username) &&
+    (existingUser.email?.toLowerCase() === u.email?.toLowerCase() ||
+      existingUser.username.toLowerCase() === username.toLowerCase());
+  const activeRole = isSameUser && existingUser.role ? existingUser.role : 'user';
+
   useAppStore.setState({
     isLoggedIn: true,
     authReady: false,
-    user: {
-      ...DEFAULT_USER,
-      username,
-      name: meta.full_name || meta.name || username,
-      role: 'user',
-      // Provisional values only, and never invented ones. This object is
-      // persisted, then overwritten by the authoritative dev record, but the
-      // settings and onboarding forms seed from whatever is in the store — so a
-      // placeholder headline, bio or skill list written here could end up saved
-      // to the backend as if the dev had claimed it. Skills are the sharpest
-      // case: they drive job matching and idea ranking, and asserting three
-      // technologies for someone who never said so is both wrong and
-      // consequential. Empty means "ask the dev", not "guess for them".
-      headline: meta.headline || '',
-      bio: meta.bio || '',
-      avatarUrl: meta.avatar_url || meta.picture || DEFAULT_USER.avatarUrl,
-      githubUrl: meta.user_name ? `https://github.com/${meta.user_name}` : '',
-      statedSkills: Array.isArray(meta.skills) ? meta.skills : [],
-      email: u.email,
-    },
+    user: isSameUser
+      ? existingUser
+      : {
+          ...DEFAULT_USER,
+          username,
+          name: meta.full_name || meta.name || username,
+          role: 'user',
+          headline: meta.headline || '',
+          bio: meta.bio || '',
+          avatarUrl: meta.avatar_url || meta.picture || DEFAULT_USER.avatarUrl,
+          githubUrl: meta.user_name ? `https://github.com/${meta.user_name}` : '',
+          statedSkills: Array.isArray(meta.skills) ? meta.skills : [],
+          email: u.email,
+        },
   });
-  setAuthCookies(session.access_token, 'user', session.refresh_token);
+  setAuthCookies(session.access_token, activeRole, session.refresh_token);
 
   // Overwrite with the authoritative dev record from the backend.
   const dev = await authService.fetchDevProfile(session.access_token);
@@ -136,9 +146,8 @@ async function applySession(
     useAppStore.setState({ user: dev });
     setAuthCookies(session.access_token, dev.role, session.refresh_token);
   }
-  // Ready either way. fetchDevProfile swallows its own errors and returns null
-  // when the backend is unreachable, and holding authReady false for that would
-  // leave every page that waits on it spinning forever on a network blip.
+  // Ready either way. If fetchDevProfile returned null (e.g. Render spin-up timeout),
+  // keeping existingUser prevents dropping to raw Supabase placeholders.
   useAppStore.setState({ authReady: true });
 }
 
@@ -284,7 +293,8 @@ export const SupabaseAuthSync: React.FC = () => {
           refresh_token: refreshToken,
         });
         if (!adoptError && adopted.session?.user) {
-          setAuthCookies(adopted.session.access_token, 'user', adopted.session.refresh_token);
+          const role = useAppStore.getState().user.role || getClientCookie(ROLE_COOKIE_NAME) || 'user';
+          setAuthCookies(adopted.session.access_token, role, adopted.session.refresh_token);
           void applySession(adopted.session, { isRefresh: false });
           return;
         }

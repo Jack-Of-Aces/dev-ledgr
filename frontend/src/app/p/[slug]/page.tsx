@@ -1,12 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { useAppStore } from "@/lib/store";
 import { PortfolioSkeleton } from "@/components/ui/skeletons";
 import { portfolioService } from "@/services/portfolio/portfolioService";
+import {
+  measuredP99,
+  recordedDigest,
+  recordedMetric,
+  recordedSuiteName,
+  recordedTestResult,
+} from "@/lib/telemetry";
 import { DevPortfolio } from "@/types";
 import {
   ShieldCheck,
@@ -38,6 +45,16 @@ const GithubIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
     />
   </svg>
 );
+
+/**
+ * Shown wherever a measurement was never recorded.
+ *
+ * The alternative was a plausible-looking constant per metric: 36ms, 220
+ * req/s, 94.2%. Those were rendered in the same weight and colour as real
+ * numbers on a public page, so a visitor could not tell an unmeasured
+ * submission from a fast one. This states the absence instead.
+ */
+const notMeasured = "not recorded";
 
 export default function PublicPortfolioPage() {
   const params = useParams();
@@ -86,15 +103,20 @@ export default function PublicPortfolioPage() {
           (s) => s.authorUsername.toLowerCase() === slug.toLowerCase()
         );
 
-  const displayUser =
-    portfolioData?.dev ||
-    (slug === user.username
-      ? user
-      : {
-          ...user,
-          username: slug,
-          name: slug === "junior_dev" ? "Candidate Engineer" : slug,
-        });
+  const displayUser = useMemo(
+    () =>
+      portfolioData?.dev ||
+      (slug === user.username
+        ? user
+        : {
+            ...user,
+            username: slug,
+            name: slug === "junior_dev" ? "Candidate Engineer" : slug,
+          }),
+    [portfolioData?.dev, slug, user]
+  );
+
+  const [now] = useState(() => Date.now());
 
   const handleShare = () => {
     if (typeof window !== "undefined") {
@@ -108,22 +130,59 @@ export default function PublicPortfolioPage() {
     setExpandedDiffs((prev) => ({ ...prev, [hash]: !prev[hash] }));
   };
 
+  // Certificate expiry is a stored field on the portfolio/dev record. It was
+  // previously a hardcoded "Sep 2027" string, so every portfolio claimed the
+  // same window regardless of when it was actually issued.
+  const validityLabel = useMemo(() => {
+    const raw =
+      (portfolioData as { portfolioValidUntil?: string } | null)?.portfolioValidUntil ??
+      (displayUser as { portfolioValidUntil?: string }).portfolioValidUntil;
+    if (!raw) return { short: "Expiry not recorded", long: null as Date | null };
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) {
+      return { short: "Expiry not recorded", long: null as Date | null };
+    }
+    const short = parsed.toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+    });
+    return { short: `Valid through ${short}`, long: parsed };
+  }, [portfolioData, displayUser]);
+
+  // An expired certificate is not a 365-day guarantee, so say so plainly
+  // instead of advertising the window as current.
+  const certificateExpired =
+    validityLabel.long !== null && validityLabel.long.getTime() < now;
+
   const exportMarkdown = `# ${displayUser.name} · Verified Engineering Portfolio
-Verified Ledger URL: https://${slug}.devledgr.xyz (Valid through Sep 2027 · Stamped on DevLedgr)
+Verified Ledger URL: https://${slug}.devledgr.xyz (${
+    validityLabel.short
+  }${certificateExpired ? " · EXPIRED" : ""} · Stamped on DevLedgr)
 
 ## Verified Proof-of-Work:
 ${userSubmissions
-  .map(
-    (s) =>
-      `### Commit #${s.hash}: ${s.ideaTitle}
+  .map((s) => {
+    // Omit anything unmeasured rather than substituting 36ms / 220 req/s.
+    const measured = measuredP99(s.metrics?.latencyP99, s.metrics?.throughput);
+    const tests = recordedTestResult(s.testResults);
+    return `### Commit #${s.hash}: ${s.ideaTitle}
 - Architecture: ${s.architectureNotes}
-- Telemetry: p99 latency ${s.metrics?.latencyP99 || "36ms"}, throughput ${
-        s.metrics?.throughput || "220 req/s"
-      }, CI: ${s.testResults.passed}/${s.testResults.total} passed.
-- Repo: ${s.repoUrl}
-- SHA-256 Proof Signature: ${s.proofSignature || 'Verified on consensus node'}
-- Verified Certificate: https://${slug}.devledgr.xyz/p/${s.hash}`
-  )
+${
+  measured || tests
+    ? `- Results: ${[measured, tests ? `Tests: ${tests} passed` : null]
+        .filter(Boolean)
+        .join(', ')}.\n`
+    : '- Telemetry: not recorded.\n'
+}- Repo: ${s.repoUrl}
+${
+  recordedDigest(s.proofSignature)
+    ? `- SHA-256 Proof Signature: ${recordedDigest(s.proofSignature)}\n`
+    : ''
+// Points at the portfolio root, not a per-entry URL. There is no
+  // per-entry route: /p/[slug] resolves a username, so the previous
+  // /p/${s.hash} form 404'd on every single entry link.
+}- Ledger Entry: https://${slug}.devledgr.xyz`;
+  })
   .join("\n\n")}
 `;
 
@@ -283,8 +342,14 @@ ${userSubmissions
         </div>
 
         <div className="text-[11px] sm:text-xs text-text-1 sm:text-right shrink-0 font-mono border-t sm:border-t-0 pt-2 sm:pt-0 border-line">
-          <span>Valid through Sep 2027</span>
-          <span className="block text-[10px] text-text-1">365-Day Verification Guarantee</span>
+          <span>{validityLabel.short}</span>
+          <span className="block text-[10px] text-text-1">
+            {certificateExpired
+              ? "Verification Guarantee Expired"
+              : validityLabel.long
+                ? "Verification Guarantee"
+                : "Guarantee window not recorded"}
+          </span>
         </div>
       </section>
 
@@ -383,14 +448,16 @@ ${userSubmissions
                     </p>
                   </div>
 
-                  {/* Telemetry & CI Verification */}
+                  {/* Recorded Results. Each cell is conditional — see
+                      lib/telemetry.ts. An unmeasured value renders as
+                      notMeasured rather than a plausible default. */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-3.5 border-t border-b border-line">
                     <div>
                       <div className="text-xs md:text-sm text-text-1 uppercase font-mono">
                         p99 Latency
                       </div>
                       <div className="text-sm md:text-base font-semibold text-text-0 font-mono mt-0.5">
-                        {sub.metrics?.latencyP99 || "36ms"}
+                        {recordedMetric(sub.metrics?.latencyP99) ?? notMeasured}
                       </div>
                     </div>
 
@@ -399,7 +466,7 @@ ${userSubmissions
                         Throughput
                       </div>
                       <div className="text-sm md:text-base font-semibold text-text-0 font-mono mt-0.5">
-                        {sub.metrics?.throughput || "220 req/s"}
+                        {recordedMetric(sub.metrics?.throughput) ?? notMeasured}
                       </div>
                     </div>
 
@@ -407,8 +474,16 @@ ${userSubmissions
                       <div className="text-xs md:text-sm text-text-1 uppercase font-mono">
                         Test Suite
                       </div>
-                      <div className="text-sm md:text-base font-semibold text-emerald-text font-mono mt-0.5">
-                        {sub.testResults.passed}/{sub.testResults.total} passed
+                      <div
+                        className={`text-sm md:text-base font-semibold font-mono mt-0.5 ${
+                          recordedTestResult(sub.testResults)
+                            ? 'text-emerald-text'
+                            : 'text-text-1'
+                        }`}
+                      >
+                        {recordedTestResult(sub.testResults)
+                          ? `${recordedTestResult(sub.testResults)} passed`
+                          : notMeasured}
                       </div>
                     </div>
 
@@ -417,7 +492,7 @@ ${userSubmissions
                         Coverage
                       </div>
                       <div className="text-sm md:text-base font-semibold text-text-0 font-mono mt-0.5">
-                        {sub.metrics?.coverage || "94.2%"}
+                        {recordedMetric(sub.metrics?.coverage) ?? notMeasured}
                       </div>
                     </div>
                   </div>
@@ -449,7 +524,11 @@ ${userSubmissions
                         <div className="flex items-center justify-between text-xs text-text-1 border-b border-line pb-2">
                           <span className="flex items-center gap-1.5">
                             <Code2 className="w-3.5 h-3.5 text-emerald-text" />
-                            <span>Verification Telemetry &amp; SHA-256 Digest</span>
+                            <span>
+                              {recordedDigest(sub.proofSignature)
+                                ? 'Verification Telemetry &amp; SHA-256 Digest'
+                                : 'Verification Telemetry'}
+                            </span>
                           </span>
                           <span className="text-text-1">{sub.timestamp}</span>
                         </div>
@@ -458,9 +537,16 @@ ${userSubmissions
                           {`// Stamped on DevLedgr Verification Network
 // Target: ${sub.ideaTitle}
 // Commit Hash: ${sub.hash}
-// SHA-256 Digest: ${sub.proofSignature || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'}
-// Test Vector Suite: ${sub.testResults.suiteName}
-// Result: 100% Passed (${sub.testResults.passed}/${sub.testResults.total})
+${
+  recordedDigest(sub.proofSignature)
+    ? `// SHA-256 Digest: ${recordedDigest(sub.proofSignature)}\n`
+    : ''
+}// Test Suite: ${recordedSuiteName(sub.testResults) ?? 'not recorded'}
+// Result: ${
+                            recordedTestResult(sub.testResults)
+                              ? `${recordedTestResult(sub.testResults)} passed`
+                              : 'not recorded'
+                          }
 
 + func VerifySLA(ctx context.Context) error {
 +     latency := benchmark.P99()

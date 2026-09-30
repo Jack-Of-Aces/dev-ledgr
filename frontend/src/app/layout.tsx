@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     'software engineer',
     'junior developer jobs',
     'coding challenges',
-    'CI test verification',
+    'engineering proof verification',
     'cryptographic ledger',
     'ATS safe resume',
     'technical hiring',
@@ -54,7 +54,7 @@ export const metadata: Metadata = {
     siteName: 'DevLedgr',
     title: 'DevLedgr: Proof of work, not another tutorial clone',
     description:
-      'A ledger, not a resume. Solve production challenges, pass automated CI test harnesses, and earn an immutable 1-year public portfolio URL.',
+      'A ledger, not a resume. Solve production challenges, get them reviewed, and earn an immutable 1-year public portfolio URL.',
     images: [
       {
         url: '/opengraph-image',
@@ -68,7 +68,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'DevLedgr: Proof of work, not another tutorial clone',
     description:
-      'A ledger, not a resume. Solve production challenges, pass automated CI test harnesses, and earn an immutable 1-year public portfolio URL.',
+      'A ledger, not a resume. Solve production challenges, get them reviewed, and earn an immutable 1-year public portfolio URL.',
     creator: '@devledgr',
     site: '@devledgr',
     images: ['/twitter-image'],
@@ -131,8 +131,8 @@ export default function RootLayout({
           priceCurrency: 'USD',
         },
         featureList: [
-          'Production Problem Specifications with Mock Fleets',
-          'Automated CI Telemetry and Test Verification',
+          'Production Problem Specifications with Mock Infrastructure',
+          'Reviewer-Recorded Test Results and Signed Certificates',
           'SHA-256 Commit Stamping with 1-Year Validity Guarantee',
           'AI Scrutiny & ATS-Safe Markdown CV Synthesis',
         ],

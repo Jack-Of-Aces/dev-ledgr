@@ -712,7 +712,7 @@ function OnboardingWizard() {
           <div className="space-y-6 animate-in fade-in duration-200">
             <div>
               <p className="text-xs md:text-sm text-text-1 leading-relaxed">
-                DevLedgr anchors all test runner executions, commit diffs, and proof certificates to a verified GitHub developer identity.
+                DevLedgr anchors all commit references, proof records, and signed certificates to a verified GitHub developer identity.
               </p>
             </div>
 

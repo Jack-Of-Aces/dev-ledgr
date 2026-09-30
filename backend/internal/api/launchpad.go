@@ -440,6 +440,27 @@ func (s *Server) updateProblemStatus(w http.ResponseWriter, r *http.Request) err
 		return errConflict("This problem has no builder; release it to open so it can be claimed")
 	}
 
+	// Marking a problem complete is a claim about the work being done, and it
+	// is load-bearing: SetIdeaStatus flips the builder's claim to Completed,
+	// and ProvenSkills then hands them that problem's tags and stack as skills
+	// they have proven — which feeds their job match score and their AI cover
+	// letter. Nothing tied the completion to any evidence, so a dev could
+	// claim an open problem, mark it complete, and mint themselves skills for
+	// someone else's subject matter in three calls.
+	//
+	// Requiring a verified submission by this dev closes it: the same
+	// reviewer, the same test results and the same signed certificate that
+	// back every other proof on the ledger.
+	if to == model.StatusComplete {
+		proven, err := s.store.HasVerifiedSubmission(r.Context(), dev.ID, idea.ID)
+		if err != nil {
+			return err
+		}
+		if !proven {
+			return errConflict("A verified submission for this problem is required before it can be marked complete")
+		}
+	}
+
 	updated, err := s.store.SetIdeaStatus(r.Context(), idea.ID, from, to)
 	if errors.Is(err, store.ErrStale) {
 		return errConflict("The problem changed while you were updating it; reload and retry")

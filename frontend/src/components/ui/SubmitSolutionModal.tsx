@@ -30,14 +30,18 @@ interface GitHubInspectData {
   description?: string | null;
   stars?: number;
   defaultBranch?: string;
+  // Each field is nullable because the inspect route no longer invents a
+  // commit when the GitHub lookup fails. A null here is shown as unknown
+  // rather than filled with a placeholder.
   latestCommit?: {
-    sha: string;
-    shortSha: string;
-    message: string;
-    author: string;
-    date: string;
-  };
+    sha: string | null;
+    shortSha: string | null;
+    message: string | null;
+    author: string | null;
+    date: string | null;
+  } | null;
   languages?: { name: string; percentage: number }[];
+  /** Unreachable in practice: the route fails closed rather than simulating. */
   isSimulated?: boolean;
   notice?: string;
   error?: string;
@@ -111,12 +115,20 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
 
   const modalRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * What actually happens on submit, in order.
+   *
+   * This list was previously a five-beat performance piece that described a
+   * test harness which does not exist: "Spinning up isolated mock
+   * infrastructure test harness", "Benchmarking p95 latency under simulated
+   * concurrency load", "minting certificate". Nothing was spun up, benchmarked
+   * or minted, and the resulting modal asserted "20/20 CI tests passed" and
+   * "28ms p99" to the developer. The steps below are the real work.
+   */
   const steps = [
-    'Querying GitHub API and verifying HEAD commit tree...',
-    'Spinning up isolated mock infrastructure test harness...',
-    'Executing integration and constraint checks against test vectors...',
-    'Benchmarking p95 latency under simulated concurrency load...',
-    'Computing cryptographic SHA-256 proof signature & minting certificate...'
+    'Recording the HEAD commit from GitHub...',
+    'Fingerprinting the submission...',
+    'Submitting to the review queue...',
   ];
 
   const handleRepoUrlChange = (value: string) => {
@@ -213,19 +225,24 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
 
     setVerifyingStep(0);
 
-    const commitSha =
-      inspectionData?.latestCommit?.sha ||
-      'd0422dd08f599de5567d55bf94f6531b68d28971';
+    // The commit this proof refers to, or null when GitHub could not tell us.
+    // It used to fall back to a hardcoded SHA, which meant a submission could
+    // be fingerprinted against a commit the dev never made.
+    const commitSha = inspectionData?.latestCommit?.sha ?? null;
 
     const timestamp = new Date().toISOString();
 
-    // Compute genuine SHA-256 fingerprint
+    // A SHA-256 fingerprint over the submission's own fields, so the same
+    // input always yields the same id. This is a content address, not a
+    // signature: it is computed with no secret, so anyone can recompute it and
+    // it attests nothing about authorship. The authoritative proof of work is
+    // the HMAC certificate the backend mints at review time.
     const { shortHash, proofSignature } = await generateProofSignature({
       authorUsername: user.username,
       repoUrl,
-      commitSha,
-      testPassed: 20,
-      testTotal: 20,
+      commitSha: commitSha ?? '',
+      testPassed: 0,
+      testTotal: 0,
       timestamp,
     });
 
@@ -252,35 +269,41 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
             `Implemented solution meeting all technical requirements for ${idea.title}. Verified against mock test suite.`,
           hash: shortHash,
           proofSignature,
+          // Nothing has been measured here. A submission starts pending with
+          // no test results and no metrics, and only a reviewer (or, later, an
+          // automated replay runner) fills those in. Hardcoding 20/20 and
+          // 28ms/240 req/s/96.4% here is what put invented telemetry into
+          // portfolios and generated CVs.
           testResults: {
-            passed: 20,
-            total: 20,
-            suiteName: 'Automated CI & Contract Test Suite v2.0',
-          },
-          metrics: {
-            latencyP99: '28ms',
-            throughput: '240 req/s',
-            coverage: '96.4%',
+            passed: 0,
+            total: 0,
+            suiteName: 'Not yet verified',
           },
         });
 
         setCompletedEntry(newEntry);
 
-        // Record submission in backend API (POST /api/v1/submissions)
-        submissionService.submitSolution({
-          ideaId: idea.id,
-          ideaTitle: idea.title,
-          authorUsername: user.username,
-          authorName: user.name,
-          authorAvatar: user.avatarUrl,
-          repoUrl,
-          demoUrl: demoUrl || undefined,
-          architectureNotes:
-            architectureNotes ||
-            `Implemented solution meeting all technical requirements for ${idea.title}. Verified against automated CI harness.`,
-        }).catch((err) => {
-          console.warn('[SubmitSolutionModal] Backend submission sync note:', err);
-        });
+        // Record submission in backend API (POST /api/v1/submissions).
+        // commitHash is sent when GitHub told us the HEAD sha, so the review
+        // can be pinned to a specific commit. The server mints its own
+        // submission hash; the client-side shortHash is display only.
+        submissionService
+          .submitSolution({
+            ideaId: idea.id,
+            ideaTitle: idea.title,
+            authorUsername: user.username,
+            authorName: user.name,
+            authorAvatar: user.avatarUrl,
+            repoUrl,
+            demoUrl: demoUrl || undefined,
+            commitHash: commitSha ?? undefined,
+            architectureNotes:
+              architectureNotes ||
+              `Implemented solution for ${idea.title}. Awaiting verification.`,
+          })
+          .catch((err) => {
+            console.warn('[SubmitSolutionModal] Backend submission sync note:', err);
+          });
 
         // Confetti explosion with prefers-reduced-motion protection
         const prefersReducedMotion =
@@ -350,24 +373,27 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
         <div className="p-5 sm:p-6 overflow-y-auto">
           {completedEntry ? (
             <div className="space-y-5 text-center py-2">
-              <div className="w-12 h-12 rounded-full bg-green-500/15 border border-green-500/30 mx-auto flex items-center justify-center">
-                <ShieldCheck className="w-6 h-6 text-green-700 dark:text-green-400" aria-hidden="true" />
+              <div className="w-12 h-12 rounded-full bg-amber-500/15 border border-amber-500/30 mx-auto flex items-center justify-center">
+                <ShieldCheck className="w-6 h-6 text-amber-600 dark:text-amber-400" aria-hidden="true" />
               </div>
 
               <div>
                 <h3 className="font-sans text-xl font-bold tracking-tight text-text-0">
-                  Proof Cryptographically Stamped
+                  Proof submitted for review
                 </h3>
                 <p className="text-xs md:text-sm text-text-1 mt-1 font-mono">
-                  Verified commit <code className="text-text-0 font-bold bg-card px-1.5 py-0.5 rounded border border-line">#{completedEntry.hash}</code> is now sealed into your public ledger.
+                  Entry <code className="text-text-0 font-bold bg-card px-1.5 py-0.5 rounded border border-line">#{completedEntry.hash}</code> is pending. A reviewer records the test results and issues the certificate.
                 </p>
               </div>
 
-              {/* Cryptographic SHA-256 Digest Card */}
+              {/* Content fingerprint. Not a signature: it is a SHA-256 over the
+                  submission's own fields with no secret, so anyone can
+                  recompute it. The certificate the backend mints at review time
+                  is the HMAC-signed artefact. */}
               {completedEntry.proofSignature && (
-                <div className="p-3.5 rounded-radius border border-green-500/30 bg-green-500/5 text-left space-y-1.5 font-mono">
-                  <div className="flex items-center justify-between text-xs md:text-sm text-green-700 dark:text-green-400 font-semibold">
-                    <span>SHA-256 Proof Fingerprint:</span>
+                <div className="p-3.5 rounded-radius border border-line bg-card/50 text-left space-y-1.5 font-mono">
+                  <div className="flex items-center justify-between text-xs md:text-sm text-text-0 font-semibold">
+                    <span>Submission fingerprint:</span>
                     <button
                       type="button"
                       onClick={handleCopyFingerprint}
@@ -397,17 +423,29 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
                   <span className="text-text-1">Problem:</span>
                   <span className="font-semibold text-text-0">{idea.title}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-text-1">Telemetry Status:</span>
-                  <span className="text-green-700 dark:text-green-400 font-semibold">20/20 CI tests passed ✓</span>
+                <div className="flex justify-between gap-3">
+                  <span className="text-text-1">Status:</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                    Pending review
+                  </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-text-1">Benchmark Latency:</span>
-                  <span className="text-text-0 font-semibold">28ms p99</span>
+                <div className="flex justify-between gap-3">
+                  <span className="text-text-1">Test results:</span>
+                  <span className="text-text-1 font-semibold">
+                    Not yet recorded
+                  </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-text-1">Validity Guarantee:</span>
-                  <span className="text-green-700 dark:text-green-400 font-semibold">1 Year Certificate</span>
+                <div className="flex justify-between gap-3">
+                  <span className="text-text-1">Measured latency:</span>
+                  <span className="text-text-1 font-semibold">
+                    Not yet recorded
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-text-1">Certificate:</span>
+                  <span className="text-text-1 font-semibold">
+                    Issued on approval
+                  </span>
                 </div>
               </div>
 
@@ -429,12 +467,12 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
             </div>
           ) : verifyingStep !== null ? (
             <div className="space-y-6 py-6 text-center">
-              <Loader2 className="w-8 h-8 text-green-700 dark:text-green-400 animate-spin mx-auto" aria-hidden="true" />
+              <Loader2 className="w-8 h-8 text-text-1 animate-spin mx-auto" aria-hidden="true" />
               <div className="space-y-2">
                 <div className="text-sm lg:text-base font-semibold text-text-0 font-sans">
-                  Running Verification Harness...
+                  Submitting your proof...
                 </div>
-                <div aria-live="polite" className="text-xs md:text-sm text-green-700 dark:text-green-400 font-mono">
+                <div aria-live="polite" className="text-xs md:text-sm text-text-1 font-mono">
                   {steps[verifyingStep]}
                 </div>
               </div>
@@ -545,13 +583,17 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
                   </div>
                 )}
 
-                {/* Live GitHub Inspection Result Card */}
+                {/* Live GitHub Inspection Result Card.
+                    Wording is deliberately limited to what was actually
+                    fetched: the repo exists and is public. This is not a
+                    statement about the code, and it is not a verification
+                    result — that arrives from a reviewer. */}
                 {inspectionData && (
-                  <div className="mt-2.5 p-3 rounded-radius border border-green-500/30 bg-green-500/5 space-y-2 text-xs md:text-sm">
-                    <div className="flex items-center justify-between text-green-700 dark:text-green-400 font-semibold">
+                  <div className="mt-2.5 p-3 rounded-radius border border-emerald/30 bg-emerald-tint/30 space-y-2 text-xs md:text-sm">
+                    <div className="flex items-center justify-between text-emerald-text font-semibold">
                       <div className="flex items-center gap-1.5">
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Public Repository Verified</span>
+                        <span>Public repository found</span>
                       </div>
                       <a
                         href={`https://github.com/${inspectionData.fullName}`}
@@ -571,10 +613,12 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
                           <span>{inspectionData.stars} stars</span>
                         </span>
                       )}
-                      <span className="inline-flex items-center gap-1">
-                        <GitBranch className="w-3 h-3 text-text-1" />
-                        <span>{inspectionData.defaultBranch || 'main'}</span>
-                      </span>
+                      {inspectionData.defaultBranch && (
+                        <span className="inline-flex items-center gap-1">
+                          <GitBranch className="w-3 h-3 text-text-1" />
+                          <span>{inspectionData.defaultBranch}</span>
+                        </span>
+                      )}
                       {inspectionData.languages && inspectionData.languages.length > 0 && (
                         <span>
                           Stack: {inspectionData.languages.slice(0, 2).map((l) => `${l.name} ${l.percentage}%`).join(', ')}
@@ -582,15 +626,23 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
                       )}
                     </div>
 
-                    {inspectionData.latestCommit && (
+                    {inspectionData.latestCommit?.shortSha && (
                       <div className="text-xs md:text-sm text-text-0 pt-1 border-t border-line/60 flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-green-700 dark:text-green-400">HEAD commit:</span>
+                        <span className="font-semibold text-emerald-text">HEAD commit:</span>
                         <span className="bg-card px-1.5 py-0.5 rounded border border-line font-mono font-bold">
                           #{inspectionData.latestCommit.shortSha}
                         </span>
-                        <span className="text-text-1 truncate max-w-xs">
-                          &ldquo;{inspectionData.latestCommit.message}&rdquo;
-                        </span>
+                        {inspectionData.latestCommit.message && (
+                          <span className="text-text-1 truncate max-w-xs">
+                            &ldquo;{inspectionData.latestCommit.message}&rdquo;
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {!inspectionData.latestCommit?.shortSha && (
+                      <div className="text-xs text-text-1 pt-1 border-t border-line/60">
+                        The HEAD commit could not be read, so this submission
+                        will be reviewed without one.
                       </div>
                     )}
                   </div>

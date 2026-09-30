@@ -36,7 +36,7 @@ func TestContactEmailPrefersTheDevsChoice(t *testing.T) {
 		{
 			name: "synthetic address when the dev has neither",
 			user: model.UserProfile{Username: "mj"},
-			want: "mj@devledgr.me",
+			want: "mj@devledgr.xyz",
 		},
 		{
 			// An empty contact address must not shadow the registered one.

@@ -183,8 +183,10 @@ export class AuthService implements IAuthService {
 
     try {
       // GET /api/auth/me provisions the dev record on first sign-in.
+      // Use 30s timeout to gracefully survive backend cold starts (e.g. Render spin-up).
       const res = await this.http.get<{ dev: UserProfile }>('/api/auth/me', {
         headers: { Authorization: `Bearer ${accessToken}` },
+        timeoutMs: 30000,
       });
       return res.dev ?? null;
     } catch (err) {

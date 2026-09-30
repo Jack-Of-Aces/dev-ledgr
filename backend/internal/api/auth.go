@@ -119,13 +119,18 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, sess *supa
 // setAuthCookies writes devledgr_session (the access token, HttpOnly),
 // devledgr_refresh (HttpOnly, only sent to /api/auth) and devledgr_role, a
 // routing hint for the Next.js proxy. The API never trusts the role cookie.
+//
+// The cookie lifetime is set to longAge (30 days) rather than the token's 1-hour
+// expiry. The client-side Supabase SDK keeps the access token refreshed, while
+// setting MaxAge to 1 hour caused browsers to purge devledgr_session, breaking
+// proxy route gates (/dashboard, /admin) on page reloads after 60 minutes.
 func (s *Server) setAuthCookies(w http.ResponseWriter, access, refresh string, role model.Role, expires time.Time) {
-	sessionAge, longAge := int(time.Until(expires).Seconds()), 30*24*60*60
+	longAge := 30 * 24 * 60 * 60
 	if access == "" {
-		sessionAge, longAge = -1, -1
+		longAge = -1
 	}
 	for _, c := range []*http.Cookie{
-		{Name: sessionCookie, Value: access, HttpOnly: true, Path: "/", MaxAge: sessionAge},
+		{Name: sessionCookie, Value: access, HttpOnly: true, Path: "/", MaxAge: longAge},
 		{Name: refreshCookie, Value: refresh, HttpOnly: true, Path: "/api/auth", MaxAge: longAge},
 		{Name: roleCookie, Value: string(role), Path: "/", MaxAge: longAge},
 	} {
