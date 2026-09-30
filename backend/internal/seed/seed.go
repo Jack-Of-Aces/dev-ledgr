@@ -32,18 +32,29 @@ func load() (data, error) {
 	return d, nil
 }
 
-// Run upserts the coaching tracks. It is safe to run against production.
+// Run upserts the bespoke problems and coaching tracks. It is safe to run against production.
 func Run(ctx context.Context, st *store.Store) error {
 	d, err := load()
 	if err != nil {
 		return err
+	}
+	problems := 0
+	for _, idea := range d.Ideas {
+		if len(idea.SuggestedStack) == 0 {
+			idea.SuggestedStack = idea.Tags
+		}
+		idea.AdminApproved = true
+		if err := st.UpsertIdea(ctx, idea); err != nil {
+			return fmt.Errorf("seed problem %s (%s): %w", idea.ID, idea.Title, err)
+		}
+		problems++
 	}
 	for _, c := range d.Coaching {
 		if err := st.UpsertItinerary(ctx, c); err != nil {
 			return fmt.Errorf("seed itinerary %s: %w", c.ID, err)
 		}
 	}
-	slog.Info("seed complete", "itineraries", len(d.Coaching))
+	slog.Info("seed complete", "problems", problems, "itineraries", len(d.Coaching))
 	return nil
 }
 
