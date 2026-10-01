@@ -217,25 +217,25 @@ export default function CoachingListPage() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            <span>Candidate: <strong className="text-text-0 font-medium">@{user.username}</strong></span>
+            <span className="truncate">Candidate: <strong className="text-text-0 font-medium">@{user.username}</strong></span>
             {user.targetRole && (
               <>
-                <span className="text-line">/</span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-tint border border-emerald-border text-emerald-text font-mono text-[11px] font-semibold">
+                <span className="text-line hidden xs:inline">/</span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-tint border border-emerald-border text-emerald-text font-mono text-[11px] font-semibold truncate max-w-[180px]">
                   {user.targetRole}
                 </span>
               </>
             )}
-            <span className="text-line">/</span>
-            <Link href="/dashboard" className="text-emerald-text hover:underline">
+            <span className="text-line hidden xs:inline">/</span>
+            <Link href="/dashboard" className="text-emerald-text hover:underline shrink-0">
               Dashboard View →
             </Link>
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 sm:gap-6">
           <div className="space-y-2 max-w-3xl">
-            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-text-0">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight text-text-0">
               Personalized Coaching Curriculum
             </h1>
             <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
@@ -247,7 +247,7 @@ export default function CoachingListPage() {
             href={`/coaching/${recommendedTrackId}`}
             className="btn-brass text-xs md:text-sm py-2 px-4 w-full md:w-auto shrink-0 inline-flex items-center justify-center gap-1.5"
           >
-            <Zap className="w-3.5 h-3.5" />
+            <Zap className="w-3.5 h-3.5 shrink-0" />
             <span>Resume Target Track</span>
           </Link>
         </div>
@@ -472,10 +472,10 @@ export default function CoachingListPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-3 shrink-0 w-full sm:w-auto">
+                  <div className="flex flex-col xs:flex-row items-stretch sm:items-center gap-2 sm:gap-3 shrink-0 w-full sm:w-auto">
                     <button
                       onClick={() => setExpandedTrackId(isExpanded ? null : track.id)}
-                      className="btn-outline text-xs py-2 px-3 inline-flex items-center justify-center gap-1.5 cursor-pointer font-mono"
+                      className="btn-outline text-xs py-2 px-3 inline-flex items-center justify-center gap-1.5 cursor-pointer font-mono w-full xs:w-auto"
                     >
                       <span>{isExpanded ? 'Hide Syllabus' : 'View Syllabus'}</span>
                       {isExpanded ? (
@@ -487,7 +487,7 @@ export default function CoachingListPage() {
 
                     <Link
                       href={`/coaching/${track.id}`}
-                      className="btn-brass text-xs py-2 px-4 inline-flex items-center justify-center gap-1.5 font-medium"
+                      className="btn-brass text-xs py-2 px-4 inline-flex items-center justify-center gap-1.5 font-medium w-full xs:w-auto"
                     >
                       <span>{solvedMilestones > 0 ? 'Resume Track' : 'Start Track'}</span>
                       <ArrowRight className="w-3.5 h-3.5 shrink-0" />

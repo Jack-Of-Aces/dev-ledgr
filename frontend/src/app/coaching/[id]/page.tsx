@@ -271,24 +271,24 @@ export default function CoachingDetailPage() {
         {/* ========================================================= */}
         <section className="space-y-4 pb-6 border-b border-line">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs font-mono text-text-1">
-            <div className="flex items-center gap-1.5 min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
               <Link href="/coaching" className="hover:text-text-0 transition-colors shrink-0">
                 Coaching
               </Link>
               <ChevronRight className="w-3.5 h-3.5 opacity-40 shrink-0" />
-              <span className="text-text-0 font-medium truncate max-w-[130px] sm:max-w-xs">
+              <span className="text-text-0 font-medium truncate max-w-[150px] sm:max-w-xs">
                 {itinerary.title}
               </span>
               <ChevronRight className="w-3.5 h-3.5 opacity-40 shrink-0" />
               <span className="text-emerald-text shrink-0">Week 0{selectedMilestone.week}</span>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0 text-xs">
-              <span>
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0 text-xs flex-wrap">
+              <span className="truncate">
                 Candidate: <strong className="text-text-0 font-medium">@{user.username}</strong>
               </span>
               <span className="text-line">/</span>
-              <span className="text-emerald-text font-medium">
+              <span className="text-emerald-text font-medium shrink-0">
                 {
                   itinerary.milestones.filter(
                     (m) => m.ideaIdRef && userSolvedIdeaIds.has(m.ideaIdRef)
@@ -299,7 +299,7 @@ export default function CoachingDetailPage() {
             </div>
           </div>
 
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 sm:gap-6">
             <div className="space-y-2 max-w-3xl">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-tint border border-emerald-border text-emerald-text font-mono font-medium shrink-0">
@@ -309,7 +309,7 @@ export default function CoachingDetailPage() {
                   Target: {itinerary.targetRole}
                 </span>
               </div>
-              <h1 className="text-2xl sm:text-4xl font-semibold tracking-tight text-text-0">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight text-text-0">
                 {itinerary.title}
               </h1>
               <p className="text-xs sm:text-sm text-text-1 leading-relaxed">
@@ -319,9 +319,9 @@ export default function CoachingDetailPage() {
 
             <Link
               href="/coaching"
-              className="btn-outline text-xs py-2 px-3 self-start md:self-auto shrink-0 inline-flex items-center justify-center gap-1.5 font-mono w-full sm:w-auto"
+              className="btn-outline text-xs py-2 px-3 self-stretch sm:self-auto shrink-0 inline-flex items-center justify-center gap-1.5 font-mono w-full sm:w-auto"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
+              <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
               <span>All Curriculums</span>
             </Link>
           </div>
@@ -442,54 +442,54 @@ export default function CoachingDetailPage() {
                       </h3>
                     </div>
 
-                    {/* Mode Tabs */}
-                    <div className="flex items-center gap-1 bg-ink-0 p-1 rounded border border-line text-xs font-mono shrink-0 overflow-x-auto">
+                    {/* Mode Tabs with horizontal scroll on small devices */}
+                    <div className="flex items-center gap-1 bg-ink-0 p-1 rounded border border-line text-xs font-mono shrink-0 max-w-full overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-1">
                       <button
                         type="button"
                         onClick={() => setConceptTab('diagram')}
-                        className={`px-2.5 py-1 rounded transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                        className={`px-2.5 py-1 rounded transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                           conceptTab === 'diagram'
                             ? 'bg-card text-text-0 font-medium border border-line shadow-xs'
                             : 'text-text-1 hover:text-text-0'
                         }`}
                       >
-                        <Layers className="w-3.5 h-3.5 text-emerald-text" />
+                        <Layers className="w-3.5 h-3.5 text-emerald-text shrink-0" />
                         <span>Visual Architecture</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setConceptTab('invariants')}
-                        className={`px-2.5 py-1 rounded transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                        className={`px-2.5 py-1 rounded transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                           conceptTab === 'invariants'
                             ? 'bg-card text-text-0 font-medium border border-line shadow-xs'
                             : 'text-text-1 hover:text-text-0'
                         }`}
                       >
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-text" />
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-text shrink-0" />
                         <span>Invariants ({milestoneConcept.coreConcepts.length})</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setConceptTab('failure-modes')}
-                        className={`px-2.5 py-1 rounded transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                        className={`px-2.5 py-1 rounded transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                           conceptTab === 'failure-modes'
                             ? 'bg-card text-text-0 font-medium border border-line shadow-xs'
                             : 'text-text-1 hover:text-text-0'
                         }`}
                       >
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                         <span>Failure Modes ({milestoneConcept.failureModes.length})</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setConceptTab('blueprint')}
-                        className={`px-2.5 py-1 rounded transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                        className={`px-2.5 py-1 rounded transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                           conceptTab === 'blueprint'
                             ? 'bg-card text-text-0 font-medium border border-line shadow-xs'
                             : 'text-text-1 hover:text-text-0'
                         }`}
                       >
-                        <Code2 className="w-3.5 h-3.5 text-emerald-text" />
+                        <Code2 className="w-3.5 h-3.5 text-emerald-text shrink-0" />
                         <span>Blueprint</span>
                       </button>
                     </div>
@@ -703,42 +703,42 @@ export default function CoachingDetailPage() {
                       )}
                     </div>
 
-                    <div className="shrink-0 flex items-center gap-2">
+                    <div className="shrink-0 flex items-center gap-2 w-full sm:w-auto">
                       {isMilestoneSolved && solvedMilestoneSubmission ? (
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-col xs:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                           <Link
                             href={`/p/${user.username}#${solvedMilestoneSubmission.hash}`}
-                            className="btn-outline text-xs py-1.5 px-3 inline-flex items-center gap-1.5 font-mono"
+                            className="btn-outline text-xs py-2 px-3 inline-flex items-center justify-center gap-1.5 font-mono w-full xs:w-auto"
                           >
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald" />
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald shrink-0" />
                             <span>Proof #{solvedMilestoneSubmission.hash.slice(0, 8)}</span>
-                            <ExternalLink className="w-3 h-3 opacity-60" />
+                            <ExternalLink className="w-3 h-3 opacity-60 shrink-0" />
                           </Link>
                           {nextMilestone && (
                             <button
                               onClick={() => setActiveWeek(nextMilestone.week)}
-                              className="btn-brass text-xs py-1.5 px-3 inline-flex items-center gap-1.5 font-medium cursor-pointer"
+                              className="btn-brass text-xs py-2 px-3 inline-flex items-center justify-center gap-1.5 font-medium cursor-pointer w-full xs:w-auto"
                             >
                               <span>Next: Week 0{nextMilestone.week}</span>
-                              <ArrowRight className="w-3.5 h-3.5" />
+                              <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                             </button>
                           )}
                         </div>
                       ) : (
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-col xs:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                           <button
                             onClick={() => setSubmitModalOpen(true)}
-                            className="btn-brass text-xs py-2 px-3.5 inline-flex items-center justify-center gap-1.5 font-medium cursor-pointer shadow-xs"
+                            className="btn-brass text-xs py-2 px-3.5 inline-flex items-center justify-center gap-1.5 font-medium cursor-pointer shadow-xs w-full xs:w-auto"
                           >
-                            <UploadCloud className="w-3.5 h-3.5" />
+                            <UploadCloud className="w-3.5 h-3.5 shrink-0" />
                             <span>Submit Solution & Pass Milestone</span>
                           </button>
                           <Link
                             href={`/ideas/${pairedIdea.id}`}
-                            className="btn-outline text-xs py-2 px-3 inline-flex items-center justify-center gap-1.5 font-mono"
+                            className="btn-outline text-xs py-2 px-3 inline-flex items-center justify-center gap-1.5 font-mono w-full xs:w-auto"
                           >
                             <span>Mock Infra Specs</span>
-                            <ArrowRight className="w-3 h-3" />
+                            <ArrowRight className="w-3 h-3 shrink-0" />
                           </Link>
                         </div>
                       )}
@@ -805,23 +805,23 @@ export default function CoachingDetailPage() {
                   </h3>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 max-w-full">
                   {chatMessages.length > 0 && (
                     <button
                       onClick={handleResetChat}
-                      className="btn-outline text-xs py-1 px-2.5 inline-flex items-center gap-1 font-mono text-text-1 hover:text-text-0 cursor-pointer"
+                      className="btn-outline text-xs py-1 px-2.5 inline-flex items-center gap-1 font-mono text-text-1 hover:text-text-0 cursor-pointer shrink-0"
                       title="Clear chat and start fresh"
                     >
-                      <RotateCcw className="w-3 h-3" />
+                      <RotateCcw className="w-3 h-3 shrink-0" />
                       <span>Reset</span>
                     </button>
                   )}
 
-                  {/* Mode Switcher */}
-                  <div className="flex items-center gap-1 bg-ink-0 p-1 rounded border border-line text-xs font-mono">
+                  {/* Mode Switcher with responsive horizontal scroll */}
+                  <div className="flex items-center gap-1 bg-ink-0 p-1 rounded border border-line text-xs font-mono max-w-full overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-1">
                     <button
                       onClick={() => setConsoleTab('socratic')}
-                      className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
+                      className={`px-2.5 py-1 rounded transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                         consoleTab === 'socratic'
                           ? 'bg-card text-text-0 font-medium border border-line shadow-xs'
                           : 'text-text-1 hover:text-text-0'
@@ -831,7 +831,7 @@ export default function CoachingDetailPage() {
                     </button>
                     <button
                       onClick={() => setConsoleTab('custom')}
-                      className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
+                      className={`px-2.5 py-1 rounded transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                         consoleTab === 'custom'
                           ? 'bg-card text-text-0 font-medium border border-line shadow-xs'
                           : 'text-text-1 hover:text-text-0'
@@ -841,7 +841,7 @@ export default function CoachingDetailPage() {
                     </button>
                     <button
                       onClick={() => setConsoleTab('patterns')}
-                      className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
+                      className={`px-2.5 py-1 rounded transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                         consoleTab === 'patterns'
                           ? 'bg-card text-text-0 font-medium border border-line shadow-xs'
                           : 'text-text-1 hover:text-text-0'
@@ -851,7 +851,7 @@ export default function CoachingDetailPage() {
                     </button>
                     <button
                       onClick={() => setConsoleTab('harness')}
-                      className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
+                      className={`px-2.5 py-1 rounded transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                         consoleTab === 'harness'
                           ? 'bg-card text-text-0 font-medium border border-line shadow-xs'
                           : 'text-text-1 hover:text-text-0'
@@ -981,10 +981,10 @@ export default function CoachingDetailPage() {
                   {/* Protocol Overview */}
                   <div className="p-3.5 rounded border border-line bg-card space-y-2">
                     <div className="flex items-center gap-2 font-mono font-semibold text-text-0">
-                      <ShieldCheck className="w-4 h-4 text-emerald-text" />
+                      <ShieldCheck className="w-4 h-4 text-emerald-text shrink-0" />
                       <span>End-to-End Verification & Automated Grading Protocol</span>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-1 text-[11px] font-mono text-text-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1 text-[11px] font-mono text-text-1">
                       <div className="p-2 rounded bg-ink-0 border border-line/60 space-y-1">
                         <div className="font-semibold text-text-0">1. Code In Repo</div>
                         <p className="font-sans leading-snug">
