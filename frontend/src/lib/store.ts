@@ -71,6 +71,10 @@ interface AppState {
       metrics?: { latencyP99?: string; throughput?: string; coverage?: string };
     }
   ) => SubmissionEntry;
+  updateSubmission: (
+    hash: string,
+    updates: Partial<Omit<SubmissionEntry, 'hash' | 'ideaId' | 'authorUsername'>>
+  ) => SubmissionEntry | null;
   verifySubmission: (hash: string) => void;
   getSubmissionByHash: (hash: string) => SubmissionEntry | undefined;
   getUserSubmissions: (username: string) => SubmissionEntry[];
@@ -276,6 +280,45 @@ export const useAppStore = create<AppState>()(
       },
 
       addSubmission: (subData) => {
+        // Enforce strict 1-submission-per-user-per-idea constraint:
+        // If a user has already submitted to this idea, update their existing entry
+        // instead of duplicating the submission and incrementing submissionCount.
+        const currentSubmissions = get().submissions;
+        const existingEntry = currentSubmissions.find(
+          (s) =>
+            s.ideaId === subData.ideaId &&
+            s.authorUsername.toLowerCase() === subData.authorUsername.toLowerCase()
+        );
+
+        if (existingEntry) {
+          const updatedEntry: SubmissionEntry = {
+            ...existingEntry,
+            repoUrl: subData.repoUrl,
+            demoUrl: subData.demoUrl ?? existingEntry.demoUrl,
+            architectureNotes: subData.architectureNotes || existingEntry.architectureNotes,
+            proofSignature: subData.proofSignature || existingEntry.proofSignature,
+            timestamp: new Date().toISOString(),
+            // When updated, reset status to pending review unless already re-verified
+            status: 'pending',
+            testResults: subData.testResults || existingEntry.testResults,
+            metrics: subData.metrics || existingEntry.metrics,
+          };
+
+          set((state) => ({
+            submissions: state.submissions.map((s) =>
+              s.hash === existingEntry.hash ? updatedEntry : s
+            ),
+            activeToast: {
+              title: `Solution Updated: #${existingEntry.hash}`,
+              message: `Your existing submission has been updated and queued for re-verification.`,
+              hash: existingEntry.hash,
+              pending: true,
+            },
+          }));
+
+          return updatedEntry;
+        }
+
         const hash = subData.hash || generateCommitHash();
         const newEntry: SubmissionEntry = {
           ...subData,
@@ -312,6 +355,34 @@ export const useAppStore = create<AppState>()(
         }));
 
         return newEntry;
+      },
+
+      updateSubmission: (hash, updates) => {
+        let updated: SubmissionEntry | null = null;
+        set((state) => {
+          const target = state.submissions.find((s) => s.hash.toLowerCase() === hash.toLowerCase());
+          if (!target) return state;
+
+          updated = {
+            ...target,
+            ...updates,
+            timestamp: new Date().toISOString(),
+            status: 'pending', // Re-queue for review upon edit
+          };
+
+          return {
+            submissions: state.submissions.map((s) =>
+              s.hash.toLowerCase() === hash.toLowerCase() ? updated! : s
+            ),
+            activeToast: {
+              title: `Submission Updated: #${target.hash}`,
+              message: 'Changes saved and queued for review.',
+              hash: target.hash,
+              pending: true,
+            },
+          };
+        });
+        return updated;
       },
 
       verifySubmission: (hash) => {

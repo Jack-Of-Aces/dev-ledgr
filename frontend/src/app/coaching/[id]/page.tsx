@@ -38,6 +38,7 @@ import {
   Cpu,
   Maximize2,
   Minimize2,
+  Edit3,
 } from 'lucide-react';
 
 type ConsoleTab = 'socratic' | 'custom' | 'patterns' | 'harness';
@@ -719,9 +720,17 @@ export default function CoachingDetailPage() {
                     <div className="shrink-0 flex items-center gap-2 w-full sm:w-auto">
                       {isMilestoneSolved && solvedMilestoneSubmission ? (
                         <div className="flex flex-col xs:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                          <button
+                            onClick={() => setSubmitModalOpen(true)}
+                            className="btn-outline text-xs py-2 px-3 inline-flex items-center justify-center gap-1.5 font-medium cursor-pointer w-full xs:w-auto hover:border-text-0"
+                            title="Edit and re-submit your solution"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                            <span>Edit Solution</span>
+                          </button>
                           <Link
                             href={`/p/${user.username}#${solvedMilestoneSubmission.hash}`}
-                            className="btn-outline text-xs py-2 px-3 inline-flex items-center justify-center gap-1.5 font-mono w-full xs:w-auto"
+                            className="btn-outline text-xs py-2 px-3 inline-flex items-center justify-center gap-1.5 font-mono w-full xs:w-auto text-emerald-text border-emerald-border/60 bg-emerald-tint"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald shrink-0" />
                             <span>Proof #{solvedMilestoneSubmission.hash.slice(0, 8)}</span>

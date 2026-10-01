@@ -7,7 +7,7 @@ import { useAppStore } from '@/lib/store';
 import { TerminalExplorer } from '@/components/ui/TerminalExplorer';
 import { SubmitSolutionModal } from '@/components/ui/SubmitSolutionModal';
 import { LedgerEntryRow } from '@/components/ui/LedgerEntryRow';
-import { ArrowLeft, Clock, ExternalLink, GitBranch, ShieldCheck, Flame, Loader2 } from 'lucide-react';
+import { ArrowLeft, Clock, ExternalLink, GitBranch, ShieldCheck, Flame, Loader2, Edit3, CheckCircle2 } from 'lucide-react';
 import { getDomainStyle, getDifficultyStyle } from '@/lib/colors';
 import { IdeaDetailSkeleton } from '@/components/ui/skeletons';
 import { launchpadService } from '@/services/launchpad/launchpadService';
@@ -16,7 +16,7 @@ import { ProblemClaimStatus, IdeaItem } from '@/types';
 export default function IdeaDetailPage() {
   const params = useParams();
   const id = params?.id as string;
-  const { ideas, submissions, isLoggedIn, showToast, openAuthModal } = useAppStore();
+  const { ideas, submissions, user, isLoggedIn, showToast, openAuthModal } = useAppStore();
   const [currentIdea, setCurrentIdea] = useState<IdeaItem | undefined>(undefined);
   const [modalOpen, setModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -140,6 +140,13 @@ export default function IdeaDetailPage() {
   }
 
   const problemSubmissions = submissions.filter((s) => s.ideaId === idea.id);
+  const existingUserSubmission = user?.username
+    ? submissions.find(
+        (s) =>
+          s.ideaId === idea.id &&
+          s.authorUsername.toLowerCase() === user.username.toLowerCase()
+      )
+    : undefined;
   const domainStyle = getDomainStyle(idea.domain);
   const diffStyle = getDifficultyStyle(idea.difficulty);
 
@@ -222,13 +229,33 @@ export default function IdeaDetailPage() {
             </button>
           )}
 
-          <button
-            onClick={handleSubmitSolutionClick}
-            className="btn-brass text-xs md:text-sm py-2 px-4 cursor-pointer"
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span>Submit Solution & Docs</span>
-          </button>
+          {existingUserSubmission ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleSubmitSolutionClick}
+                className="btn-brass text-xs md:text-sm py-2 px-4 cursor-pointer inline-flex items-center gap-2"
+              >
+                <Edit3 className="w-4 h-4" />
+                <span>Edit Submitted Solution</span>
+              </button>
+              <Link
+                href={`/p/${user.username}#${existingUserSubmission.hash}`}
+                className="btn-outline text-xs md:text-sm py-2 px-3 inline-flex items-center gap-1.5 font-mono text-emerald-text border-emerald-border/60 bg-emerald-tint"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald" />
+                <span>Submitted: #{existingUserSubmission.hash.slice(0, 7)}</span>
+                <ExternalLink className="w-3 h-3 opacity-60" />
+              </Link>
+            </div>
+          ) : (
+            <button
+              onClick={handleSubmitSolutionClick}
+              className="btn-brass text-xs md:text-sm py-2 px-4 cursor-pointer inline-flex items-center gap-2"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>Submit Solution & Docs</span>
+            </button>
+          )}
 
           {/* Only render when a starter repo actually exists: an empty href
               resolves to the current page, which looks like a dead button. */}
