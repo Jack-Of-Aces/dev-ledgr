@@ -76,8 +76,17 @@ async function callGemini(
 
     const generationConfig: Record<string, unknown> = {
       temperature: options.temperature ?? 0.4,
-      maxOutputTokens: options.maxTokens ?? 1400,
+      maxOutputTokens: options.maxTokens ?? 3500,
     };
+
+    // For Gemini 2.5 models, thinking tokens count against maxOutputTokens.
+    // Setting thinkingBudget: 0 disables excessive chain-of-thought token burn
+    // so the candidate receives immediate, comprehensive, complete technical prose.
+    if (model.includes('gemini-2.5') || model.includes('gemini-3')) {
+      generationConfig.thinkingConfig = {
+        thinkingBudget: 0,
+      };
+    }
 
     if (options.jsonMode) {
       generationConfig.responseMimeType = 'application/json';
@@ -136,7 +145,7 @@ async function callGroq(
       model,
       messages,
       temperature: options.temperature ?? 0.4,
-      max_tokens: options.maxTokens ?? 1400,
+      max_tokens: options.maxTokens ?? 3500,
     };
 
     if (options.jsonMode) {

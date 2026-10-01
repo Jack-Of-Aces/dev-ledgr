@@ -61,5 +61,7 @@ export interface IAIService {
   /**
    * Generates architecture guidance for a milestone prompt.
    */
-  getCoachingAdvice(params: CoachPromptParams): Promise<string>;
+  getCoachingAdvice(
+    params: CoachPromptParams
+  ): Promise<{ advice: string; provider?: string; model?: string; attempts?: unknown[] }>;
 }

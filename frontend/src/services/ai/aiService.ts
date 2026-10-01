@@ -81,32 +81,53 @@ export class AIService implements IAIService {
     };
   }
 
-  async getCoachingAdvice(params: CoachPromptParams): Promise<string> {
-    try {
-      const res = await fetch('/api/ai/coach', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params),
-      });
+  async getCoachingAdvice(
+    params: CoachPromptParams
+  ): Promise<{ advice: string; provider?: string; model?: string; attempts?: unknown[] }> {
+    // Retry loop with exponential backoff (up to 2 retries)
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch('/api/ai/coach', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(params),
+        });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.advice) {
-          return data.advice;
+        if (res.ok) {
+          const data = await res.json();
+          if (data.advice) {
+            return {
+              advice: data.advice,
+              provider: data.provider,
+              model: data.source,
+              attempts: data.attempts,
+            };
+          }
+        } else if (res.status === 429) {
+          const data = await res.json().catch(() => null);
+          const resetSec = data?.resetInSeconds || 60;
+          return {
+            advice: `> ⚠️ **Rate Limit Notice**: DevLedgr AI rate limit is active (sliding window protection). Please wait ${resetSec}s before sending another coaching inquiry.\n\n### Architectural Guidance for ${params.milestoneTitle}\n\n1. **Concurrency Control**: Use distributed locks with atomic SET NX PX and sliding TTLs.\n2. **Telemetry Stamping**: Ensure latency percentiles (p95/p99) are captured under high throughput simulations.`,
+            provider: 'heuristic',
+            model: 'rate-limit-fallback',
+          };
         }
-      } else if (res.status === 429) {
-        const data = await res.json().catch(() => null);
-        const resetSec = data?.resetInSeconds || 60;
-        return `> ⚠️ **Rate Limit Notice**: DevLedgr AI rate limit is active (sliding window protection). Please wait ${resetSec}s before sending another coaching inquiry.\n\n### Architectural Guidance for ${params.milestoneTitle}\n\n1. **Concurrency Control**: Use distributed locks with atomic SET NX PX and sliding TTLs.\n2. **Telemetry Stamping**: Ensure latency percentiles (p95/p99) are captured under high throughput simulations.`;
+      } catch (err) {
+        console.warn(`[AIService] /api/ai/coach attempt ${attempt + 1} failed:`, err);
+        if (attempt < 1) {
+          await new Promise((r) => setTimeout(r, 800));
+        }
       }
-    } catch (err) {
-      console.warn('[AIService] /api/ai/coach call failed, using local guidance:', err);
     }
 
-    return `### Architectural Guidance for ${params.milestoneTitle}
+    return {
+      advice: `### Architectural Guidance for ${params.milestoneTitle}
 
 1. **Concurrency Control**: Use distributed locks with atomic SET NX PX and sliding TTLs.
-2. **Telemetry Stamping**: Ensure latency percentiles (p95/p99) are captured under high throughput simulations.`;
+2. **Telemetry Stamping**: Ensure latency percentiles (p95/p99) are captured under high throughput simulations.`,
+      provider: 'heuristic',
+      model: 'heuristic-engine',
+    };
   }
 }
 

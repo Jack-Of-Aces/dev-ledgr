@@ -52,6 +52,7 @@ interface SubmitSolutionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (newEntry: SubmissionEntry) => void;
+  existingSubmission?: SubmissionEntry;
 }
 
 export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
@@ -59,14 +60,44 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
+  existingSubmission: propExistingSubmission,
 }) => {
-  const { user, addSubmission } = useAppStore();
+  const { user, submissions, addSubmission } = useAppStore();
+
+  // Find user's existing submission for this idea if any
+  const existingSubmission =
+    propExistingSubmission ||
+    submissions.find(
+      (s) =>
+        s.ideaId === idea.id &&
+        s.authorUsername.toLowerCase() === user.username.toLowerCase()
+    );
+
+  const isEditing = !!existingSubmission;
+
   const [repoUrl, setRepoUrl] = useState('');
   const [demoUrl, setDemoUrl] = useState('');
   const [architectureNotes, setArchitectureNotes] = useState('');
   const [verifyingStep, setVerifyingStep] = useState<number | null>(null);
   const [completedEntry, setCompletedEntry] = useState<SubmissionEntry | null>(null);
   const [copiedFingerprint, setCopiedFingerprint] = useState(false);
+
+  // Sync state when modal opens or existingSubmission changes
+  useEffect(() => {
+    if (isOpen) {
+      if (existingSubmission) {
+        setRepoUrl(existingSubmission.repoUrl || '');
+        setDemoUrl(existingSubmission.demoUrl || '');
+        setArchitectureNotes(existingSubmission.architectureNotes || '');
+      } else {
+        setRepoUrl('');
+        setDemoUrl('');
+        setArchitectureNotes('');
+      }
+      setCompletedEntry(null);
+      setVerifyingStep(null);
+    }
+  }, [isOpen, existingSubmission]);
 
   // Live GitHub Inspector State
   const [isInspecting, setIsInspecting] = useState(false);
@@ -357,7 +388,7 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
           <div className="flex items-center gap-2">
             <GitCommit className="w-4 h-4 text-green-700 dark:text-green-400" aria-hidden="true" />
             <h2 id="submit-solution-modal-title" className="font-sans text-base font-semibold text-text-0">
-              Record Proof of Work
+              {isEditing ? 'Edit Submitted Solution' : 'Record Proof of Work'}
             </h2>
           </div>
           <button
@@ -379,7 +410,7 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
 
               <div>
                 <h3 className="font-sans text-xl font-bold tracking-tight text-text-0">
-                  Proof submitted for review
+                  {isEditing ? 'Solution updated & queued for review' : 'Proof submitted for review'}
                 </h3>
                 <p className="text-xs md:text-sm text-text-1 mt-1 font-mono">
                   Entry <code className="text-text-0 font-bold bg-card px-1.5 py-0.5 rounded border border-line">#{completedEntry.hash}</code> is pending. A reviewer records the test results and issues the certificate.
@@ -684,6 +715,18 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
                 />
               </div>
 
+              {isEditing && (
+                <div className="p-3 rounded-radius border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300 flex items-start gap-2 text-xs font-mono">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
+                  <div>
+                    <span className="font-semibold">Updating existing submission (#{existingSubmission.hash}):</span>
+                    <p className="opacity-90 mt-0.5 font-sans">
+                      Per DevLedgr integrity rules, each challenge allows only 1 submission per developer. Saving updates this record and submits it for re-verification without creating a duplicate.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="pt-2 flex items-center justify-end gap-3">
                 <button
                   type="button"
@@ -698,7 +741,7 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
                   className="btn-brass text-xs md:text-sm py-1.5 px-4 cursor-pointer inline-flex items-center gap-1.5"
                 >
                   <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
-                  <span>Submit for Verification</span>
+                  <span>{isEditing ? 'Update & Re-submit Proof' : 'Submit for Verification'}</span>
                 </button>
               </div>
             </form>
