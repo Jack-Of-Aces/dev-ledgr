@@ -61,6 +61,9 @@ func run() error {
 	if cmd == "approve-problems" {
 		return runApproveProblems(ctx)
 	}
+	if cmd == "seed" {
+		return runSeed(ctx)
+	}
 	if cmd == "promote" {
 		return promote(ctx, os.Args[2:])
 	}
@@ -182,6 +185,26 @@ func runApproveProblems(ctx context.Context) error {
 		return err
 	}
 	slog.Info("approved problems", "newly_approved", n)
+	return nil
+}
+
+// runSeed connects using only DATABASE_URL, loads the coaching itineraries, and exits.
+func runSeed(ctx context.Context) error {
+	databaseURL, err := config.DatabaseURL()
+	if err != nil {
+		return err
+	}
+	pool, err := db.Connect(ctx, databaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	st := store.New(pool)
+	if err := seed.Run(ctx, st); err != nil {
+		return err
+	}
+	slog.Info("coaching itineraries seeded successfully")
 	return nil
 }
 

@@ -10,10 +10,16 @@ import { checkRateLimit } from '@/lib/rate-limiter';
 import { runAIMesh } from '@/lib/ai-mesh';
 import { resolveProviderKey } from '@/lib/provider-key';
 
+interface CoachMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 interface CoachRequestBody {
   itineraryTitle: string;
   milestoneTitle: string;
   prompt: string;
+  messages?: CoachMessage[];
   candidateContext?: {
     username: string;
     name: string;
@@ -50,7 +56,7 @@ export async function POST(req: Request) {
 
   try {
     const body: CoachRequestBody = await req.json();
-    const { itineraryTitle, milestoneTitle, prompt, candidateContext } = body;
+    const { itineraryTitle, milestoneTitle, prompt, messages, candidateContext } = body;
     // BYOK key comes from the backend, never from the browser.
     const userKey = await resolveProviderKey(req);
 
@@ -72,9 +78,17 @@ Adopt a Socratic, deeply personalized technical mindset:
 3. Provide crisp, production-grade code snippets customized to their stack when helpful.
 4. Keep answers focused, dense with technical insights, and formatted with markdown headers and code blocks.`;
 
+    let activePrompt = prompt;
+    if (messages && messages.length > 0) {
+      const historyText = messages
+        .map((m) => `${m.role === 'user' ? 'Developer' : 'Architect Mentor'}: ${m.content}`)
+        .join('\n\n');
+      activePrompt = `Discussion Context:\n${historyText}\n\nDeveloper's latest query: ${prompt}`;
+    }
+
     // 2. Cascade across AI Mesh (Gemini -> Groq -> Heuristics)
     const meshResult = await runAIMesh({
-      prompt,
+      prompt: activePrompt,
       systemInstruction,
       userApiKey: userKey,
       temperature: 0.4,
@@ -138,7 +152,7 @@ Using random \`UUIDv4\` as a primary clustered key in PostgreSQL or MySQL InnoDB
 #### Benchmarked Impact:
 - **Index Size**: Sequential keys achieve ~90% page fullness vs ~50-60% for random UUIDv4.
 - **Cache Hit Ratio**: ULID maintains >98% buffer pool hit ratio at 10M rows because hot pages stay clustered at the tree edge.`;
-    } else if (p.includes('haversine') || p.includes('k-means') || p.includes('route')) {
+    } else if (p.includes('haversine') || p.includes('k-means') || p.includes('route') || p.includes('spatial')) {
       advice = `### Spatial Clustering Heuristics for Informal Fleets
 
 Haversine computes great-circle distance assuming a perfect spherical geoid. In dense informal settlements, this breaks down due to winding alleys, canal blockages, and non-drivable paths.
@@ -164,6 +178,33 @@ func RoadNetworkDistance(p1, p2 LatLng) float64 {
 #### Heuristic Comparison:
 - **K-Means**: Requires fixed $k$ cluster count upfront and is sensitive to outliers.
 - **DBSCAN**: Discovers arbitrary cluster shapes based on spatial density thresholds without pre-specifying bike counts.`;
+    } else if (p.includes('crdt') || p.includes('offline') || p.includes('sync')) {
+      advice = `### Conflict-Free Replicated Data Types (CRDT) for Field Devices
+
+For field operations with intermittent 2G/3G connectivity, state reconciliation must be associative, commutative, and idempotent:
+
+1. **State-based (CvRDT)**: Nodes periodically transmit their full state or state delta. Merging functions compute a monotonic join (lattice upper bound).
+2. **Operation-based (CmRDT)**: Nodes transmit individual operations via reliable causal broadcast (costly on lossy connections).
+
+#### Architectural Recommendation:
+Implement **PNCounter** or **Observed-Removed Set (OR-Set)** with client-generated ULID causality tags so field updates merge cleanly upon reconnection without server lock contention.`;
+    } else if (p.includes('rag') || p.includes('vector') || p.includes('llm') || p.includes('prompt')) {
+      advice = `### Production RAG Retrieval & Guardrail Architecture
+
+To prevent hallucination in critical engineering workflows:
+
+1. **Hybrid Retrieval (RRF)**: Combine sparse lexical search (BM25 for exact identifiers like error codes or commit SHAs) with dense vector embeddings (cosine distance for semantic intent) using Reciprocal Rank Fusion.
+2. **JSON Schema Constrained Decoding**: Never rely on raw prompt coaxing for structured data. Enforce strict JSON schema grammars at token sampling time (e.g. Guidance, Outlines, or instructor).
+3. **Chunking Strategy**: Use hierarchical parent-child chunking (512-token chunks with 64-token overlap linked to full parent documents) to preserve broad document context during citation synthesis.`;
+    } else if (p.includes('state machine') || p.includes('virtual') || p.includes('inp') || p.includes('frontend')) {
+      advice = `### High-Performance Web UI Architecture & State Isolation
+
+To maintain 60 FPS and <50ms INP during high-frequency data streams:
+
+1. **State Isolation**: Decouple global application state from rapidly updating stream feeds. Use targeted selector subscriptions (e.g. Zustand with shallow equality or Valtio proxies) so high-frequency updates only re-render the individual row component.
+2. **Virtualization vs Content-Visibility**:
+   - For lists exceeding 500 items with dynamic heights, use a virtualizer (e.g., TanStack Virtual) to maintain a constant DOM node count (~20 nodes).
+   - For static long documents, apply \`content-visibility: auto\` with \`contain-intrinsic-size\` to defer off-screen rendering to the browser's layout engine.`;
     } else {
       advice = `### Production Architectural Guidance for ${milestoneTitle}
 

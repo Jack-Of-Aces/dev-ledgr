@@ -163,6 +163,75 @@ func (s *Store) CreateIdea(ctx context.Context, i model.Idea) (*model.Idea, erro
 	return s.GetIdea(ctx, id)
 }
 
+// UpsertIdea creates or updates a problem, ensuring it is approved and available.
+func (s *Store) UpsertIdea(ctx context.Context, i model.Idea) error {
+	infra, err := json.Marshal(i.MockInfra)
+	if err != nil {
+		return err
+	}
+	regionalHurdles := i.RegionalHurdles
+	if regionalHurdles == "" {
+		regionalHurdles = "Mitigate intermittent connectivity, high carrier drop rates, and latency spikes across distributed nodes."
+	}
+	suggestedStack := nonNil(i.SuggestedStack)
+	if len(suggestedStack) == 0 {
+		suggestedStack = nonNil(i.Tags)
+	}
+
+	if IsUUID(i.ID) {
+		// Clean up any stale unreferenced row with the same title under a different ID
+		_, _ = s.pool.Exec(ctx, `delete from public.problems where title = $1 and id != $2::uuid and not exists (select 1 from public.submissions where problem_id = problems.id)`, i.Title, i.ID)
+
+		_, err = s.pool.Exec(ctx, `
+			insert into public.problems (id, title, tagline, domain, difficulty, estimated_hours, origin_story,
+				problem_statement, technical_requirements, mock_infra, tags, suggested_stack, regional_hurdles,
+				source_url, admin_approved, status)
+			values ($1::uuid, $2, nullif($3, ''), $4, $5, $6, nullif($7, ''), $8, $9, $10::jsonb, $11, $12, $13, nullif($14, ''), true, 'Available')
+			on conflict (id) do update set
+				title = excluded.title,
+				tagline = excluded.tagline,
+				domain = excluded.domain,
+				difficulty = excluded.difficulty,
+				estimated_hours = excluded.estimated_hours,
+				origin_story = excluded.origin_story,
+				problem_statement = excluded.problem_statement,
+				technical_requirements = excluded.technical_requirements,
+				mock_infra = excluded.mock_infra,
+				tags = excluded.tags,
+				suggested_stack = excluded.suggested_stack,
+				regional_hurdles = excluded.regional_hurdles,
+				source_url = excluded.source_url,
+				admin_approved = true`,
+			i.ID, i.Title, i.Tagline, i.Domain, i.Difficulty, i.EstimatedHours, i.OriginStory,
+			i.ProblemStatement, nonNil(i.TechnicalRequirements), string(infra), nonNil(i.Tags),
+			suggestedStack, regionalHurdles, i.SourceURL)
+		return mapErr(err)
+	}
+	_, err = s.pool.Exec(ctx, `
+		insert into public.problems (title, tagline, domain, difficulty, estimated_hours, origin_story,
+			problem_statement, technical_requirements, mock_infra, tags, suggested_stack, regional_hurdles,
+			source_url, admin_approved, status)
+		values ($1, nullif($2, ''), $3, $4, $5, nullif($6, ''), $7, $8, $9::jsonb, $10, $11, $12, nullif($13, ''), true, 'Available')
+		on conflict (title) do update set
+			tagline = excluded.tagline,
+			domain = excluded.domain,
+			difficulty = excluded.difficulty,
+			estimated_hours = excluded.estimated_hours,
+			origin_story = excluded.origin_story,
+			problem_statement = excluded.problem_statement,
+			technical_requirements = excluded.technical_requirements,
+			mock_infra = excluded.mock_infra,
+			tags = excluded.tags,
+			suggested_stack = excluded.suggested_stack,
+			regional_hurdles = excluded.regional_hurdles,
+			source_url = excluded.source_url,
+			admin_approved = true`,
+		i.Title, i.Tagline, i.Domain, i.Difficulty, i.EstimatedHours, i.OriginStory,
+		i.ProblemStatement, nonNil(i.TechnicalRequirements), string(infra), nonNil(i.Tags),
+		suggestedStack, regionalHurdles, i.SourceURL)
+	return mapErr(err)
+}
+
 // SetApproved approves or unpublishes a problem.
 func (s *Store) SetApproved(ctx context.Context, id string, approved bool) (*model.Idea, error) {
 	if !IsUUID(id) {
