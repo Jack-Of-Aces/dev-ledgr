@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License"/>
 </p>
 
-## 📌 Executive Summary
+## 📌 What is DevLedgr?
 
 Junior and career-transitioning software engineers face a compounding crisis: **tutorial purgatory and the portfolio credibility trap**. Hundreds of thousands of applicants submit identical clone projects (Netflix clones, Todo apps, generic e-commerce stores) generated from YouTube tutorials or copy-pasted LLM code. Hiring managers and technical recruiters routinely ignore them because they demonstrate zero architectural discipline, no resilience to real-world network partitions, and no proof of operating under failure constraints.
 
@@ -20,7 +20,7 @@ Junior and career-transitioning software engineers face a compounding crisis: **
 
 Instead of building toy apps, developers solve real production bottlenecks (idempotent webhook buffers under 504 retry storms, spatial geohash dispatch routers, sliding Bloom filters, zero-layout-shift UI engines, and grammar-constrained LLM guards). Every submission is verified against public GitHub repositories, tested against automated criteria, peer-reviewed, and minted into an **HMAC-SHA256 signed ledger certificate** with a permanent hash fingerprint.
 
-## 🚀 Key Features & Architectural Pillars
+## What can it do and what are its building blocks?
 
 ### 1. 🏗️ The Problem Launchpad
 - Curated catalog of battle-tested engineering problems spanning **Backend Platform Systems**, **Fintech Reliability**, **Developer Infrastructure**, **Frontend Architecture & Design Systems**, and **AI Systems Engineering**.
