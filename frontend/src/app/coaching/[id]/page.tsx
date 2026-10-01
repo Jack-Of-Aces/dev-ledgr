@@ -225,37 +225,68 @@ export default function CoachingDetailPage() {
     if (!promptText.trim() || isLoadingCoach) return;
     const userMsg = createMessage('user', promptText.trim());
     const nextMessages = [...chatMessages, userMsg];
-    setChatMessages(nextMessages);
+
+    // Create an empty assistant message slot immediately so tokens stream into it
+    const assistantMsg = createMessage('assistant', '', {
+      provider: 'connecting',
+      model: 'mesh-streaming',
+    });
+
+    setChatMessages([...nextMessages, assistantMsg]);
     setIsLoadingCoach(true);
 
     try {
-      const result = await aiService.getCoachingAdvice({
-        itineraryTitle: itinerary.title,
-        milestoneTitle: selectedMilestone.title,
-        prompt: promptText.trim(),
-        messages: nextMessages.map((m) => ({ role: m.role, content: m.content })),
-        candidateContext: {
-          username: user.username,
-          name: user.name,
-          headline: user.headline,
-          statedSkills: user.statedSkills,
-          verifiedProofCount: userSubmissions.length,
-          solvedIdeaTitles: userSubmissions.map((s) => s.ideaTitle),
+      await aiService.getCoachingAdviceStream(
+        {
+          itineraryTitle: itinerary.title,
+          milestoneTitle: selectedMilestone.title,
+          prompt: promptText.trim(),
+          messages: nextMessages.map((m) => ({ role: m.role, content: m.content })),
+          candidateContext: {
+            username: user.username,
+            name: user.name,
+            headline: user.headline,
+            statedSkills: user.statedSkills,
+            verifiedProofCount: userSubmissions.length,
+            solvedIdeaTitles: userSubmissions.map((s) => s.ideaTitle),
+          },
         },
-      });
-
-      const assistantMsg = createMessage('assistant', result.advice, {
-        provider: result.provider,
-        model: result.model,
-      });
-      setChatMessages((prev) => [...prev, assistantMsg]);
-    } catch {
-      const errorMsg = createMessage(
-        'assistant',
-        'Unable to reach the coaching intelligence network. Please verify your connection or retry.',
-        { provider: 'error', model: 'network' }
+        (chunk) => {
+          // Progressively append streaming token chunk to the active assistant message
+          setChatMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantMsg.id
+                ? { ...msg, content: msg.content + chunk }
+                : msg
+            )
+          );
+        },
+        (meta) => {
+          // Update model and provider badges as soon as the model handshake completes
+          setChatMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantMsg.id
+                ? { ...msg, provider: meta.provider, model: meta.model }
+                : msg
+            )
+          );
+        }
       );
-      setChatMessages((prev) => [...prev, errorMsg]);
+    } catch {
+      setChatMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMsg.id
+            ? {
+                ...msg,
+                content:
+                  msg.content ||
+                  'Unable to reach the coaching intelligence network. Please verify your connection or retry.',
+                provider: 'error',
+                model: 'network',
+              }
+            : msg
+        )
+      );
     } finally {
       setIsLoadingCoach(false);
     }
@@ -950,7 +981,19 @@ export default function CoachingDetailPage() {
                       </div>
                       <div className="text-text-0 font-sans leading-relaxed">
                         {msg.role === 'assistant' ? (
-                          <FormattedMarkdown content={msg.content} />
+                          msg.content ? (
+                            <div>
+                              <FormattedMarkdown content={msg.content} />
+                              {isLoadingCoach && msg === chatMessages[chatMessages.length - 1] && (
+                                <span className="inline-block w-2 h-4 ml-1 bg-emerald-text animate-pulse align-middle" />
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-text-1 font-mono text-xs py-1">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-text" />
+                              <span>Establishing neural handshake with AI Mesh...</span>
+                            </div>
+                          )
                         ) : (
                           <div className="whitespace-pre-wrap">{msg.content}</div>
                         )}
@@ -960,8 +1003,8 @@ export default function CoachingDetailPage() {
                 </div>
               )}
 
-              {/* Loading State */}
-              {isLoadingCoach && (
+              {/* Initial Loading Skeleton (only before first token or if chat is empty) */}
+              {isLoadingCoach && chatMessages.length === 0 && (
                 <div className="p-4 rounded-radius border border-line bg-card space-y-3 text-xs md:text-sm">
                   <div className="flex items-center gap-3 text-text-1 font-mono">
                     <Loader2 className="w-4 h-4 animate-spin text-emerald-text shrink-0" />
