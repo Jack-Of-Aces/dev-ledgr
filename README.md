@@ -1,4 +1,4 @@
-# <p align="center"><img src="./assets/devledgr-banner.png" alt="DevLedgr Banner" width="800" onerror="this.src='./devledgr.png'"/><br/><b>DevLedgr</b></p>
+# <p align="center"><img src="./assets/brand/devledgr-banner.png" alt="DevLedgr Banner" width="800" onerror="this.src='./devledgr.png'"/><br/><b>DevLedgr</b></p>
 
 <p align="center">
   <strong>Proof of work, not tutorial clones.</strong><br/>
