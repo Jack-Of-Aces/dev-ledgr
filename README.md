@@ -12,8 +12,6 @@
   <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License"/>
 </p>
 
----
-
 ## 📌 Executive Summary
 
 Junior and career-transitioning software engineers face a compounding crisis: **tutorial purgatory and the portfolio credibility trap**. Hundreds of thousands of applicants submit identical clone projects (Netflix clones, Todo apps, generic e-commerce stores) generated from YouTube tutorials or copy-pasted LLM code. Hiring managers and technical recruiters routinely ignore them because they demonstrate zero architectural discipline, no resilience to real-world network partitions, and no proof of operating under failure constraints.
@@ -21,8 +19,6 @@ Junior and career-transitioning software engineers face a compounding crisis: **
 **DevLedgr replaces the traditional resume with an immutable, cryptographically-stamped ledger of verified engineering proof.**
 
 Instead of building toy apps, developers solve real production bottlenecks (idempotent webhook buffers under 504 retry storms, spatial geohash dispatch routers, sliding Bloom filters, zero-layout-shift UI engines, and grammar-constrained LLM guards). Every submission is verified against public GitHub repositories, tested against automated criteria, peer-reviewed, and minted into an **HMAC-SHA256 signed ledger certificate** with a permanent hash fingerprint.
-
----
 
 ## 🚀 Key Features & Architectural Pillars
 
@@ -61,8 +57,6 @@ Instead of building toy apps, developers solve real production bottlenecks (idem
 - Job postings automatically calculate a **real-time match score** comparing the company's requirements against the developer's **proven skills** (derived from verified ledger proofs, not self-declared buzzwords).
 - **ATS Scrutiny Audit**: Candidates upload their CV or profile to receive a rigorous gap analysis highlighting exactly which architectural challenge to build to bridge the qualification gap.
 
----
-
 ## 🏛️ System Architecture
 
 ```
@@ -94,7 +88,6 @@ Instead of building toy apps, developers solve real production bottlenecks (idem
                                         └────────────────────────────┘ └───────────────────────────┘
 ```
 
----
 
 ## 💻 Tech Stack
 
@@ -110,7 +103,6 @@ Instead of building toy apps, developers solve real production bottlenecks (idem
 | **Cryptography** | **HMAC-SHA256 & AES-GCM** | Tamper-proof certificate issuance and BYOK security |
 | **Hosting & CI/CD** | **Vercel** (Frontend) & **Render** (Backend) | Production edge CDN and containerized API hosting |
 
----
 
 ## 📂 Repository Structure
 
@@ -146,7 +138,6 @@ Instead of building toy apps, developers solve real production bottlenecks (idem
 └── assets/                     # Architectural diagrams, banners, and screenshots
 ```
 
----
 
 ## 🛠️ Local Development & Quick Start
 
@@ -155,8 +146,6 @@ Instead of building toy apps, developers solve real production bottlenecks (idem
 - **Go** >= 1.22
 - **pnpm** or **npm**
 - A free **Supabase** project (or run with local mock fallback)
-
----
 
 ### 1. Backend Setup
 
@@ -183,8 +172,6 @@ Verify backend test suite:
 ```bash
 go test -count=1 ./...
 ```
-
----
 
 ### 2. Frontend Setup
 
@@ -216,8 +203,6 @@ npm run lint
 npm run build
 ```
 
----
-
 ## 🤝 Contributing & Community Guidelines
 
 We welcome contributions from developers worldwide! DevLedgr is built by engineers, for engineers.
@@ -239,8 +224,6 @@ We welcome contributions from developers worldwide! DevLedgr is built by enginee
    git commit -m "feat(launchpad): add distributed rate-limiter challenge"
    ```
 5. **Open a Pull Request**: Submit your PR with a concise description of your changes and test coverage.
-
----
 
 ## 📜 License
 
