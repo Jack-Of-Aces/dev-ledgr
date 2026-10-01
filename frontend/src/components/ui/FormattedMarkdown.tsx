@@ -83,8 +83,23 @@ function normalizeRawContent(raw: string): string {
   s = s.replace(/\n\s*(Production Trap:[^\n]+)/gi, '\n\n> **$1**\n');
   s = s.replace(/\n\s*(Trap \d+:[^\n]+)/gi, '\n\n> **$1**\n');
 
-  // 4. Ensure numbered section headings (e.g., "1. First Principles:") have line breaks
-  s = s.replace(/\n(\d+\.\s+[A-Z][^\n]+)/g, '\n\n### $1\n');
+  // 4. Split inline numbered lists into distinct lines (e.g. "This is crucial for: 1. Item 2. Item")
+  s = s.replace(/([^\n])\s+(\d+\.\s+)/g, '$1\n\n$2');
+
+  // 5. Split inline bullet lists (e.g. "Values: * Item A * Item B" or "pgvector: * <=> * <->")
+  s = s.replace(/([^\n])\s+([*•]\s+)/g, '$1\n\n* ');
+
+  // 6. Split inline bold titles that serve as headings/sub-headers (e.g. "**Using pgvector:**" or "**Persistent Cache:**")
+  s = s.replace(/([^\n])\s+(\*\*[A-Z][^*]+?:\*\*)\s*/g, '$1\n\n$2\n\n');
+
+  // 7. Ensure standalone numbered section headings (e.g. "1. Euclidean Distance", "2. Cosine Similarity") format with breathing room
+  s = s.replace(/\n(\d+\.\s+[A-Za-z*][^\n]+)/g, '\n\n### $1\n');
+
+  // 8. Auto-recover code snippets emitted with language headers like "typescript\n\nCopy\n// ..." into ```typescript ... ```
+  s = s.replace(
+    /\n(typescript|javascript|go|sql|python|json|bash)\s*\n+(?:Copy\s*\n+)?((?:\/\/[^\n]*|[A-Z_]+[^\n]*|func[^\n]*|import[^\n]*|export[^\n]*|CREATE\s+[^\n]*|const\s+[^\n]*|let\s+[^\n]*)[^`]*?)(?=\n\n(?:[A-Z0-9#*>-]|\*\*|Production Trap|$))/gi,
+    '\n\n```$1\n$2\n```\n\n'
+  );
 
   return s;
 }
@@ -344,6 +359,39 @@ const TextBlock: React.FC<{ rawText: string }> = ({ rawText }) => {
                 </li>
               ))}
             </ul>
+          );
+        }
+
+        // Hybrid: Numbered item followed by sub-bullets (e.g. "3. **PostgreSQL:**\n* Item 1\n* Item 2")
+        const blockLines = trimmed.split('\n');
+        const firstLineNumMatch = blockLines[0].match(/^\s*(\d+)\.\s+/);
+        if (
+          firstLineNumMatch &&
+          blockLines.length > 1 &&
+          blockLines.slice(1).every((l) => /^\s*[-*•]\s+/.test(l))
+        ) {
+          const num = firstLineNumMatch[1];
+          const headerText = blockLines[0].replace(/^\s*\d+\.\s+/, '');
+          const subItems = blockLines.slice(1).map((l) => l.replace(/^\s*[-*•]\s+/, ''));
+          return (
+            <div key={idx} className="space-y-1.5 my-2 pl-1 text-xs sm:text-sm">
+              <div className="flex items-start gap-2">
+                <span className="text-emerald-text font-mono font-semibold text-xs mt-0.5 shrink-0">
+                  {num}.
+                </span>
+                <span className="leading-relaxed flex-1 font-medium text-text-0">
+                  {renderInlineFormatted(headerText)}
+                </span>
+              </div>
+              <ul className="space-y-1 pl-6 pt-1">
+                {subItems.map((sItem, sIdx) => (
+                  <li key={sIdx} className="flex items-start gap-2">
+                    <span className="text-emerald-text font-bold mt-0.5">•</span>
+                    <span className="leading-relaxed flex-1 text-text-0">{renderInlineFormatted(sItem)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           );
         }
 

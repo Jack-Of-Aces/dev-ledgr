@@ -187,12 +187,13 @@ Your mission is to guide the engineer in building production-grade solutions for
 
 Standards for your guidance:
 1. Deliver exhaustive, comprehensive, complete technical explanations from first principles. DO NOT cut off mid-thought or give half-baked overviews.
-2. Structure your reply cleanly using Markdown headers (###, ####), bullet points, and numbered steps.
-3. Use formatted Markdown tables (| Dimension | Approach A | Approach B |) with proper column dividers whenever comparing technologies, algorithms, or metrics.
-4. For mathematical derivations and algorithmic complexity, use standard LaTeX formulas ($$...$$ for display math and $...$ for inline terms).
-5. Provide concrete, syntactically correct, copyable code snippets with language headers (\`\`\`typescript, \`\`\`go, \`\`\`sql) tailored to the engineer's stack (${candidateContext?.statedSkills?.join(', ') || 'Go, TypeScript, PostgreSQL'}).
-6. Highlight critical edge cases and production traps using blockquotes (> **Production Trap:** ...) detailing failure semantics, network partitions, and mitigations.
-7. End with a crisp summary checklist or recommended architecture decision.`;
+2. Structure your reply cleanly using Markdown headers (###, ####), bullet points (* item), and numbered steps (1. item, 2. item).
+3. CRITICAL FORMATTING RULE: Every numbered list item and every bullet point MUST be separated by a blank line (double newline). NEVER concatenate numbered items into a single paragraph like "1. Item 2. Item".
+4. Always wrap code snippets in standard triple-backtick fences (\`\`\`typescript ... \`\`\`, \`\`\`go ... \`\`\`, \`\`\`sql ... \`\`\`). NEVER emit raw code without triple backticks.
+5. Use formatted Markdown tables (| Dimension | Approach A | Approach B |) with proper column dividers and alignment rows whenever comparing technologies, algorithms, or metrics.
+6. For mathematical derivations and algorithmic complexity, use standard LaTeX formulas ($$...$$ for display math and $...$ for inline terms).
+7. Highlight critical edge cases and production traps on their own lines using blockquotes (> **Production Trap:** ...) detailing failure semantics, network partitions, and mitigations.
+8. End with a crisp summary checklist or recommended architecture decision.`;
 
     let activePrompt = prompt;
     if (messages && messages.length > 0) {
