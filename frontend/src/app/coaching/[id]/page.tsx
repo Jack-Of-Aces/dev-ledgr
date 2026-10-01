@@ -425,25 +425,25 @@ export default function CoachingDetailPage() {
               {/* ========================================================= */}
               {milestoneConcept && (
                 <div className="rounded-radius border border-line bg-card space-y-4 p-4 sm:p-5">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-line">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-emerald-tint border border-emerald-border text-emerald-text uppercase flex items-center gap-1">
+                  <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3.5 pb-3 border-b border-line">
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-emerald-tint border border-emerald-border text-emerald-text uppercase flex items-center gap-1 shrink-0">
                           <BookOpen className="w-3 h-3" />
                           <span>System Masterclass</span>
                         </span>
-                        <span className="text-xs font-mono text-text-1 flex items-center gap-1">
+                        <span className="text-xs font-mono text-text-1 flex items-center gap-1 shrink-0">
                           <Cpu className="w-3 h-3 text-text-1/70" />
                           <span>Week 0{selectedMilestone.week} Core Engineering</span>
                         </span>
                       </div>
-                      <h3 className="text-base sm:text-lg font-bold tracking-tight text-text-0">
+                      <h3 className="text-base sm:text-lg font-bold tracking-tight text-text-0 break-words">
                         {milestoneConcept.conceptTitle}
                       </h3>
                     </div>
 
-                    {/* Mode Tabs with horizontal scroll on small devices */}
-                    <div className="flex items-center gap-1 bg-ink-0 p-1 rounded border border-line text-xs font-mono shrink-0 max-w-full overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-1">
+                    {/* Mode Tabs */}
+                    <div className="flex items-center gap-1 bg-ink-0 p-1 rounded border border-line text-xs font-mono shrink-0 max-w-full overflow-x-auto">
                       <button
                         type="button"
                         onClick={() => setConceptTab('diagram')}
