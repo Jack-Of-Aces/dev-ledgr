@@ -425,8 +425,8 @@ export default function CoachingDetailPage() {
               {/* ========================================================= */}
               {milestoneConcept && (
                 <div className="rounded-radius border border-line bg-card space-y-4 p-4 sm:p-5">
-                  <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3.5 pb-3 border-b border-line">
-                    <div className="space-y-1 min-w-0">
+                  <div className="space-y-3.5 pb-3 border-b border-line">
+                    <div className="space-y-1.5 w-full">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-emerald-tint border border-emerald-border text-emerald-text uppercase flex items-center gap-1 shrink-0">
                           <BookOpen className="w-3 h-3" />
@@ -437,13 +437,13 @@ export default function CoachingDetailPage() {
                           <span>Week 0{selectedMilestone.week} Core Engineering</span>
                         </span>
                       </div>
-                      <h3 className="text-base sm:text-lg font-bold tracking-tight text-text-0 break-words">
+                      <h3 className="text-base sm:text-lg font-bold tracking-tight text-text-0">
                         {milestoneConcept.conceptTitle}
                       </h3>
                     </div>
 
-                    {/* Mode Tabs */}
-                    <div className="flex items-center gap-1 bg-ink-0 p-1 rounded border border-line text-xs font-mono shrink-0 max-w-full overflow-x-auto">
+                    {/* Mode Tabs on dedicated row */}
+                    <div className="flex items-center gap-1 bg-ink-0 p-1 rounded border border-line text-xs font-mono w-fit max-w-full overflow-x-auto">
                       <button
                         type="button"
                         onClick={() => setConceptTab('diagram')}
@@ -794,7 +794,7 @@ export default function CoachingDetailPage() {
 
             {/* Interactive Socratic AI Architecture Console */}
             <div className="p-5 sm:p-6 rounded-radius border border-line bg-card/60 space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-line">
+              <div className="space-y-3.5 pb-3 border-b border-line">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2 text-xs font-mono text-emerald-text font-semibold uppercase tracking-wider">
                     <Sparkles className="w-3.5 h-3.5" />
@@ -817,8 +817,8 @@ export default function CoachingDetailPage() {
                     </button>
                   )}
 
-                  {/* Mode Switcher with responsive horizontal scroll */}
-                  <div className="flex items-center gap-1 bg-ink-0 p-1 rounded border border-line text-xs font-mono max-w-full overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-1">
+                  {/* Mode Switcher */}
+                  <div className="flex items-center gap-1 bg-ink-0 p-1 rounded border border-line text-xs font-mono w-fit max-w-full overflow-x-auto">
                     <button
                       onClick={() => setConsoleTab('socratic')}
                       className={`px-2.5 py-1 rounded transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
