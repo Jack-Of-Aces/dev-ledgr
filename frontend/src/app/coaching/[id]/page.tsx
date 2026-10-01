@@ -114,6 +114,7 @@ export default function CoachingDetailPage() {
   const [checkedCriteria, setCheckedCriteria] = useState<Record<string, boolean>>({});
   const [conceptTab, setConceptTab] = useState<ConceptTab>('diagram');
   const [isDiagramExpanded, setIsDiagramExpanded] = useState(false);
+  const [isChatMaximized, setIsChatMaximized] = useState(false);
   const [copiedBlueprint, setCopiedBlueprint] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
@@ -815,16 +816,44 @@ export default function CoachingDetailPage() {
             </div>
 
             {/* Interactive Socratic AI Architecture Console */}
-            <div className="p-5 sm:p-6 rounded-radius border border-line bg-card/60 space-y-5">
+            <div
+              className={`p-5 sm:p-6 rounded-radius border border-line bg-card/60 space-y-5 transition-all duration-200 ${
+                isChatMaximized
+                  ? 'fixed inset-2 sm:inset-6 z-50 bg-background/95 backdrop-blur-md shadow-2xl overflow-y-auto max-h-[96vh] flex flex-col justify-between'
+                  : ''
+              }`}
+            >
               <div className="space-y-3.5 pb-3 border-b border-line">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2 text-xs font-mono text-emerald-text font-semibold uppercase tracking-wider">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Socratic Architectural Guidance</span>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2 text-xs font-mono text-emerald-text font-semibold uppercase tracking-wider">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Socratic Architectural Guidance</span>
+                    </div>
+                    <h3 className="text-base sm:text-lg font-semibold text-text-0">
+                      Principal Systems Architect Mentor
+                    </h3>
                   </div>
-                  <h3 className="text-base sm:text-lg font-semibold text-text-0">
-                    Principal Systems Architect Mentor
-                  </h3>
+
+                  {/* Maximize / Restore Screen Toggle Button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsChatMaximized(!isChatMaximized)}
+                    className="btn-outline text-xs py-1.5 px-2.5 inline-flex items-center gap-1.5 font-mono text-text-1 hover:text-text-0 cursor-pointer shrink-0"
+                    title={isChatMaximized ? 'Restore normal view' : 'Maximize chat console to full screen'}
+                  >
+                    {isChatMaximized ? (
+                      <>
+                        <Minimize2 className="w-3.5 h-3.5 text-emerald" />
+                        <span className="hidden xs:inline">Restore</span>
+                      </>
+                    ) : (
+                      <>
+                        <Maximize2 className="w-3.5 h-3.5 text-text-1 hover:text-emerald" />
+                        <span className="hidden xs:inline">Maximize</span>
+                      </>
+                    )}
+                  </button>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 max-w-full">
@@ -889,7 +918,9 @@ export default function CoachingDetailPage() {
               {chatMessages.length > 0 && (
                 <div
                   ref={chatScrollRef}
-                  className="space-y-4 max-h-[560px] overflow-y-auto pr-1 text-xs sm:text-sm"
+                  className={`space-y-4 overflow-y-auto pr-1 text-xs sm:text-sm ${
+                    isChatMaximized ? 'flex-1 max-h-[calc(88vh-220px)] min-h-[380px]' : 'max-h-[560px]'
+                  }`}
                 >
                   {chatMessages.map((msg) => (
                     <div

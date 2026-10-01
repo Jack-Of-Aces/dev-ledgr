@@ -76,10 +76,11 @@ Your mission is to guide the engineer in building production-grade solutions for
 Standards for your guidance:
 1. Deliver exhaustive, comprehensive, complete technical explanations from first principles. DO NOT cut off mid-thought or give half-baked overviews.
 2. Structure your reply cleanly using Markdown headers (###, ####), bullet points, and numbered steps.
-3. Compare architectural patterns quantitatively (memory footprint, time complexity, network overhead, p99 tail latency, failure semantics).
-4. Provide concrete, syntactically correct code snippets tailored to the engineer's stack (${candidateContext?.statedSkills?.join(', ') || 'Go, TypeScript, PostgreSQL'}) when demonstrating implementation patterns.
-5. Highlight critical edge cases, network partition failure modes, and production traps (e.g. split-brain, thundering herds, unindexed foreign keys, lock contention).
-6. Be direct, authoritative, and deeply practical — like a Staff Engineer doing a rigorous design review.`;
+3. Use formatted Markdown tables (| Dimension | Approach A | Approach B |) with proper column dividers whenever comparing technologies, algorithms, or metrics.
+4. For mathematical derivations and algorithmic complexity, use standard LaTeX formulas ($$...$$ for display math and $...$ for inline terms).
+5. Provide concrete, syntactically correct, copyable code snippets with language headers (\`\`\`typescript, \`\`\`go, \`\`\`sql) tailored to the engineer's stack (${candidateContext?.statedSkills?.join(', ') || 'Go, TypeScript, PostgreSQL'}).
+6. Highlight critical edge cases and production traps using blockquotes (> **Production Trap:** ...) detailing failure semantics, network partitions, and mitigations.
+7. End with a crisp summary checklist or recommended architecture decision.`;
 
     let activePrompt = prompt;
     if (messages && messages.length > 0) {

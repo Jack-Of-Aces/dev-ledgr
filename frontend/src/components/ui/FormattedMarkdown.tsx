@@ -9,9 +9,9 @@ interface FormattedMarkdownProps {
 }
 
 /**
- * A robust, zero-dependency Markdown renderer designed specifically for
- * technical engineering prose, code blocks with syntax highlighting headers,
- * copy buttons, alerts, blockquotes, tables, and lists.
+ * A robust, high-fidelity Markdown renderer designed specifically for
+ * technical engineering prose, math formulas, code blocks with syntax headers,
+ * tables, blockquotes, copy buttons, and nested lists.
  */
 export const FormattedMarkdown: React.FC<FormattedMarkdownProps> = ({
   content,
@@ -19,7 +19,6 @@ export const FormattedMarkdown: React.FC<FormattedMarkdownProps> = ({
 }) => {
   if (!content) return null;
 
-  // Split into blocks: code fences vs text blocks
   const parts: React.ReactNode[] = [];
   const lines = content.split('\n');
   let inCodeBlock = false;
@@ -54,10 +53,8 @@ export const FormattedMarkdown: React.FC<FormattedMarkdownProps> = ({
 
     if (fenceMatch) {
       if (inCodeBlock) {
-        // Closing fence
         flushCodeBuffer(`code-${i}`);
       } else {
-        // Opening fence
         flushTextBuffer(`text-${i}`);
         inCodeBlock = true;
         codeLanguage = fenceMatch[1] || 'text';
@@ -78,7 +75,7 @@ export const FormattedMarkdown: React.FC<FormattedMarkdownProps> = ({
   return <div className={`space-y-3.5 text-text-0 ${className}`}>{parts}</div>;
 };
 
-// --- Subcomponent: Code Block with Copy Button ---
+// --- Subcomponent: Code Block with Language Badge & Copy Button ---
 const CodeBlock: React.FC<{ code: string; language: string }> = ({ code, language }) => {
   const [copied, setCopied] = useState(false);
 
@@ -105,7 +102,7 @@ const CodeBlock: React.FC<{ code: string; language: string }> = ({ code, languag
           {copied ? (
             <>
               <Check className="w-3 h-3 text-emerald" />
-              <span className="text-emerald">Copied</span>
+              <span className="text-emerald font-medium">Copied</span>
             </>
           ) : (
             <>
@@ -122,41 +119,112 @@ const CodeBlock: React.FC<{ code: string; language: string }> = ({ code, languag
   );
 };
 
-// --- Subcomponent: Text Paragraphs, Headers, Lists & Tables ---
-const TextBlock: React.FC<{ rawText: string }> = ({ rawText }) => {
-  const paragraphs = rawText.split(/\n\s*\n/);
+// --- Subcomponent: Markdown Table Renderer ---
+const TableBlock: React.FC<{ rawTable: string }> = ({ rawTable }) => {
+  const lines = rawTable.trim().split('\n').filter((l) => l.trim().startsWith('|'));
+  if (lines.length < 2) return null;
+
+  const parseRow = (line: string) =>
+    line
+      .split('|')
+      .slice(1, -1)
+      .map((cell) => cell.trim());
+
+  const headers = parseRow(lines[0]);
+  // Row 1 is divider (|:---|:---|), rows 2+ are data rows
+  const dataRows = lines.slice(2).map(parseRow);
 
   return (
-    <div className="space-y-2.5">
-      {paragraphs.map((p, idx) => {
-        const trimmed = p.trim();
+    <div className="my-3.5 overflow-x-auto rounded border border-line bg-ink-0/60 shadow-xs">
+      <table className="w-full text-left border-collapse text-xs">
+        <thead>
+          <tr className="border-b border-line bg-card/60">
+            {headers.map((h, idx) => (
+              <th
+                key={idx}
+                className="py-2.5 px-3 font-mono font-semibold text-text-0 uppercase text-[11px] tracking-wider"
+              >
+                {renderInlineFormatted(h)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line/60">
+          {dataRows.map((row, rIdx) => (
+            <tr key={rIdx} className="hover:bg-card/40 transition-colors">
+              {row.map((cell, cIdx) => (
+                <td key={cIdx} className="py-2 px-3 text-text-0 leading-relaxed">
+                  {renderInlineFormatted(cell)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+// --- Subcomponent: Text Paragraphs, Math, Headers, Lists & Tables ---
+const TextBlock: React.FC<{ rawText: string }> = ({ rawText }) => {
+  // First, extract display math ($$ ... $$) or table chunks
+  const blocks = rawText.split(/\n\s*\n/);
+
+  return (
+    <div className="space-y-3">
+      {blocks.map((block, idx) => {
+        const trimmed = block.trim();
         if (!trimmed) return null;
+
+        // Display Math Block ($$...$$)
+        if (trimmed.startsWith('$$') && trimmed.endsWith('$$') && trimmed.length >= 4) {
+          const formula = trimmed.slice(2, -2).trim();
+          return (
+            <div
+              key={idx}
+              className="my-3 p-3.5 rounded border border-line bg-ink-0/80 overflow-x-auto text-center font-mono text-xs sm:text-sm text-emerald-text"
+            >
+              {formula}
+            </div>
+          );
+        }
+
+        // Markdown Table
+        if (trimmed.startsWith('|') && trimmed.includes('|') && trimmed.split('\n').length >= 3) {
+          return <TableBlock key={idx} rawTable={trimmed} />;
+        }
 
         // Headers
         if (trimmed.startsWith('#### ')) {
           return (
-            <h5 key={idx} className="text-xs sm:text-sm font-bold font-mono text-text-0 pt-2 uppercase tracking-wider text-emerald-text">
+            <h5
+              key={idx}
+              className="text-xs sm:text-sm font-bold font-mono text-text-0 pt-2 uppercase tracking-wider text-emerald-text"
+            >
               {renderInlineFormatted(trimmed.slice(5))}
             </h5>
           );
         }
         if (trimmed.startsWith('### ')) {
           return (
-            <h4 key={idx} className="text-sm sm:text-base font-bold text-text-0 pt-2 border-b border-line/40 pb-1">
+            <h4
+              key={idx}
+              className="text-sm sm:text-base font-bold text-text-0 pt-2 border-b border-line/40 pb-1"
+            >
               {renderInlineFormatted(trimmed.slice(4))}
             </h4>
           );
         }
         if (trimmed.startsWith('## ')) {
           return (
-            <h3 key={idx} className="text-base sm:text-lg font-bold text-text-0 pt-2">
+            <h3 key={idx} className="text-base sm:text-lg font-bold text-text-0 pt-2.5">
               {renderInlineFormatted(trimmed.slice(3))}
             </h3>
           );
         }
         if (trimmed.startsWith('# ')) {
           return (
-            <h2 key={idx} className="text-lg sm:text-xl font-bold text-text-0 pt-2">
+            <h2 key={idx} className="text-lg sm:text-xl font-bold text-text-0 pt-3">
               {renderInlineFormatted(trimmed.slice(2))}
             </h2>
           );
@@ -165,7 +233,10 @@ const TextBlock: React.FC<{ rawText: string }> = ({ rawText }) => {
         // Blockquotes / Warnings
         if (trimmed.startsWith('> ')) {
           return (
-            <blockquote key={idx} className="p-3 rounded bg-ink-0/60 border-l-2 border-emerald text-xs text-text-1 italic my-2">
+            <blockquote
+              key={idx}
+              className="p-3 sm:p-3.5 rounded bg-ink-0/60 border-l-2 border-emerald text-xs text-text-1 italic my-2 space-y-1"
+            >
               {renderInlineFormatted(trimmed.replace(/^>\s*/gm, ''))}
             </blockquote>
           );
@@ -221,39 +292,71 @@ const TextBlock: React.FC<{ rawText: string }> = ({ rawText }) => {
 };
 
 /**
- * Format inline elements: bold (**), italic (*), inline code (`), and links
+ * Format inline elements: math ($...$), code (`...`), bold (**...**), and italic (*...*)
  */
 function renderInlineFormatted(text: string): React.ReactNode {
-  // Split on inline code `...`
-  const codeParts = text.split(/(`[^`]+`)/g);
+  // First, split on display math $$...$$ if any inside paragraph
+  const displayMathParts = text.split(/(\$\$[^$]+\$\$)/g);
 
-  return codeParts.map((part, pIdx) => {
-    if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+  return displayMathParts.map((dmPart, dmIdx) => {
+    if (dmPart.startsWith('$$') && dmPart.endsWith('$$') && dmPart.length >= 4) {
       return (
-        <code
-          key={pIdx}
-          className="px-1.5 py-0.5 rounded bg-ink-0 border border-line text-emerald-text font-mono text-[11px] sm:text-xs"
+        <span
+          key={dmIdx}
+          className="my-1.5 px-2 py-0.5 rounded bg-ink-0 border border-line text-emerald-text font-mono text-[11px] sm:text-xs inline-block"
         >
-          {part.slice(1, -1)}
-        </code>
+          {dmPart.slice(2, -2).trim()}
+        </span>
       );
     }
 
-    // Process bold (**...**) and italic (*...*)
-    const boldParts = part.split(/(\*\*[^*]+\*\*)/g);
-    return (
-      <span key={pIdx}>
-        {boldParts.map((bPart, bIdx) => {
-          if (bPart.startsWith('**') && bPart.endsWith('**') && bPart.length > 4) {
-            return (
-              <strong key={bIdx} className="font-semibold text-text-0">
-                {bPart.slice(2, -2)}
-              </strong>
-            );
-          }
-          return bPart;
-        })}
-      </span>
-    );
+    // Split on inline math $...$
+    const inlineMathParts = dmPart.split(/(\$[^$\n]+\$)/g);
+
+    return inlineMathParts.map((imPart, imIdx) => {
+      if (imPart.startsWith('$') && imPart.endsWith('$') && imPart.length > 2) {
+        return (
+          <span
+            key={`${dmIdx}-${imIdx}`}
+            className="px-1 py-0.5 rounded bg-ink-0 border border-line/60 font-mono text-[11px] sm:text-xs text-emerald-text font-medium"
+          >
+            {imPart.slice(1, -1)}
+          </span>
+        );
+      }
+
+      // Split on inline code `...`
+      const codeParts = imPart.split(/(`[^`]+`)/g);
+
+      return codeParts.map((part, pIdx) => {
+        if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+          return (
+            <code
+              key={`${dmIdx}-${imIdx}-${pIdx}`}
+              className="px-1.5 py-0.5 rounded bg-ink-0 border border-line text-emerald-text font-mono text-[11px] sm:text-xs"
+            >
+              {part.slice(1, -1)}
+            </code>
+          );
+        }
+
+        // Process bold (**...**) and italic (*...*)
+        const boldParts = part.split(/(\*\*[^*]+\*\*)/g);
+        return (
+          <span key={`${dmIdx}-${imIdx}-${pIdx}`}>
+            {boldParts.map((bPart, bIdx) => {
+              if (bPart.startsWith('**') && bPart.endsWith('**') && bPart.length > 4) {
+                return (
+                  <strong key={bIdx} className="font-semibold text-text-0">
+                    {bPart.slice(2, -2)}
+                  </strong>
+                );
+              }
+              return bPart;
+            })}
+          </span>
+        );
+      });
+    });
   });
 }
