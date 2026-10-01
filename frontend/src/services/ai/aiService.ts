@@ -87,7 +87,7 @@ export class AIService implements IAIService {
     // Retry loop with exponential backoff (up to 2 retries)
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const res = await fetch('/api/ai/coach', {
+        const res = await fetch('/api/ai/coach?stream=false', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(params),
@@ -128,6 +128,96 @@ export class AIService implements IAIService {
       provider: 'heuristic',
       model: 'heuristic-engine',
     };
+  }
+
+  /**
+   * Streams live tokens directly from the coach route handler into the UI.
+   */
+  async getCoachingAdviceStream(
+    params: CoachPromptParams,
+    onChunk: (chunk: string) => void,
+    onMeta?: (meta: { provider: string; model: string }) => void
+  ): Promise<{ fullText: string; provider: string; model: string }> {
+    try {
+      const res = await fetch('/api/ai/coach?stream=true', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      });
+
+      if (!res.ok) {
+        if (res.status === 429) {
+          const notice = `> ⚠️ **Rate Limit Active**: Waiting on quota refresh.\n\n### Quick Guidance for ${params.milestoneTitle}\n- Validate invariants with deterministic unit tests.\n- Use distributed lock leases with sliding TTLs.`;
+          onChunk(notice);
+          return { fullText: notice, provider: 'heuristic', model: 'rate-limit-notice' };
+        }
+        throw new Error(`Coach stream HTTP ${res.status}: ${res.statusText}`);
+      }
+
+      if (!res.body) {
+        throw new Error('Coach stream response body is null');
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      let fullText = '';
+      let provider = res.headers.get('X-Coach-Provider') || 'gemini';
+      let model = res.headers.get('X-Coach-Model') || 'gemini-2.5-flash';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split('\n\n');
+        buffer = events.pop() ?? '';
+
+        for (const eventBlock of events) {
+          const lines = eventBlock.split('\n');
+          let eventType = 'chunk';
+          let dataStr = '';
+
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              eventType = line.slice(7).trim();
+            } else if (line.startsWith('data: ')) {
+              dataStr = line.slice(6).trim();
+            }
+          }
+
+          if (!dataStr) continue;
+
+          try {
+            const parsed = JSON.parse(dataStr);
+            if (eventType === 'meta') {
+              if (parsed.provider) provider = parsed.provider;
+              if (parsed.model) model = parsed.model;
+              if (onMeta) onMeta({ provider, model });
+            } else if (eventType === 'chunk' && typeof parsed.text === 'string') {
+              fullText += parsed.text;
+              onChunk(parsed.text);
+            }
+          } catch {
+            // Partial JSON or heartbeat
+          }
+        }
+      }
+
+      return { fullText, provider, model };
+    } catch (err) {
+      console.warn('[AIService] Stream error, falling back to buffered query:', err);
+      const fallback = await this.getCoachingAdvice(params);
+      onChunk(fallback.advice);
+      if (onMeta && fallback.provider && fallback.model) {
+        onMeta({ provider: fallback.provider, model: fallback.model });
+      }
+      return {
+        fullText: fallback.advice,
+        provider: fallback.provider || 'heuristic',
+        model: fallback.model || 'heuristic-engine',
+      };
+    }
   }
 }
 

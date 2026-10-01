@@ -59,9 +59,18 @@ export interface IAIService {
   ): Promise<ScrutinyResult>;
 
   /**
-   * Generates architecture guidance for a milestone prompt.
+   * Generates architecture guidance for a milestone prompt (buffered).
    */
   getCoachingAdvice(
     params: CoachPromptParams
   ): Promise<{ advice: string; provider?: string; model?: string; attempts?: unknown[] }>;
+
+  /**
+   * Streams architecture guidance in real-time token by token.
+   */
+  getCoachingAdviceStream(
+    params: CoachPromptParams,
+    onChunk: (chunk: string) => void,
+    onMeta?: (meta: { provider: string; model: string }) => void
+  ): Promise<{ fullText: string; provider: string; model: string }>;
 }

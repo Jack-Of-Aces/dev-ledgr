@@ -114,6 +114,7 @@ export default function CoachingDetailPage() {
   const [checkedCriteria, setCheckedCriteria] = useState<Record<string, boolean>>({});
   const [conceptTab, setConceptTab] = useState<ConceptTab>('diagram');
   const [isDiagramExpanded, setIsDiagramExpanded] = useState(false);
+  const [isChatMaximized, setIsChatMaximized] = useState(false);
   const [copiedBlueprint, setCopiedBlueprint] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
@@ -159,11 +160,40 @@ export default function CoachingDetailPage() {
     }
   }, [id, ideas.length, setIdeas]);
 
-  // Clear chat thread when switching milestone weeks
+  // Load chat thread for the active milestone week from localStorage
   useEffect(() => {
+    if (!itinerary?.id) return;
+    const storageKey = `devledgr_coaching_chat_${itinerary.id}_w${activeWeek}`;
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setChatMessages(parsed);
+          return;
+        }
+      }
+    } catch {
+      // ignore JSON parse error
+    }
     setChatMessages([]);
     setCustomQuestion('');
-  }, [activeWeek]);
+  }, [itinerary?.id, activeWeek]);
+
+  // Persist chat thread to localStorage whenever messages update (if non-empty)
+  useEffect(() => {
+    if (!itinerary?.id || !mounted) return;
+    const storageKey = `devledgr_coaching_chat_${itinerary.id}_w${activeWeek}`;
+    try {
+      if (chatMessages.length > 0) {
+        localStorage.setItem(storageKey, JSON.stringify(chatMessages));
+      } else {
+        localStorage.removeItem(storageKey);
+      }
+    } catch {
+      // ignore storage quota errors
+    }
+  }, [itinerary?.id, activeWeek, chatMessages, mounted]);
 
   // Auto-scroll chat to latest message
   useEffect(() => {
@@ -224,37 +254,68 @@ export default function CoachingDetailPage() {
     if (!promptText.trim() || isLoadingCoach) return;
     const userMsg = createMessage('user', promptText.trim());
     const nextMessages = [...chatMessages, userMsg];
-    setChatMessages(nextMessages);
+
+    // Create an empty assistant message slot immediately so tokens stream into it
+    const assistantMsg = createMessage('assistant', '', {
+      provider: 'connecting',
+      model: 'mesh-streaming',
+    });
+
+    setChatMessages([...nextMessages, assistantMsg]);
     setIsLoadingCoach(true);
 
     try {
-      const result = await aiService.getCoachingAdvice({
-        itineraryTitle: itinerary.title,
-        milestoneTitle: selectedMilestone.title,
-        prompt: promptText.trim(),
-        messages: nextMessages.map((m) => ({ role: m.role, content: m.content })),
-        candidateContext: {
-          username: user.username,
-          name: user.name,
-          headline: user.headline,
-          statedSkills: user.statedSkills,
-          verifiedProofCount: userSubmissions.length,
-          solvedIdeaTitles: userSubmissions.map((s) => s.ideaTitle),
+      await aiService.getCoachingAdviceStream(
+        {
+          itineraryTitle: itinerary.title,
+          milestoneTitle: selectedMilestone.title,
+          prompt: promptText.trim(),
+          messages: nextMessages.map((m) => ({ role: m.role, content: m.content })),
+          candidateContext: {
+            username: user.username,
+            name: user.name,
+            headline: user.headline,
+            statedSkills: user.statedSkills,
+            verifiedProofCount: userSubmissions.length,
+            solvedIdeaTitles: userSubmissions.map((s) => s.ideaTitle),
+          },
         },
-      });
-
-      const assistantMsg = createMessage('assistant', result.advice, {
-        provider: result.provider,
-        model: result.model,
-      });
-      setChatMessages((prev) => [...prev, assistantMsg]);
-    } catch {
-      const errorMsg = createMessage(
-        'assistant',
-        'Unable to reach the coaching intelligence network. Please verify your connection or retry.',
-        { provider: 'error', model: 'network' }
+        (chunk) => {
+          // Progressively append streaming token chunk to the active assistant message
+          setChatMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantMsg.id
+                ? { ...msg, content: msg.content + chunk }
+                : msg
+            )
+          );
+        },
+        (meta) => {
+          // Update model and provider badges as soon as the model handshake completes
+          setChatMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantMsg.id
+                ? { ...msg, provider: meta.provider, model: meta.model }
+                : msg
+            )
+          );
+        }
       );
-      setChatMessages((prev) => [...prev, errorMsg]);
+    } catch {
+      setChatMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMsg.id
+            ? {
+                ...msg,
+                content:
+                  msg.content ||
+                  'Unable to reach the coaching intelligence network. Please verify your connection or retry.',
+                provider: 'error',
+                model: 'network',
+              }
+            : msg
+        )
+      );
     } finally {
       setIsLoadingCoach(false);
     }
@@ -269,6 +330,14 @@ export default function CoachingDetailPage() {
   };
 
   const handleResetChat = () => {
+    if (itinerary?.id) {
+      const storageKey = `devledgr_coaching_chat_${itinerary.id}_w${activeWeek}`;
+      try {
+        localStorage.removeItem(storageKey);
+      } catch {
+        // ignore
+      }
+    }
     setChatMessages([]);
     setCustomQuestion('');
   };
@@ -815,16 +884,44 @@ export default function CoachingDetailPage() {
             </div>
 
             {/* Interactive Socratic AI Architecture Console */}
-            <div className="p-5 sm:p-6 rounded-radius border border-line bg-card/60 space-y-5">
+            <div
+              className={`p-5 sm:p-6 rounded-radius border border-line bg-card/60 space-y-5 transition-all duration-200 ${
+                isChatMaximized
+                  ? 'fixed inset-2 sm:inset-6 z-50 bg-background/95 backdrop-blur-md shadow-2xl overflow-y-auto max-h-[96vh] flex flex-col justify-between'
+                  : ''
+              }`}
+            >
               <div className="space-y-3.5 pb-3 border-b border-line">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2 text-xs font-mono text-emerald-text font-semibold uppercase tracking-wider">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Socratic Architectural Guidance</span>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2 text-xs font-mono text-emerald-text font-semibold uppercase tracking-wider">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Socratic Architectural Guidance</span>
+                    </div>
+                    <h3 className="text-base sm:text-lg font-semibold text-text-0">
+                      Principal Systems Architect Mentor
+                    </h3>
                   </div>
-                  <h3 className="text-base sm:text-lg font-semibold text-text-0">
-                    Principal Systems Architect Mentor
-                  </h3>
+
+                  {/* Maximize / Restore Screen Toggle Button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsChatMaximized(!isChatMaximized)}
+                    className="btn-outline text-xs py-1.5 px-2.5 inline-flex items-center gap-1.5 font-mono text-text-1 hover:text-text-0 cursor-pointer shrink-0"
+                    title={isChatMaximized ? 'Restore normal view' : 'Maximize chat console to full screen'}
+                  >
+                    {isChatMaximized ? (
+                      <>
+                        <Minimize2 className="w-3.5 h-3.5 text-emerald" />
+                        <span className="hidden xs:inline">Restore</span>
+                      </>
+                    ) : (
+                      <>
+                        <Maximize2 className="w-3.5 h-3.5 text-text-1 hover:text-emerald" />
+                        <span className="hidden xs:inline">Maximize</span>
+                      </>
+                    )}
+                  </button>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 max-w-full">
@@ -889,7 +986,9 @@ export default function CoachingDetailPage() {
               {chatMessages.length > 0 && (
                 <div
                   ref={chatScrollRef}
-                  className="space-y-4 max-h-[560px] overflow-y-auto pr-1 text-xs sm:text-sm"
+                  className={`space-y-4 overflow-y-auto pr-1 text-xs sm:text-sm ${
+                    isChatMaximized ? 'flex-1 max-h-[calc(88vh-220px)] min-h-[380px]' : 'max-h-[560px]'
+                  }`}
                 >
                   {chatMessages.map((msg) => (
                     <div
@@ -919,7 +1018,19 @@ export default function CoachingDetailPage() {
                       </div>
                       <div className="text-text-0 font-sans leading-relaxed">
                         {msg.role === 'assistant' ? (
-                          <FormattedMarkdown content={msg.content} />
+                          msg.content ? (
+                            <div>
+                              <FormattedMarkdown content={msg.content} />
+                              {isLoadingCoach && msg === chatMessages[chatMessages.length - 1] && (
+                                <span className="inline-block w-2 h-4 ml-1 bg-emerald-text animate-pulse align-middle" />
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-text-1 font-mono text-xs py-1">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-text" />
+                              <span>Establishing neural handshake with AI Mesh...</span>
+                            </div>
+                          )
                         ) : (
                           <div className="whitespace-pre-wrap">{msg.content}</div>
                         )}
@@ -929,8 +1040,8 @@ export default function CoachingDetailPage() {
                 </div>
               )}
 
-              {/* Loading State */}
-              {isLoadingCoach && (
+              {/* Initial Loading Skeleton (only before first token or if chat is empty) */}
+              {isLoadingCoach && chatMessages.length === 0 && (
                 <div className="p-4 rounded-radius border border-line bg-card space-y-3 text-xs md:text-sm">
                   <div className="flex items-center gap-3 text-text-1 font-mono">
                     <Loader2 className="w-4 h-4 animate-spin text-emerald-text shrink-0" />

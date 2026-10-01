@@ -156,6 +156,7 @@ async function callGroq(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'User-Agent': 'DevLedgr/1.0',
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify(requestBody),
@@ -181,32 +182,32 @@ async function callGroq(
 }
 
 /**
- * Cascading AI Mesh Runner.
- * Iterates through configured models across Gemini and Groq before safely falling back.
+ * Builds the cascading provider/model plan based on provided keys.
  */
-export async function runAIMesh(options: AIMeshOptions): Promise<AIMeshResult> {
-  const attempts: AIMeshResult['attempts'] = [];
-
+function buildMeshPlan(options: AIMeshOptions): Array<
+  | { provider: 'gemini'; model: GeminiModel; key: string }
+  | { provider: 'groq'; model: GroqModel; key: string }
+> {
   const userKey = options.userApiKey?.trim() || '';
   const isGroqUserKey = userKey.startsWith('gsk_');
 
-  const geminiApiKey = (!isGroqUserKey && userKey) ||
+  const geminiApiKey =
+    (!isGroqUserKey && userKey) ||
     process.env.GEMINI_API_KEY ||
     process.env.GOOGLE_API_KEY ||
     '';
 
-  const groqApiKey = (isGroqUserKey && userKey) ||
+  const groqApiKey =
+    (isGroqUserKey && userKey) ||
     process.env.GROQ_API_KEY ||
     '';
 
-  // Strategy: Try user-specified provider first, then alternate provider
   const plan: Array<
     | { provider: 'gemini'; model: GeminiModel; key: string }
     | { provider: 'groq'; model: GroqModel; key: string }
   > = [];
 
   if (isGroqUserKey && groqApiKey) {
-    // Prioritize Groq models if user gave Groq key
     for (const model of GROQ_MODELS) {
       plan.push({ provider: 'groq', model, key: groqApiKey });
     }
@@ -216,7 +217,6 @@ export async function runAIMesh(options: AIMeshOptions): Promise<AIMeshResult> {
       }
     }
   } else {
-    // Default: Gemini models first, then Groq models
     if (geminiApiKey) {
       for (const model of GEMINI_MODELS) {
         plan.push({ provider: 'gemini', model, key: geminiApiKey });
@@ -228,6 +228,245 @@ export async function runAIMesh(options: AIMeshOptions): Promise<AIMeshResult> {
       }
     }
   }
+
+  return plan;
+}
+
+/**
+ * Streams tokens from Google Gemini via streamGenerateContent?alt=sse.
+ */
+async function* callGeminiStream(
+  model: GeminiModel,
+  apiKey: string,
+  options: AIMeshOptions
+): AsyncGenerator<string, void, unknown> {
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
+
+  let combinedText = options.prompt;
+  if (options.systemInstruction) {
+    combinedText = `${options.systemInstruction}\n\nCandidate Request / Prompt:\n${options.prompt}`;
+  }
+
+  const generationConfig: Record<string, unknown> = {
+    temperature: options.temperature ?? 0.35,
+    maxOutputTokens: options.maxTokens ?? 8192,
+  };
+
+  if (model.includes('gemini-2.5') || model.includes('gemini-3')) {
+    generationConfig.thinkingConfig = {
+      thinkingBudget: 0,
+    };
+  }
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: combinedText }] }],
+      generationConfig,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => res.statusText);
+    throw new Error(`Gemini Stream [${model}] HTTP ${res.status}: ${errText.slice(0, 150)}`);
+  }
+
+  if (!res.body) {
+    throw new Error(`Gemini Stream [${model}] returned empty response body`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('data: ')) {
+          try {
+            const parsed = JSON.parse(trimmed.slice(6));
+            const parts = parsed?.candidates?.[0]?.content?.parts ?? [];
+            for (const part of parts) {
+              if (part.text) {
+                yield part.text;
+              }
+            }
+          } catch {
+            // Partial or malformed SSE line, skip
+          }
+        }
+      }
+    }
+
+    if (buffer.trim().startsWith('data: ')) {
+      try {
+        const parsed = JSON.parse(buffer.trim().slice(6));
+        const parts = parsed?.candidates?.[0]?.content?.parts ?? [];
+        for (const part of parts) {
+          if (part.text) yield part.text;
+        }
+      } catch {
+        // ignore trailing parse
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+/**
+ * Streams tokens from Groq via OpenAI-compatible chat stream.
+ */
+async function* callGroqStream(
+  model: GroqModel,
+  apiKey: string,
+  options: AIMeshOptions
+): AsyncGenerator<string, void, unknown> {
+  const endpoint = 'https://api.groq.com/openai/v1/chat/completions';
+
+  const messages: Array<{ role: 'system' | 'user'; content: string }> = [];
+  if (options.systemInstruction) {
+    messages.push({ role: 'system', content: options.systemInstruction });
+  }
+  messages.push({ role: 'user', content: options.prompt });
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'DevLedgr/1.0',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: options.temperature ?? 0.35,
+      max_tokens: options.maxTokens ?? 8192,
+      stream: true,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => res.statusText);
+    throw new Error(`Groq Stream [${model}] HTTP ${res.status}: ${errText.slice(0, 150)}`);
+  }
+
+  if (!res.body) {
+    throw new Error(`Groq Stream [${model}] returned empty response body`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('data: ')) {
+          const payload = trimmed.slice(6);
+          if (payload === '[DONE]') return;
+          try {
+            const parsed = JSON.parse(payload);
+            const deltaContent = parsed?.choices?.[0]?.delta?.content;
+            if (deltaContent) {
+              yield deltaContent;
+            }
+          } catch {
+            // Partial or malformed SSE line, skip
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+export interface AIMeshStreamResult {
+  stream: AsyncGenerator<string, void, unknown>;
+  model: ActiveModel;
+  provider: 'gemini' | 'groq' | 'heuristic';
+}
+
+/**
+ * Cascading AI Mesh Stream Runner.
+ * Tries providers in cascade order and returns the first active token generator.
+ */
+export async function runAIMeshStream(options: AIMeshOptions): Promise<AIMeshStreamResult> {
+  const plan = buildMeshPlan(options);
+
+  for (const step of plan) {
+    try {
+      const generator =
+        step.provider === 'gemini'
+          ? callGeminiStream(step.model, step.key, options)
+          : callGroqStream(step.model, step.key, options);
+
+      // Probe first yield to guarantee connection and model validity before committing
+      const firstIter = await generator.next();
+
+      if (firstIter.done) {
+        throw new Error(`Empty stream from ${step.provider}/${step.model}`);
+      }
+
+      const initialChunk = firstIter.value as string;
+
+      async function* combinedStream() {
+        if (initialChunk) {
+          yield initialChunk;
+        }
+        for await (const chunk of generator) {
+          yield chunk;
+        }
+      }
+
+      return {
+        stream: combinedStream(),
+        model: step.model,
+        provider: step.provider,
+      };
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.warn(`[AIMeshStream] Fallback triggered from ${step.provider}/${step.model}: ${errMsg}`);
+    }
+  }
+
+  // Fallback indicator
+  async function* emptyStream() {
+    // Empty generator signals to caller to use heuristic stream
+  }
+
+  return {
+    stream: emptyStream(),
+    model: 'heuristic-engine',
+    provider: 'heuristic',
+  };
+}
+
+/**
+ * Cascading AI Mesh Runner (buffered full text).
+ * Iterates through configured models across Gemini and Groq before safely falling back.
+ */
+export async function runAIMesh(options: AIMeshOptions): Promise<AIMeshResult> {
+  const attempts: AIMeshResult['attempts'] = [];
+  const plan = buildMeshPlan(options);
 
   // Iterate through model plan with failover
   for (const step of plan) {
