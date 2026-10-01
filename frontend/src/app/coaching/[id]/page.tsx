@@ -160,11 +160,40 @@ export default function CoachingDetailPage() {
     }
   }, [id, ideas.length, setIdeas]);
 
-  // Clear chat thread when switching milestone weeks
+  // Load chat thread for the active milestone week from localStorage
   useEffect(() => {
+    if (!itinerary?.id) return;
+    const storageKey = `devledgr_coaching_chat_${itinerary.id}_w${activeWeek}`;
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setChatMessages(parsed);
+          return;
+        }
+      }
+    } catch {
+      // ignore JSON parse error
+    }
     setChatMessages([]);
     setCustomQuestion('');
-  }, [activeWeek]);
+  }, [itinerary?.id, activeWeek]);
+
+  // Persist chat thread to localStorage whenever messages update (if non-empty)
+  useEffect(() => {
+    if (!itinerary?.id || !mounted) return;
+    const storageKey = `devledgr_coaching_chat_${itinerary.id}_w${activeWeek}`;
+    try {
+      if (chatMessages.length > 0) {
+        localStorage.setItem(storageKey, JSON.stringify(chatMessages));
+      } else {
+        localStorage.removeItem(storageKey);
+      }
+    } catch {
+      // ignore storage quota errors
+    }
+  }, [itinerary?.id, activeWeek, chatMessages, mounted]);
 
   // Auto-scroll chat to latest message
   useEffect(() => {
@@ -301,6 +330,14 @@ export default function CoachingDetailPage() {
   };
 
   const handleResetChat = () => {
+    if (itinerary?.id) {
+      const storageKey = `devledgr_coaching_chat_${itinerary.id}_w${activeWeek}`;
+      try {
+        localStorage.removeItem(storageKey);
+      } catch {
+        // ignore
+      }
+    }
     setChatMessages([]);
     setCustomQuestion('');
   };

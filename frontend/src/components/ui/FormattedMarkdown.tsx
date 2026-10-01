@@ -79,26 +79,35 @@ function normalizeRawContent(raw: string): string {
 
   s = newLines.join('\n');
 
-  // 3. Highlight "Production Trap:" and "Trap N:" as callout blockquotes
+  // 3. Normalize isolated "Production Trap:" blocks with or without ">"
+  s = s.replace(/>?\s*\n+\s*Production Trap:\s*\n*/gi, '\n\n> **Production Trap:** ');
   s = s.replace(/\n\s*(Production Trap:[^\n]+)/gi, '\n\n> **$1**\n');
   s = s.replace(/\n\s*(Trap \d+:[^\n]+)/gi, '\n\n> **$1**\n');
 
-  // 4. Split inline numbered lists into distinct lines (e.g. "This is crucial for: 1. Item 2. Item")
+  // 4. Merge isolated numbered headings on their own line with their titles (e.g. "1.\nInsensitivity to Magnitude:")
+  s = s.replace(/\n\s*(\d+)\.\s*\n\s*([A-Za-z*])/g, '\n\n### $1. $2');
+
+  // 5. Split inline numbered lists into distinct lines (e.g. "This is crucial for: 1. Item 2. Item")
   s = s.replace(/([^\n])\s+(\d+\.\s+)/g, '$1\n\n$2');
 
-  // 5. Split inline bullet lists (e.g. "Values: * Item A * Item B" or "pgvector: * <=> * <->")
+  // 6. Split inline bullet lists (e.g. "Values: * Item A * Item B" or "pgvector: * <=> * <->")
   s = s.replace(/([^\n])\s+([*•]\s+)/g, '$1\n\n* ');
 
-  // 6. Split inline bold titles that serve as headings/sub-headers (e.g. "**Using pgvector:**" or "**Persistent Cache:**")
+  // 7. Split inline bold titles that serve as headings/sub-headers (e.g. "**Using pgvector:**" or "**Persistent Cache:**")
   s = s.replace(/([^\n])\s+(\*\*[A-Z][^*]+?:\*\*)\s*/g, '$1\n\n$2\n\n');
 
-  // 7. Ensure standalone numbered section headings (e.g. "1. Euclidean Distance", "2. Cosine Similarity") format with breathing room
+  // 8. Ensure standalone numbered section headings (e.g. "1. Euclidean Distance", "2. Cosine Similarity") format with breathing room
   s = s.replace(/\n(\d+\.\s+[A-Za-z*][^\n]+)/g, '\n\n### $1\n');
 
-  // 8. Auto-recover code snippets emitted with language headers like "typescript\n\nCopy\n// ..." into ```typescript ... ```
+  // 9. Normalize 2 backticks to standard 3 backticks for fences
+  s = s.replace(/(?:^|\n)``([a-zA-Z0-9_-]+)/g, '\n```$1');
+
+  // 10. Auto-recover un-fenced code blocks emitted with language headers like "typescript\n\nCopy\n// ..." into ```typescript ... ```
   s = s.replace(
-    /\n(typescript|javascript|go|sql|python|json|bash)\s*\n+(?:Copy\s*\n+)?((?:\/\/[^\n]*|[A-Z_]+[^\n]*|func[^\n]*|import[^\n]*|export[^\n]*|CREATE\s+[^\n]*|const\s+[^\n]*|let\s+[^\n]*)[^`]*?)(?=\n\n(?:[A-Z0-9#*>-]|\*\*|Production Trap|$))/gi,
-    '\n\n```$1\n$2\n```\n\n'
+    /(?:^|\n)(typescript|javascript|go|sql|python|json|bash)\s*\n+(?:Copy\s*\n+)?([\s\S]*?)(?=(?:\n>\s*\*\*Production Trap:\*\*|\n>\s*Production Trap:|\n###|\n##|\n#|$))/gi,
+    (match, lang, code) => {
+      return `\n\n\`\`\`${lang}\n${code.trim()}\n\`\`\`\n\n`;
+    }
   );
 
   return s;
