@@ -39,23 +39,23 @@ Instead of building toy apps, developers solve real production bottlenecks (idem
   - **Reference Implementation Blueprints** with syntax highlighting and architectural rationale.
 - **Direct Workspace Submission**: Submit solutions directly inside the coaching itinerary with automated milestone progression.
 
-### 3. 🤖 Multi-Provider Socratic AI Coaching Mesh
+### 3. 🎯 Proof-Matched Job Board & ATS Scrutiny Engine
+- Job postings automatically calculate a **real-time match score** comparing the company's requirements against the developer's **proven skills** (derived from verified ledger proofs, not self-declared buzzwords).
+- **ATS Scrutiny Audit**: Candidates upload their CV or profile to receive a rigorous gap analysis highlighting exactly which architectural challenge to build to bridge the qualification gap.
+
+### 4. 🤖 Multi-Provider Socratic AI Coaching Mesh
 - Real-time architectural mentor powered by an intelligent failover mesh:
   - **Primary**: Google Gemini (`gemini-2.5-flash`, `gemini-2.0-flash`, `gemini-1.5-flash`).
   - **Secondary**: Groq high-speed Llama models (`llama-3.3-70b-versatile`, `llama-3.1-8b-instant`).
   - **Resilient Fallback**: Deterministic heuristic rules engine guaranteeing 100% uptime even in offline or unauthenticated environments.
 - Socratic debate engine pushes developers to defend their trade-offs (e.g., *UUIDv4 vs ULID B-tree fragmentation*, *CRDT state sync vs LWW*, *timing-safe HMAC comparison*).
 
-### 4. 🔏 Cryptographic Proof Stamping & Public Ledger
+### 5. 🔏 Cryptographic Proof Stamping & Public Ledger
 - Submitting a solution triggers a live audit of the developer's public GitHub repository (commit SHA, language distribution, test coverage).
 - Verified submissions mint an **HMAC-SHA256 certified ledger entry** with:
   - Permanent content-addressed hash (e.g., `#c118e07`).
   - Recorded telemetry metrics (p99 latency, throughput req/s, test pass rate).
   - 365-day verifiable tamper-proof certificate inspectable at `/p/[username]#[hash]`.
-
-### 5. 🎯 Proof-Matched Job Board & ATS Scrutiny Engine
-- Job postings automatically calculate a **real-time match score** comparing the company's requirements against the developer's **proven skills** (derived from verified ledger proofs, not self-declared buzzwords).
-- **ATS Scrutiny Audit**: Candidates upload their CV or profile to receive a rigorous gap analysis highlighting exactly which architectural challenge to build to bridge the qualification gap.
 
 ## 🏛️ System Architecture
 
