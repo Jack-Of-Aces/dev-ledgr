@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <a href="https://devledgr.vercel.app"><img src="https://img.shields.io/badge/Production%20Deployment-Vercel-black?style=for-the-badge&logo=vercel" alt="Vercel App"/></a>
+  <a href="https://dev-ledgr-ten.vercel.app"><img src="https://img.shields.io/badge/Production%20Deployment-dev--ledgr--ten.vercel.app-black?style=for-the-badge&logo=vercel" alt="Vercel App"/></a>
   <img src="https://img.shields.io/badge/Next.js-16.3.6%20(Turbopack)-black?style=for-the-badge&logo=next.js" alt="Next.js"/>
   <img src="https://img.shields.io/badge/React-19.2-blue?style=for-the-badge&logo=react" alt="React 19"/>
   <img src="https://img.shields.io/badge/Tailwind%20CSS-v4-38bdf8?style=for-the-badge&logo=tailwindcss" alt="Tailwind CSS"/>

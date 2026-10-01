@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <a href="https://devledgr.vercel.app"><img src="https://img.shields.io/badge/Live%20App-devledgr.vercel.app-10b981?style=for-the-badge&logo=vercel" alt="Live Demo"/></a>
+  <a href="https://dev-ledgr-ten.vercel.app"><img src="https://img.shields.io/badge/Live%20App-dev--ledgr--ten.vercel.app-10b981?style=for-the-badge&logo=vercel" alt="Live Demo"/></a>
   <a href="https://devledgr.onrender.com"><img src="https://img.shields.io/badge/Backend%20API-Render-46E3B7?style=for-the-badge&logo=render" alt="API Status"/></a>
   <a href="https://github.com/Jack-Of-Aces/dev-ledgr"><img src="https://img.shields.io/badge/GitHub-Repository-black?style=for-the-badge&logo=github" alt="GitHub Repo"/></a>
   <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License"/>
