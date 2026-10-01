@@ -1,11 +1,92 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Copy, Check, Terminal } from 'lucide-react';
+import { Copy, Check, Terminal, AlertTriangle } from 'lucide-react';
 
 interface FormattedMarkdownProps {
   content: string;
   className?: string;
+}
+
+/**
+ * Preprocesses raw text from LLMs into clean Markdown before rendering:
+ * 1. Combines isolated bullet symbols (•, -, *) followed by linebreaks.
+ * 2. Converts tab-delimited tables into standard Markdown tables (| Col 1 | Col 2 |).
+ * 3. Highlights Production Traps (Trap 1: ..., Production Trap: ...) into blockquotes.
+ * 4. Ensures numeric headings (1. Heading, 2. Heading) format as distinct sections.
+ */
+function normalizeRawContent(raw: string): string {
+  let s = raw;
+
+  // 1. Merge isolated bullet characters on their own line with the next line:
+  s = s.replace(/\n\s*([•*\\-])\s*\n\s*/g, '\n$1 ');
+
+  // 2. Convert tab-delimited text blocks into standard markdown tables
+  const lines = s.split('\n');
+  const newLines: string[] = [];
+  let tabTableBuffer: string[] = [];
+  let inCodeBlock = false;
+
+  const flushTabTable = () => {
+    if (tabTableBuffer.length === 0) return;
+    const cols = tabTableBuffer.map((r) => r.split('\t').map((c) => c.trim()));
+    const maxCols = Math.max(...cols.map((c) => c.length));
+    if (maxCols >= 2) {
+      const header = cols[0];
+      newLines.push(`| ${header.join(' | ')} |`);
+      newLines.push(`| ${header.map(() => ':---').join(' | ')} |`);
+      for (let r = 1; r < cols.length; r++) {
+        // Pad row to match header length
+        const row = cols[r];
+        while (row.length < header.length) row.push('');
+        newLines.push(`| ${row.join(' | ')} |`);
+      }
+    } else {
+      newLines.push(...tabTableBuffer);
+    }
+    tabTableBuffer = [];
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (line.trim().startsWith('```')) {
+      if (tabTableBuffer.length > 0) flushTabTable();
+      inCodeBlock = !inCodeBlock;
+      newLines.push(line);
+      continue;
+    }
+
+    if (inCodeBlock) {
+      newLines.push(line);
+      continue;
+    }
+
+    // Check for tab-delimited data row
+    if (line.includes('\t')) {
+      tabTableBuffer.push(line);
+    } else {
+      if (tabTableBuffer.length > 0) {
+        flushTabTable();
+      }
+      newLines.push(line);
+    }
+  }
+
+  if (tabTableBuffer.length > 0) {
+    flushTabTable();
+  }
+
+  s = newLines.join('\n');
+
+  // 3. Highlight "Production Trap:" and "Trap N:" as callout blockquotes
+  s = s.replace(/\n\s*(Production Trap:[^\n]+)/gi, '\n\n> **$1**\n');
+  s = s.replace(/\n\s*(Trap \d+:[^\n]+)/gi, '\n\n> **$1**\n');
+
+  // 4. Ensure numbered section headings (e.g., "1. First Principles:") have line breaks
+  s = s.replace(/\n(\d+\.\s+[A-Z][^\n]+)/g, '\n\n### $1\n');
+
+  return s;
 }
 
 /**
@@ -19,8 +100,9 @@ export const FormattedMarkdown: React.FC<FormattedMarkdownProps> = ({
 }) => {
   if (!content) return null;
 
+  const normalized = normalizeRawContent(content);
   const parts: React.ReactNode[] = [];
-  const lines = content.split('\n');
+  const lines = normalized.split('\n');
   let inCodeBlock = false;
   let codeLanguage = '';
   let codeBuffer: string[] = [];
@@ -167,7 +249,6 @@ const TableBlock: React.FC<{ rawTable: string }> = ({ rawTable }) => {
 
 // --- Subcomponent: Text Paragraphs, Math, Headers, Lists & Tables ---
 const TextBlock: React.FC<{ rawText: string }> = ({ rawText }) => {
-  // First, extract display math ($$ ... $$) or table chunks
   const blocks = rawText.split(/\n\s*\n/);
 
   return (
@@ -184,7 +265,7 @@ const TextBlock: React.FC<{ rawText: string }> = ({ rawText }) => {
               key={idx}
               className="my-3 p-3.5 rounded border border-line bg-ink-0/80 overflow-x-auto text-center font-mono text-xs sm:text-sm text-emerald-text"
             >
-              {formula}
+              {cleanLatexDisplay(formula)}
             </div>
           );
         }
@@ -209,7 +290,7 @@ const TextBlock: React.FC<{ rawText: string }> = ({ rawText }) => {
           return (
             <h4
               key={idx}
-              className="text-sm sm:text-base font-bold text-text-0 pt-2 border-b border-line/40 pb-1"
+              className="text-sm sm:text-base font-bold text-text-0 pt-2.5 border-b border-line/40 pb-1"
             >
               {renderInlineFormatted(trimmed.slice(4))}
             </h4>
@@ -217,27 +298,35 @@ const TextBlock: React.FC<{ rawText: string }> = ({ rawText }) => {
         }
         if (trimmed.startsWith('## ')) {
           return (
-            <h3 key={idx} className="text-base sm:text-lg font-bold text-text-0 pt-2.5">
+            <h3 key={idx} className="text-base sm:text-lg font-bold text-text-0 pt-3">
               {renderInlineFormatted(trimmed.slice(3))}
             </h3>
           );
         }
         if (trimmed.startsWith('# ')) {
           return (
-            <h2 key={idx} className="text-lg sm:text-xl font-bold text-text-0 pt-3">
+            <h2 key={idx} className="text-lg sm:text-xl font-bold text-text-0 pt-3.5">
               {renderInlineFormatted(trimmed.slice(2))}
             </h2>
           );
         }
 
-        // Blockquotes / Warnings
+        // Blockquotes / Production Traps
         if (trimmed.startsWith('> ')) {
+          const isTrap = trimmed.toLowerCase().includes('trap');
           return (
             <blockquote
               key={idx}
-              className="p-3 sm:p-3.5 rounded bg-ink-0/60 border-l-2 border-emerald text-xs text-text-1 italic my-2 space-y-1"
+              className={`p-3 sm:p-3.5 rounded border-l-2 my-2.5 text-xs sm:text-sm leading-relaxed space-y-1 ${
+                isTrap
+                  ? 'bg-amber-500/10 border-amber-500 text-text-0'
+                  : 'bg-ink-0/60 border-emerald text-text-1 italic'
+              }`}
             >
-              {renderInlineFormatted(trimmed.replace(/^>\s*/gm, ''))}
+              <div className="flex items-start gap-2">
+                {isTrap && <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />}
+                <div>{renderInlineFormatted(trimmed.replace(/^>\s*/gm, ''))}</div>
+              </div>
             </blockquote>
           );
         }
@@ -280,7 +369,7 @@ const TextBlock: React.FC<{ rawText: string }> = ({ rawText }) => {
           );
         }
 
-        // Regular paragraph with potential embedded linebreaks
+        // Regular paragraph with potential embedded math formulas
         return (
           <p key={idx} className="text-xs sm:text-sm leading-relaxed text-text-0">
             {renderInlineFormatted(trimmed)}
@@ -292,10 +381,29 @@ const TextBlock: React.FC<{ rawText: string }> = ({ rawText }) => {
 };
 
 /**
- * Format inline elements: math ($...$), code (`...`), bold (**...**), and italic (*...*)
+ * Strips raw LaTeX markup and renders clean human-readable mathematical notations
+ */
+function cleanLatexDisplay(s: string): string {
+  let res = s;
+  res = res.replace(/\\text\{([^}]+)\}/g, '$1');
+  res = res.replace(/\\mathbf\{([^}]+)\}/g, '$1');
+  res = res.replace(/\\cdot/g, ' · ');
+  res = res.replace(/\\sum_\{([^}]+)\}\^\{([^}]+)\}/g, '∑($1 to $2)');
+  res = res.replace(/\\sqrt\{([^}]+)\}/g, '√($1)');
+  res = res.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1) / ($2)');
+  res = res.replace(/\\left\||\\right\||\\\|/g, '‖');
+  res = res.replace(/\\le\b|\\leq\b/g, '≤');
+  res = res.replace(/\\ge\b|\\geq\b/g, '≥');
+  res = res.replace(/\\infty\b/g, '∞');
+  res = res.replace(/\\_/g, '_');
+  return res;
+}
+
+/**
+ * Format inline elements: math ($...$, or unescaped LaTeX), code (`...`), bold (**...**), and italic (*...*)
  */
 function renderInlineFormatted(text: string): React.ReactNode {
-  // First, split on display math $$...$$ if any inside paragraph
+  // 1. Detect and render display math $$...$$
   const displayMathParts = text.split(/(\$\$[^$]+\$\$)/g);
 
   return displayMathParts.map((dmPart, dmIdx) => {
@@ -303,14 +411,14 @@ function renderInlineFormatted(text: string): React.ReactNode {
       return (
         <span
           key={dmIdx}
-          className="my-1.5 px-2 py-0.5 rounded bg-ink-0 border border-line text-emerald-text font-mono text-[11px] sm:text-xs inline-block"
+          className="my-1.5 px-2.5 py-1 rounded bg-ink-0 border border-line text-emerald-text font-mono text-[11px] sm:text-xs inline-block font-semibold"
         >
-          {dmPart.slice(2, -2).trim()}
+          {cleanLatexDisplay(dmPart.slice(2, -2).trim())}
         </span>
       );
     }
 
-    // Split on inline math $...$
+    // 2. Detect inline math $...$
     const inlineMathParts = dmPart.split(/(\$[^$\n]+\$)/g);
 
     return inlineMathParts.map((imPart, imIdx) => {
@@ -318,44 +426,61 @@ function renderInlineFormatted(text: string): React.ReactNode {
         return (
           <span
             key={`${dmIdx}-${imIdx}`}
-            className="px-1 py-0.5 rounded bg-ink-0 border border-line/60 font-mono text-[11px] sm:text-xs text-emerald-text font-medium"
+            className="px-1.5 py-0.5 rounded bg-ink-0 border border-line/60 font-mono text-[11px] sm:text-xs text-emerald-text font-medium inline-block"
           >
-            {imPart.slice(1, -1)}
+            {cleanLatexDisplay(imPart.slice(1, -1))}
           </span>
         );
       }
 
-      // Split on inline code `...`
-      const codeParts = imPart.split(/(`[^`]+`)/g);
+      // 3. Detect un-delimited LaTeX equations like \text{cosine_similarity}...
+      const unescapedMathRegex = /(\\text\{[^}]+\}[^,.\n]+)/g;
+      const rawMathParts = imPart.split(unescapedMathRegex);
 
-      return codeParts.map((part, pIdx) => {
-        if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+      return rawMathParts.map((rmPart, rmIdx) => {
+        if (rmPart.startsWith('\\text{') && rmPart.length > 10) {
           return (
-            <code
-              key={`${dmIdx}-${imIdx}-${pIdx}`}
-              className="px-1.5 py-0.5 rounded bg-ink-0 border border-line text-emerald-text font-mono text-[11px] sm:text-xs"
+            <span
+              key={`${dmIdx}-${imIdx}-${rmIdx}`}
+              className="my-1 px-2 py-0.5 rounded bg-ink-0 border border-line text-emerald-text font-mono text-[11px] sm:text-xs inline-block"
             >
-              {part.slice(1, -1)}
-            </code>
+              {cleanLatexDisplay(rmPart)}
+            </span>
           );
         }
 
-        // Process bold (**...**) and italic (*...*)
-        const boldParts = part.split(/(\*\*[^*]+\*\*)/g);
-        return (
-          <span key={`${dmIdx}-${imIdx}-${pIdx}`}>
-            {boldParts.map((bPart, bIdx) => {
-              if (bPart.startsWith('**') && bPart.endsWith('**') && bPart.length > 4) {
-                return (
-                  <strong key={bIdx} className="font-semibold text-text-0">
-                    {bPart.slice(2, -2)}
-                  </strong>
-                );
-              }
-              return bPart;
-            })}
-          </span>
-        );
+        // 4. Split on inline code `...`
+        const codeParts = rmPart.split(/(`[^`]+`)/g);
+
+        return codeParts.map((part, pIdx) => {
+          if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+            return (
+              <code
+                key={`${dmIdx}-${imIdx}-${rmIdx}-${pIdx}`}
+                className="px-1.5 py-0.5 rounded bg-ink-0 border border-line text-emerald-text font-mono text-[11px] sm:text-xs"
+              >
+                {part.slice(1, -1)}
+              </code>
+            );
+          }
+
+          // 5. Process bold (**...**) and italic (*...*)
+          const boldParts = part.split(/(\*\*[^*]+\*\*)/g);
+          return (
+            <span key={`${dmIdx}-${imIdx}-${rmIdx}-${pIdx}`}>
+              {boldParts.map((bPart, bIdx) => {
+                if (bPart.startsWith('**') && bPart.endsWith('**') && bPart.length > 4) {
+                  return (
+                    <strong key={bIdx} className="font-semibold text-text-0">
+                      {bPart.slice(2, -2)}
+                    </strong>
+                  );
+                }
+                return bPart;
+              })}
+            </span>
+          );
+        });
       });
     });
   });
