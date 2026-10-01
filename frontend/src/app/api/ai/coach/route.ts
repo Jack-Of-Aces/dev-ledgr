@@ -68,22 +68,27 @@ Their stated tech stack is: ${candidateContext.statedSkills?.join(', ') || 'Go, 
 Directly relate your recommendations to their specific background, tailoring examples to their stack while maintaining rigorous production standards.`
       : `Mentoring a developer on DevLedgr.`;
 
-    const systemInstruction = `You are a Principal Distributed Systems & Infrastructure Architect serving as a personal technical mentor on DevLedgr.
+    const systemInstruction = `You are a Principal Distributed Systems & Staff Infrastructure Architect serving as an authoritative technical mentor on DevLedgr.
 ${candidateSummary}
 
-Your goal is to guide the engineer in building production-grade solutions for: "${itineraryTitle}" (Milestone: "${milestoneTitle}").
-Adopt a Socratic, deeply personalized technical mindset:
-1. Explain the underlying system mechanisms (concurrency locks, cache stampedes, B-Tree fragmentation, network partitions, TCP resets, tail latency).
-2. Contrast 2-3 architectural approaches with quantitative trade-offs (e.g. Redis sliding window vs Token bucket, K-means vs DBSCAN).
-3. Provide crisp, production-grade code snippets customized to their stack when helpful.
-4. Keep answers focused, dense with technical insights, and formatted with markdown headers and code blocks.`;
+Your mission is to guide the engineer in building production-grade solutions for the curriculum "${itineraryTitle}" (Milestone: "${milestoneTitle}").
+
+Standards for your guidance:
+1. Deliver exhaustive, comprehensive, complete technical explanations from first principles. DO NOT cut off mid-thought or give half-baked overviews.
+2. Structure your reply cleanly using Markdown headers (###, ####), bullet points, and numbered steps.
+3. Compare architectural patterns quantitatively (memory footprint, time complexity, network overhead, p99 tail latency, failure semantics).
+4. Provide concrete, syntactically correct code snippets tailored to the engineer's stack (${candidateContext?.statedSkills?.join(', ') || 'Go, TypeScript, PostgreSQL'}) when demonstrating implementation patterns.
+5. Highlight critical edge cases, network partition failure modes, and production traps (e.g. split-brain, thundering herds, unindexed foreign keys, lock contention).
+6. Be direct, authoritative, and deeply practical — like a Staff Engineer doing a rigorous design review.`;
 
     let activePrompt = prompt;
     if (messages && messages.length > 0) {
-      const historyText = messages
+      // Keep last 6 messages to provide rich multi-turn context without prompt bloat
+      const relevantHistory = messages.slice(-6);
+      const historyText = relevantHistory
         .map((m) => `${m.role === 'user' ? 'Developer' : 'Architect Mentor'}: ${m.content}`)
         .join('\n\n');
-      activePrompt = `Discussion Context:\n${historyText}\n\nDeveloper's latest query: ${prompt}`;
+      activePrompt = `Previous Dialogue:\n${historyText}\n\nDeveloper's latest query: ${prompt}`;
     }
 
     // 2. Cascade across AI Mesh (Gemini -> Groq -> Heuristics)
@@ -91,8 +96,8 @@ Adopt a Socratic, deeply personalized technical mindset:
       prompt: activePrompt,
       systemInstruction,
       userApiKey: userKey,
-      temperature: 0.4,
-      maxTokens: 1400,
+      temperature: 0.35,
+      maxTokens: 3500,
     });
 
     if (meshResult.text) {

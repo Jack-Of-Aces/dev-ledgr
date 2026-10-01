@@ -13,6 +13,7 @@ import { CoachingSkeleton } from '@/components/ui/skeletons';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { SubmitSolutionModal } from '@/components/ui/SubmitSolutionModal';
 import { getMilestoneConcept } from '@/lib/coaching-content';
+import { FormattedMarkdown } from '@/components/ui/FormattedMarkdown';
 import {
   ArrowLeft,
   Sparkles,
@@ -47,10 +48,16 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timeLabel: string;
+  provider?: string;
+  model?: string;
 }
 
 let messageSeq = 0;
-function createMessage(role: 'user' | 'assistant', content: string): ChatMessage {
+function createMessage(
+  role: 'user' | 'assistant',
+  content: string,
+  meta?: { provider?: string; model?: string }
+): ChatMessage {
   messageSeq += 1;
   const now = new Date();
   const hours = String(now.getHours()).padStart(2, '0');
@@ -60,6 +67,8 @@ function createMessage(role: 'user' | 'assistant', content: string): ChatMessage
     role,
     content,
     timeLabel: `${hours}:${minutes}`,
+    provider: meta?.provider,
+    model: meta?.model,
   };
 }
 
@@ -218,7 +227,7 @@ export default function CoachingDetailPage() {
     setIsLoadingCoach(true);
 
     try {
-      const advice = await aiService.getCoachingAdvice({
+      const result = await aiService.getCoachingAdvice({
         itineraryTitle: itinerary.title,
         milestoneTitle: selectedMilestone.title,
         prompt: promptText.trim(),
@@ -233,12 +242,16 @@ export default function CoachingDetailPage() {
         },
       });
 
-      const assistantMsg = createMessage('assistant', advice);
+      const assistantMsg = createMessage('assistant', result.advice, {
+        provider: result.provider,
+        model: result.model,
+      });
       setChatMessages((prev) => [...prev, assistantMsg]);
     } catch {
       const errorMsg = createMessage(
         'assistant',
-        'Unable to reach the coaching intelligence network. Please verify your connection or retry.'
+        'Unable to reach the coaching intelligence network. Please verify your connection or retry.',
+        { provider: 'error', model: 'network' }
       );
       setChatMessages((prev) => [...prev, errorMsg]);
     } finally {
@@ -867,29 +880,40 @@ export default function CoachingDetailPage() {
               {chatMessages.length > 0 && (
                 <div
                   ref={chatScrollRef}
-                  className="space-y-4 max-h-[460px] overflow-y-auto pr-1 text-xs sm:text-sm"
+                  className="space-y-4 max-h-[560px] overflow-y-auto pr-1 text-xs sm:text-sm"
                 >
                   {chatMessages.map((msg) => (
                     <div
                       key={msg.id}
-                      className={`p-4 rounded-radius space-y-2 ${
+                      className={`p-4 sm:p-5 rounded-radius space-y-3 ${
                         msg.role === 'user'
                           ? 'bg-ink-0 border border-line ml-4 sm:ml-12'
-                          : 'bg-emerald-tint/20 border border-emerald-border/60 mr-4 sm:mr-8'
+                          : 'bg-emerald-tint/20 border border-emerald-border/60 mr-2 sm:mr-6'
                       }`}
                     >
-                      <div className="flex items-center justify-between text-xs font-mono pb-1 border-b border-line/40">
-                        <span
-                          className={`font-semibold ${
-                            msg.role === 'user' ? 'text-text-0' : 'text-emerald-text'
-                          }`}
-                        >
-                          {msg.role === 'user' ? `@${user.username}` : 'Architect Mentor (DevLedgr AI Mesh)'}
-                        </span>
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono pb-2 border-b border-line/40">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`font-semibold ${
+                              msg.role === 'user' ? 'text-text-0' : 'text-emerald-text'
+                            }`}
+                          >
+                            {msg.role === 'user' ? `@${user.username}` : 'Architect Mentor'}
+                          </span>
+                          {msg.role === 'assistant' && msg.model && (
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-ink-0 border border-line text-text-1 uppercase font-semibold">
+                              {msg.provider === 'heuristic' ? 'Heuristic Mesh' : msg.model}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-text-1 font-mono text-[11px]">{msg.timeLabel}</span>
                       </div>
-                      <div className="prose prose-sm dark:prose-invert max-w-none text-text-0 font-sans leading-relaxed whitespace-pre-wrap">
-                        {msg.content}
+                      <div className="text-text-0 font-sans leading-relaxed">
+                        {msg.role === 'assistant' ? (
+                          <FormattedMarkdown content={msg.content} />
+                        ) : (
+                          <div className="whitespace-pre-wrap">{msg.content}</div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -939,8 +963,29 @@ export default function CoachingDetailPage() {
               {consoleTab === 'custom' && (
                 <div className="space-y-3">
                   <p className="text-xs text-text-1">
-                    Ask an architectural question or paste your interface definition. The mentor provides critical design feedback and failure mode stress-testing.
+                    Ask any custom question, paste your interface design, or challenge a trade-off below. The mentor conducts deep design reviews and probes failure modes.
                   </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => handleRunPrompt(`What are the exact failure modes of this architecture during a network split, and how do we ensure recovery without data loss?`)}
+                      disabled={isLoadingCoach}
+                      className="p-2.5 rounded border border-line bg-card hover:border-emerald/60 text-left transition-colors cursor-pointer text-text-0"
+                    >
+                      <span className="font-semibold text-emerald-text">Network Partition Audit →</span>
+                      <p className="text-text-1 text-[11px] mt-0.5">Explore split-brain risks and recovery invariants</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRunPrompt(`How do we benchmark and guarantee p99 tail latency under a 10x concurrency burst for this design?`)}
+                      disabled={isLoadingCoach}
+                      className="p-2.5 rounded border border-line bg-card hover:border-emerald/60 text-left transition-colors cursor-pointer text-text-0"
+                    >
+                      <span className="font-semibold text-emerald-text">p99 Tail Latency Audit →</span>
+                      <p className="text-text-1 text-[11px] mt-0.5">Identify cache stampedes, lock contention, and queue delays</p>
+                    </button>
+                  </div>
                 </div>
               )}
 
