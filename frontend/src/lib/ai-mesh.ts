@@ -8,16 +8,17 @@
 // Modern, actively supported Gemini models in order of capability/speed
 export const GEMINI_MODELS = [
   'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-1.5-pro',
+  'gemini-2.5-pro',
+  'gemini-3.8-flash',
+  'gemini-3.5-flash',
+  'gemini-2.5-flash-lite',
 ] as const;
 
 // Modern, actively supported Groq models in order of capability/speed
 export const GROQ_MODELS = [
-  'llama-3.3-70b-versatile',
-  'llama-3.1-8b-instant',
-  'gemma2-9b-it',
+  'qwen/qwen3.8-27b',
+  'openai/gpt-oss-120b',
+  'openai/gpt-oss-20b',
 ] as const;
 
 export type GeminiModel = typeof GEMINI_MODELS[number];

@@ -223,17 +223,54 @@ Format your output strictly as a JSON object with two string fields:
       systemInstruction,
       jsonMode: true,
       userApiKey: userKey,
-      temperature: 0.3,
-      maxTokens: 1600,
+      temperature: 0.2,
+      maxTokens: 2500,
     });
 
     if (meshResult.text) {
       try {
-        // Strip markdown backticks if returned inside code block
-        const cleaned = meshResult.text.replace(/```json\s*|\s*```/g, '').trim();
-        const parsed = JSON.parse(cleaned);
+        // 1. Strip code block wrappers if any
+        const cleaned = meshResult.text.replace(/```json\s*|```\s*$/g, '').trim();
 
-        if (parsed.cvMarkdown && parsed.coverLetter) {
+        let parsed: { cvMarkdown?: string; coverLetter?: string } | null = null;
+        try {
+          parsed = JSON.parse(cleaned);
+        } catch {
+          // 2. Resilient extraction if the JSON string contained unescaped quotes or raw newlines
+          const cvKey = '"cvMarkdown":';
+          const clKey = '"coverLetter":';
+          const cvIdx = cleaned.indexOf(cvKey);
+          const clIdx = cleaned.indexOf(clKey);
+
+          if (cvIdx !== -1 && clIdx !== -1) {
+            let rawCv = '';
+            let rawCl = '';
+
+            if (cvIdx < clIdx) {
+              rawCv = cleaned.slice(cvIdx + cvKey.length, clIdx);
+              rawCl = cleaned.slice(clIdx + clKey.length);
+            } else {
+              rawCl = cleaned.slice(clIdx + clKey.length, cvIdx);
+              rawCv = cleaned.slice(cvIdx + cvKey.length);
+            }
+
+            const cleanField = (val: string) => {
+              let v = val.trim();
+              if (v.startsWith('"')) v = v.slice(1);
+              v = v.replace(/["\s,}]+$/, '');
+              return v.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+            };
+
+            const cvVal = cleanField(rawCv);
+            const clVal = cleanField(rawCl);
+
+            if (cvVal.length > 20 && clVal.length > 20) {
+              parsed = { cvMarkdown: cvVal, coverLetter: clVal };
+            }
+          }
+        }
+
+        if (parsed?.cvMarkdown && parsed?.coverLetter) {
           return NextResponse.json(
             {
               status: 'ready',
